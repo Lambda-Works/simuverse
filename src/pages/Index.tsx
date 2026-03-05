@@ -1,12 +1,59 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Shield, ArrowRight, BookOpen, BarChart3, Settings, Zap } from 'lucide-react';
 
 const Index = () => {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Hero */}
+      <div className="flex-1 flex items-center justify-center px-4">
+        <div className="max-w-3xl text-center fade-in">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-primary/10 mb-6">
+            <Shield className="w-10 h-10 text-primary" />
+          </div>
+          <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-4">
+            Motor de Simulación<br />
+            <span className="text-primary">Modular</span>
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-8">
+            Plataforma educativa inmersiva con IA. Simulaciones adaptables tipo Lego para cualquier curso — de seguros a oratoria, de contabilidad a RRHH.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button size="lg" onClick={() => navigate(user ? '/dashboard' : '/auth')} className="gap-2">
+              {user ? 'Ir al Dashboard' : 'Comenzar'} <ArrowRight className="w-4 h-4" />
+            </Button>
+          </div>
+
+          {/* Features */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-16">
+            {[
+              { icon: <Zap className="w-5 h-5" />, title: 'IA Adaptativa', desc: 'Personajes con personalidad dinámica' },
+              { icon: <BookOpen className="w-5 h-5" />, title: 'Modular', desc: 'Configurable sin programar' },
+              { icon: <BarChart3 className="w-5 h-5" />, title: 'Telemetría', desc: 'Evaluación automática por KPIs' },
+              { icon: <Settings className="w-5 h-5" />, title: 'Escalable', desc: 'De 1 a N cursos con JSON' },
+            ].map((f, i) => (
+              <div key={i} className="p-4 rounded-xl bg-card border text-center">
+                <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary mb-2">
+                  {f.icon}
+                </div>
+                <h3 className="font-semibold text-sm">{f.title}</h3>
+                <p className="text-xs text-muted-foreground mt-1">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
+
+      {/* Footer */}
+      <footer className="border-t py-4">
+        <div className="container mx-auto px-4 text-center text-xs text-muted-foreground">
+          MSM — Motor de Simulación Modular © {new Date().getFullYear()}
+        </div>
+      </footer>
     </div>
   );
 };
