@@ -1,0 +1,68 @@
+{
+  "course_id": "ADM5536",
+  "title": "Asistente Certificado en Liquidación de Sueldos y Jornales",
+  "description": "Cálculo de haberes, cargas sociales, impuestos y confección de recibos de sueldo",
+  "family": "administracion",
+  "modules": ["hoja_calculo", "documentos", "chat_ia"],
+  "ai_config": {
+    "base_role": "Auditor de AFIP/ARCA especialista en retenciones",
+    "course_context": "Trabajas en un estudio contable pequeño. Tienes que liquidar sueldos mensuales de 30 empleados, aplicando correctamente los descuentos y retenciones vigentes.",
+    "knowledge_base": "CCT 130/75, Escalas de AFIP 2026, Aportes Jubilatorios, Ley de Contrato de Trabajo, Código del Trabajo",
+    "personality_traits": ["formal", "minucioso", "exigente", "legal"],
+    "system_prompt": "Eres un auditor de la AFIP. Tu función es asegurar que cada liquidación cumpla exactamente con la normativa fiscal argentina 2026. Si hay errores, haz preguntas técnicas."
+  },
+  "eval_criteria": [
+    "Exactitud de cálculos de cargas sociales",
+    "Aplicación correcta de impuestos",
+    "Cumplimiento de normativa CCT",
+    "Presentación de documentos",
+    "Tiempo total de liquidación"
+  ],
+  "crisis_events": [
+    {
+      "trigger_minutes": 15,
+      "event_text": "Cambio inesperado en la alícuota de impuestos. Debes recalcular 10 liquidaciones.",
+      "severity": "critical"
+    },
+    {
+      "trigger_minutes": 30,
+      "event_text": "Auditoría de AFIP: debes justificar 5 liquidaciones de empleados con salarios altos.",
+      "severity": "warning"
+    }
+  ],
+  "config_specific": {
+    "module_spreadsheet": {
+      "template": {
+        "employee_name": "Juan Pérez López",
+        "id_number": "12345678",
+        "position": "Chofer de Camión",
+        "salary_base": 85000,
+        "days_worked": 22,
+        "extra_hours": 8,
+        "vacation_days": 0,
+        "sick_leave": 0,
+        "holidays": 1
+      },
+      "calculations": [
+        "Básico = Salario_Base * (Días_Trabajados / 30)",
+        "Horas Extra = Horas * (Valor_Hora * 1.5)",
+        "Aporte_Jubilatorio = (Básico + Horas_Extra) * 0.11",
+        "Aporte_Obra_Social = (Básico + Horas_Extra) * 0.03",
+        "Aporte_Sindicato = (Básico + Horas_Extra) * 0.02",
+        "Total_Aportes = Aporte_Jubilatorio + Aporte_Obra_Social + Aporte_Sindicato",
+        "Base_Ganancias = Básico + Horas_Extra - Total_Aportes",
+        "Impuesto_Ganancias = MAX(0, (Base_Ganancias - 25000) * 0.17)",
+        "Total_Descuentos = Total_Aportes + Impuesto_Ganancias",
+        "Neto_Pagable = Básico + Horas_Extra - Total_Descuentos"
+      ]
+    },
+    "module_documents": {
+      "required_files": [
+        "Recibo de Sueldo firmado",
+        "Comprobante de depósito al empleado",
+        "Formulario F.1292 (si aplica)"
+      ]
+    }
+  },
+  "is_active": true
+}

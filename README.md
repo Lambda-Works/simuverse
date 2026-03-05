@@ -1,8 +1,26 @@
-# Welcome to your Lovable project
+# MSM - Motor de Simulación Modular (FEPEI 360)
 
-## Project info
+**Plataforma de Simulación Profesionalizante para 40+ Cursos**
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 🚀 Inicio Rápido
+
+### Instalación
+```bash
+npm install && cd server && npm install && cd ..
+```
+
+### Ejecutar
+```bash
+# Terminal 1: Backend
+cd server && npm run dev
+
+# Terminal 2: Frontend
+npm run dev
+```
+
+## Documentación
+- [Backend](./server/README.md)
+- [Especificaciones](./LEER.md)
 
 ## How can I edit this code?
 
