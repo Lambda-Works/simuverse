@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 import { Course } from './Course';
 import { User } from './User';
+import { KPI } from './KPI';
 
 export type FileType = 'pdf' | 'docx' | 'xlsx' | 'png' | 'jpg' | 'txt';
 export type RequirementStatus = 'uploaded' | 'processing' | 'extracted' | 'active' | 'archived';
@@ -88,4 +89,7 @@ export class MinistryRequirement {
   @ManyToOne(() => User, user => user.ministry_requirements_uploaded, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'uploaded_by_id' })
   uploaded_by!: User;
+
+  @OneToMany(() => KPI, kpi => kpi.ministry_requirement)
+  kpis?: KPI[];
 }

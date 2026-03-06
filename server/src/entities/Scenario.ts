@@ -60,4 +60,7 @@ export class Scenario {
 
   @OneToMany(() => SimulationInstance, (instance) => instance.scenario)
   instances?: SimulationInstance[];
+
+  @OneToMany(() => Task, task => task.scenario)
+  tasks?: Task[];
 }
