@@ -106,7 +106,7 @@ router.post('/courses/:course_id/scenarios', async (req: Request, res: Response)
  */
 router.get('/scenarios/:scenario_id', async (req: Request, res: Response) => {
   try {
-    const scenario = await ScenarioService.getScenario(parseInt(req.params.scenario_id));
+    const scenario = await ScenarioService.getScenario(req.params.scenario_id);
     if (!scenario) {
       return res.status(404).json({ error: 'Scenario not found' });
     }
@@ -123,7 +123,7 @@ router.get('/scenarios/:scenario_id', async (req: Request, res: Response) => {
 router.put('/scenarios/:scenario_id', async (req: Request, res: Response) => {
   try {
     const scenario = await ScenarioService.updateScenario(
-      parseInt(req.params.scenario_id),
+      req.params.scenario_id,
       req.body
     );
     res.json(scenario);
@@ -138,7 +138,7 @@ router.put('/scenarios/:scenario_id', async (req: Request, res: Response) => {
  */
 router.delete('/scenarios/:scenario_id', async (req: Request, res: Response) => {
   try {
-    const scenario = await ScenarioService.deactivateScenario(parseInt(req.params.scenario_id));
+    const scenario = await ScenarioService.deactivateScenario(req.params.scenario_id);
     res.json(scenario);
   } catch (error) {
     res.status(400).json({ error: (error as Error).message });
@@ -151,7 +151,7 @@ router.delete('/scenarios/:scenario_id', async (req: Request, res: Response) => 
  */
 router.get('/scenarios/:scenario_id/stats', async (req: Request, res: Response) => {
   try {
-    const stats = await ScenarioService.getScenarioStats(parseInt(req.params.scenario_id));
+    const stats = await ScenarioService.getScenarioStats(req.params.scenario_id);
     res.json(stats);
   } catch (error) {
     res.status(400).json({ error: (error as Error).message });
@@ -166,7 +166,7 @@ router.post('/scenarios/:scenario_id/clone', async (req: Request, res: Response)
   try {
     const { targetCourseId, newName } = req.body;
     const cloned = await ScenarioService.cloneScenario(
-      parseInt(req.params.scenario_id),
+      req.params.scenario_id,
       targetCourseId,
       newName
     );
@@ -283,7 +283,7 @@ router.get(
 router.get('/logs/simulation/:simulation_instance_id', async (req: Request, res: Response) => {
   try {
     const logs = await PracticeLogsService.getLogsForSimulation(
-      parseInt(req.params.simulation_instance_id)
+      req.params.simulation_instance_id
     );
     res.json(logs);
   } catch (error) {
@@ -313,7 +313,7 @@ router.get('/courses/:course_id/statistics', async (req: Request, res: Response)
 router.get('/simulations/:simulation_id', async (req: Request, res: Response) => {
   try {
     const simulation = await SimulationInstanceService.getSimulation(
-      parseInt(req.params.simulation_id)
+      req.params.simulation_id
     );
     if (!simulation) {
       return res.status(404).json({ error: 'Simulation not found' });
@@ -331,7 +331,7 @@ router.get('/simulations/:simulation_id', async (req: Request, res: Response) =>
 router.post('/simulations/:simulation_id/review', async (req: Request, res: Response) => {
   try {
     const simulation = await SimulationInstanceService.submitForReview(
-      parseInt(req.params.simulation_id)
+      req.params.simulation_id
     );
     res.json(simulation);
   } catch (error) {
