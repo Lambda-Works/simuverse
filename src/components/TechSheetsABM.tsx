@@ -1,38 +1,64 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
-import { Trash2, Edit2, Plus, Zap, FileUp } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Trash2, Edit2, Plus, Zap, FileUp, Paperclip, Link } from 'lucide-react';
 
 interface TechSheet {
   id: number;
   name: string;
+  course_id: string | null;
   ministry_code: string;
   description: string;
+  file_url: string | null;
   processed: boolean;
   extracted_data: any;
   created_at: string;
   updated_at: string;
 }
 
+interface Course {
+  id: string;
+  course_id: string;
+  title: string;
+}
+
 export function TechSheetsABM() {
   const [sheets, setSheets] = useState<TechSheet[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [processing, setProcessing] = useState<number | null>(null);
   const [selectedSheet, setSelectedSheet] = useState<TechSheet | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: '',
+    course_id: '',
     ministry_code: '',
     description: '',
+    file_url: '',
+    file_name: '',
   });
 
-  // Fetch tech sheets
+  // Fetch tech sheets and courses
   useEffect(() => {
     fetchTechSheets();
+    fetchCourses();
   }, []);
+
+  const fetchCourses = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/courses');
+      const data = await response.json();
+      setCourses(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+    }
+  };
 
   const fetchTechSheets = async () => {
     try {
@@ -47,6 +73,27 @@ export function TechSheetsABM() {
     }
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Store file name for display; encode as base64 data URL for local preview
+    // In production, this would upload to S3/storage and return a URL
+    setUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        setFormData(prev => ({ ...prev, file_url: dataUrl, file_name: file.name }));
+        setUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setUploading(false);
+      alert('Error al leer el archivo');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -57,7 +104,11 @@ export function TechSheetsABM() {
 
     try {
       const payload = {
-        ...formData,
+        name: formData.name,
+        course_id: formData.course_id || null,
+        ministry_code: formData.ministry_code,
+        description: formData.description,
+        file_url: formData.file_url || null,
         uploaded_by: localStorage.getItem('userId') || 'system',
       };
 
@@ -68,7 +119,7 @@ export function TechSheetsABM() {
       });
 
       // Reset form
-      setFormData({ name: '', ministry_code: '', description: '' });
+      setFormData({ name: '', course_id: '', ministry_code: '', description: '', file_url: '', file_name: '' });
       setIsAddingNew(false);
 
       // Refresh list
@@ -112,7 +163,7 @@ export function TechSheetsABM() {
   };
 
   const handleCancel = () => {
-    setFormData({ name: '', ministry_code: '', description: '' });
+    setFormData({ name: '', course_id: '', ministry_code: '', description: '', file_url: '', file_name: '' });
     setIsAddingNew(false);
   };
 
@@ -160,33 +211,97 @@ export function TechSheetsABM() {
         <Card className="p-6 border border-blue-200 bg-blue-50">
           <h3 className="text-lg font-semibold mb-4">Subir Nueva Ficha Técnica</h3>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Nombre de la Ficha</label>
-              <Input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="ej: Ficha Técnica - Asesor de Seguros 2024"
-                required
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Nombre de la Ficha *</label>
+                <Input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="ej: Ficha Técnica - Asesor de Seguros 2024"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Código del Ministerio</label>
+                <Input
+                  type="text"
+                  value={formData.ministry_code}
+                  onChange={(e) => setFormData({ ...formData, ministry_code: e.target.value })}
+                  placeholder="ej: MIN-2024-SEGUROS-001"
+                />
+              </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Código del Ministerio</label>
-              <Input
-                type="text"
-                value={formData.ministry_code}
-                onChange={(e) => setFormData({ ...formData, ministry_code: e.target.value })}
-                placeholder="ej: MIN-2024-SEGUROS-001"
-              />
+              <label className="block text-sm font-medium mb-2">Asociar al Curso</label>
+              <Select
+                value={formData.course_id || 'none'}
+                onValueChange={(val) => setFormData({ ...formData, course_id: val === 'none' ? '' : val })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="— Sin asociar (global) —" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— Sin asociar (global) —</SelectItem>
+                  {courses.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500 mt-1">Si asociás la ficha a un curso, el sistema puede usar sus KPIs para evaluar ese simulador específico.</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Descripción o Contenido</label>
+              <label className="block text-sm font-medium mb-2">
+                <Paperclip className="w-4 h-4 inline mr-1" />
+                Adjuntar Ficha del Ministerio (PDF)
+              </label>
+              <div className="flex gap-2 items-center">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                >
+                  <FileUp className="w-4 h-4 mr-2" />
+                  {uploading ? 'Cargando...' : 'Seleccionar Archivo'}
+                </Button>
+                {formData.file_name && (
+                  <span className="text-sm text-green-700 flex items-center gap-1">
+                    ✅ {formData.file_name}
+                  </span>
+                )}
+                {!formData.file_name && (
+                  <span className="text-xs text-gray-400">PDF, DOC o DOCX</span>
+                )}
+              </div>
+              {/* O ingresar URL manual */}
+              <div className="mt-2 flex gap-2 items-center">
+                <Link className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <Input
+                  type="url"
+                  value={formData.file_url.startsWith('data:') ? '' : formData.file_url}
+                  onChange={(e) => setFormData({ ...formData, file_url: e.target.value, file_name: '' })}
+                  placeholder="O pegá la URL del documento (Google Drive, SharePoint, etc.)"
+                  className="text-sm"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Contenido / Descripción de la Ficha</label>
               <Textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Pega el contenido de la ficha técnica aquí..."
+                placeholder="Pega el contenido de la ficha técnica aquí (competencias, KPIs, criterios de evaluación...)..."
                 rows={8}
               />
             </div>
@@ -214,9 +329,26 @@ export function TechSheetsABM() {
                   <FileUp className="w-5 h-5 text-purple-600" />
                   <div>
                     <h4 className="font-semibold text-lg">{sheet.name}</h4>
-                    {sheet.ministry_code && (
-                      <p className="text-sm text-gray-600">Código: {sheet.ministry_code}</p>
-                    )}
+                    <div className="flex flex-wrap gap-3 text-sm text-gray-600 mt-0.5">
+                      {sheet.ministry_code && <span>📋 {sheet.ministry_code}</span>}
+                      {sheet.course_id && (
+                        <span className="text-blue-700 font-medium">
+                          🎓 {courses.find(c => c.id === sheet.course_id)?.title || sheet.course_id}
+                        </span>
+                      )}
+                      {!sheet.course_id && <span className="text-gray-400 italic">Sin curso asociado</span>}
+                      {sheet.file_url && (
+                        <a
+                          href={sheet.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-green-700 underline flex items-center gap-1"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <Paperclip className="w-3 h-3" /> Ver archivo adjunto
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </div>
 

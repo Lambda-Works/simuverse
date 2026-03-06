@@ -56,10 +56,10 @@ const SimulationPage: React.FC = () => {
         const courseRes = await apiClient.get(`/courses/${courseId}`);
         setCourse(courseRes.data);
 
-        // Create simulation
-        const simRes = await apiClient.post('/simulations', {
+        // Create simulation (correct endpoint)
+        const simRes = await apiClient.post('/simulations/start', {
           course_id: courseId,
-          user_id: user?.id || '1'
+          user_id: user?.id
         });
         setSimId(simRes.data.id);
 
@@ -99,13 +99,18 @@ const SimulationPage: React.FC = () => {
     setLoadingChat(true);
 
     try {
-      const res = await apiClient.post(`/simulations/${simId}/chat`, {
-        message: chatInput
+      const res = await apiClient.post(`/simulations/${simId}/message`, {
+        message: chatInput,
+        user_id: user?.id,
+        course_id: courseId,
+        conversationHistory: chatMessages.map(m => ({ role: m.role === 'ai' ? 'model' : 'user', parts: [{ text: m.message }] }))
       });
-      const aiMsg = { role: 'ai' as const, message: res.data.message, timestamp: new Date() };
+      const aiMsg = { role: 'ai' as const, message: res.data.ai_response, timestamp: new Date() };
       setChatMessages(prev => [...prev, aiMsg]);
     } catch (error) {
       console.error('Error sending message:', error);
+      const errMsg = { role: 'ai' as const, message: '⚠️ Error al conectar con la IA. Verificá que el servidor esté en línea.', timestamp: new Date() };
+      setChatMessages(prev => [...prev, errMsg]);
     } finally {
       setLoadingChat(false);
     }
@@ -149,224 +154,264 @@ const SimulationPage: React.FC = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="chat" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-8">
-            <TabsTrigger value="chat" className="gap-2">
-              <MessageSquare className="w-4 h-4" />
-              <span className="hidden sm:inline">Chat IA</span>
-            </TabsTrigger>
-            <TabsTrigger value="email" className="gap-2">
-              <Mail className="w-4 h-4" />
-              <span className="hidden sm:inline">Correo</span>
-            </TabsTrigger>
-            <TabsTrigger value="docs" className="gap-2">
-              <FileText className="w-4 h-4" />
-              <span className="hidden sm:inline">Documentos</span>
-            </TabsTrigger>
-            <TabsTrigger value="sheet" className="gap-2">
-              <BarChart3 className="w-4 h-4" />
-              <span className="hidden sm:inline">Planilla</span>
-            </TabsTrigger>
-          </TabsList>
+        {/* Dynamic tabs driven by course.modules */}
+        {(() => {
+          const mods: string[] = Array.isArray(course?.modules) ? course.modules : [];
+          const hasChatIA    = mods.includes('chat_ia');
+          const hasEmail     = mods.includes('email_simulado') || mods.includes('email');
+          const hasDocs      = mods.includes('documentos');
+          const hasCalc      = mods.includes('hoja_calculo') || mods.includes('calculator');
+          const defaultTab   = hasChatIA ? 'chat' : hasEmail ? 'email' : hasDocs ? 'docs' : 'sheet';
+          const colCount     = [hasChatIA, hasEmail, hasDocs, hasCalc].filter(Boolean).length || 1;
 
-          {/* Chat IA Tab */}
-          <TabsContent value="chat">
-            <Card>
-              <CardHeader>
-                <CardTitle>Asesor IA - Consulte sus dudas</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col gap-4">
-                  {/* Chat Messages */}
-                  <div className="bg-muted rounded-lg p-4 h-96 overflow-y-auto space-y-4 mb-4">
-                    {chatMessages.length === 0 ? (
-                      <p className="text-muted-foreground text-center py-20">
-                        Inicia una conversación con el asesor IA
-                      </p>
-                    ) : (
-                      chatMessages.map((msg, idx) => (
-                        <div
-                          key={idx}
-                          className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div
-                            className={`max-w-xs px-4 py-2 rounded-lg ${
-                              msg.role === 'user'
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-secondary text-secondary-foreground'
-                            }`}
-                          >
-                            <p>{msg.message}</p>
-                            <span className="text-xs opacity-70">
-                              {new Date(msg.timestamp).toLocaleTimeString()}
-                            </span>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                    {loadingChat && (
-                      <div className="flex gap-2">
-                        <Loader className="w-4 h-4 animate-spin" />
-                        <p className="text-sm text-muted-foreground">El asesor está escribiendo...</p>
-                      </div>
-                    )}
-                  </div>
+          return (
+            <Tabs defaultValue={defaultTab} className="w-full">
+              <TabsList className={`grid w-full grid-cols-${colCount} mb-8`}>
+                {hasChatIA && (
+                  <TabsTrigger value="chat" className="gap-2">
+                    <MessageSquare className="w-4 h-4" />
+                    <span className="hidden sm:inline">Chat IA</span>
+                  </TabsTrigger>
+                )}
+                {hasEmail && (
+                  <TabsTrigger value="email" className="gap-2">
+                    <Mail className="w-4 h-4" />
+                    <span className="hidden sm:inline">Correo</span>
+                  </TabsTrigger>
+                )}
+                {hasDocs && (
+                  <TabsTrigger value="docs" className="gap-2">
+                    <FileText className="w-4 h-4" />
+                    <span className="hidden sm:inline">Documentos</span>
+                  </TabsTrigger>
+                )}
+                {hasCalc && (
+                  <TabsTrigger value="sheet" className="gap-2">
+                    <BarChart3 className="w-4 h-4" />
+                    <span className="hidden sm:inline">Planilla</span>
+                  </TabsTrigger>
+                )}
+              </TabsList>
 
-                  {/* Input */}
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={chatInput}
-                      onChange={e => setChatInput(e.target.value)}
-                      onKeyPress={e => e.key === 'Enter' && sendMessage()}
-                      placeholder="Escribe tu pregunta..."
-                      className="flex-1 px-4 py-2 border rounded-lg"
-                    />
-                    <Button
-                      onClick={sendMessage}
-                      disabled={!chatInput.trim() || loadingChat}
-                      className="gap-2"
-                    >
-                      <Send className="w-4 h-4" />
-                      Enviar
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Email Tab */}
-          <TabsContent value="email">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <Card className="lg:col-span-1">
-                <CardHeader>
-                  <CardTitle className="text-lg">Bandeja ({emails.length})</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {emails.map(email => (
-                      <button
-                        key={email.id}
-                        onClick={() => setSelectedEmail(email)}
-                        className={`w-full text-left p-3 rounded-lg border transition ${
-                          selectedEmail?.id === email.id
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'hover:bg-muted'
-                        }`}
-                      >
-                        <p className={`text-sm font-semibold ${email.unread ? 'font-bold' : ''}`}>
-                          {email.from}
-                        </p>
-                        <p className="text-xs truncate opacity-75">{email.subject}</p>
-                      </button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle>
-                    {selectedEmail ? selectedEmail.subject : 'Selecciona un correo'}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {selectedEmail ? (
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">De:</p>
-                        <p className="font-semibold">{selectedEmail.from}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Mensaje:</p>
-                        <p className="mt-2">{selectedEmail.body}</p>
-                      </div>
-                      <Button className="w-full gap-2">
-                        <Mail className="w-4 h-4" />
-                        Responder
-                      </Button>
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-center py-8">
-                      Selecciona un correo de la bandeja
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Documents Tab */}
-          <TabsContent value="docs">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {documents.map(doc => (
-                <Card key={doc.id} className="cursor-pointer hover:shadow-lg transition">
+              {/* Chat IA Tab */}
+              {hasChatIA && (
+              <TabsContent value="chat">
+                <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <FileText className="w-5 h-5" />
-                      {doc.name}
+                    <CardTitle>
+                      {course?.ai_config?.base_role
+                        ? `💬 ${course.title}`
+                        : 'Asesor IA - Consulte sus dudas'}
                     </CardTitle>
+                    {course?.ai_config?.course_context && (
+                      <p className="text-sm text-muted-foreground mt-1 border-l-4 border-blue-400 pl-3">
+                        📋 {course.ai_config.course_context.substring(0, 200)}...
+                      </p>
+                    )}
                   </CardHeader>
                   <CardContent>
-                    <div className="bg-muted rounded p-3 max-h-32 overflow-y-auto text-sm">
-                      {doc.content}
+                    <div className="flex flex-col gap-4">
+                      {/* Chat Messages */}
+                      <div className="bg-muted rounded-lg p-4 h-96 overflow-y-auto space-y-4 mb-4">
+                        {chatMessages.length === 0 ? (
+                          <p className="text-muted-foreground text-center py-20">
+                            Inicia una conversación con el asesor IA
+                          </p>
+                        ) : (
+                          chatMessages.map((msg, idx) => (
+                            <div
+                              key={idx}
+                              className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                            >
+                              <div
+                                className={`max-w-xs px-4 py-2 rounded-lg ${
+                                  msg.role === 'user'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-secondary text-secondary-foreground'
+                                }`}
+                              >
+                                <p>{msg.message}</p>
+                                <span className="text-xs opacity-70">
+                                  {new Date(msg.timestamp).toLocaleTimeString()}
+                                </span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                        {loadingChat && (
+                          <div className="flex gap-2">
+                            <Loader className="w-4 h-4 animate-spin" />
+                            <p className="text-sm text-muted-foreground">El asesor está escribiendo...</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Input */}
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={chatInput}
+                          onChange={e => setChatInput(e.target.value)}
+                          onKeyPress={e => e.key === 'Enter' && sendMessage()}
+                          placeholder="Escribe tu mensaje..."
+                          className="flex-1 px-4 py-2 border rounded-lg"
+                        />
+                        <Button
+                          onClick={sendMessage}
+                          disabled={!chatInput.trim() || loadingChat}
+                          className="gap-2"
+                        >
+                          <Send className="w-4 h-4" />
+                          Enviar
+                        </Button>
+                      </div>
                     </div>
-                    <Button className="w-full mt-4" variant="outline">
-                      Ver Documento Completo
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              )}
+
+              {/* Email Tab */}
+              {hasEmail && (
+              <TabsContent value="email">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <Card className="lg:col-span-1">
+                    <CardHeader>
+                      <CardTitle className="text-lg">Bandeja ({emails.length})</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {emails.length === 0 && <p className="text-sm text-muted-foreground">No hay correos.</p>}
+                        {emails.map(email => (
+                          <button
+                            key={email.id}
+                            onClick={() => setSelectedEmail(email)}
+                            className={`w-full text-left p-3 rounded-lg border transition ${
+                              selectedEmail?.id === email.id
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'hover:bg-muted'
+                            }`}
+                          >
+                            <p className={`text-sm font-semibold ${email.unread ? 'font-bold' : ''}`}>
+                              {email.from}
+                            </p>
+                            <p className="text-xs truncate opacity-75">{email.subject}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="lg:col-span-2">
+                    <CardHeader>
+                      <CardTitle>
+                        {selectedEmail ? selectedEmail.subject : 'Selecciona un correo'}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {selectedEmail ? (
+                        <div className="space-y-4">
+                          <div>
+                            <p className="text-sm text-muted-foreground">De:</p>
+                            <p className="font-semibold">{selectedEmail.from}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Mensaje:</p>
+                            <p className="mt-2">{selectedEmail.body}</p>
+                          </div>
+                          <Button className="w-full gap-2">
+                            <Mail className="w-4 h-4" />
+                            Responder
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="text-muted-foreground text-center py-8">
+                          Selecciona un correo de la bandeja
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+              )}
+
+              {/* Documents Tab */}
+              {hasDocs && (
+              <TabsContent value="docs">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {documents.length === 0 && <p className="text-muted-foreground">No hay documentos disponibles.</p>}
+                  {documents.map(doc => (
+                    <Card key={doc.id} className="cursor-pointer hover:shadow-lg transition">
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <FileText className="w-5 h-5" />
+                          {doc.name}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="bg-muted rounded p-3 max-h-32 overflow-y-auto text-sm">
+                          {doc.content}
+                        </div>
+                        <Button className="w-full mt-4" variant="outline">
+                          Ver Documento Completo
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </TabsContent>
+              )}
+
+              {/* Spreadsheet Tab */}
+              {hasCalc && (
+              <TabsContent value="sheet">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{spreadsheet?.name || 'Planilla de Cálculos'}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b bg-muted">
+                            <th className="text-left p-3 font-semibold">Item</th>
+                            <th className="text-right p-3 font-semibold">Valor</th>
+                            <th className="text-right p-3 font-semibold">Moneda</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {spreadsheet?.data?.map((row: any, idx: number) => (
+                            <tr key={idx} className="border-b hover:bg-muted/50">
+                              <td className="p-3">{row.item}</td>
+                              <td className="text-right p-3 font-semibold">${row.value?.toLocaleString()}</td>
+                              <td className="text-right p-3 text-muted-foreground">{row.currency}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {spreadsheet?.formulas && (
+                      <div className="mt-6 p-4 bg-muted rounded">
+                        <h4 className="font-semibold mb-2">Fórmulas Utilizadas:</h4>
+                        {Object.entries(spreadsheet.formulas).map(([key, formula]) => (
+                          <p key={key} className="text-sm font-mono">
+                            <span className="text-primary">{key}:</span> {formula as string}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+
+                    <Button className="w-full mt-6" variant="outline">
+                      📥 Descargar Planilla (Excel)
                     </Button>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          {/* Spreadsheet Tab */}
-          <TabsContent value="sheet">
-            <Card>
-              <CardHeader>
-                <CardTitle>{spreadsheet?.name || 'Planilla de Cálculos'}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b bg-muted">
-                        <th className="text-left p-3 font-semibold">Item</th>
-                        <th className="text-right p-3 font-semibold">Valor</th>
-                        <th className="text-right p-3 font-semibold">Moneda</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {spreadsheet?.data?.map((row: any, idx: number) => (
-                        <tr key={idx} className="border-b hover:bg-muted/50">
-                          <td className="p-3">{row.item}</td>
-                          <td className="text-right p-3 font-semibold">${row.value?.toLocaleString()}</td>
-                          <td className="text-right p-3 text-muted-foreground">{row.currency}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {spreadsheet?.formulas && (
-                  <div className="mt-6 p-4 bg-muted rounded">
-                    <h4 className="font-semibold mb-2">Fórmulas Utilizadas:</h4>
-                    {Object.entries(spreadsheet.formulas).map(([key, formula]) => (
-                      <p key={key} className="text-sm font-mono">
-                        <span className="text-primary">{key}:</span> {formula}
-                      </p>
-                    ))}
-                  </div>
-                )}
-
-                <Button className="w-full mt-6" variant="outline">
-                  📥 Descargar Planilla (Excel)
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              </TabsContent>
+              )}
+            </Tabs>
+          );
+        })()}
       </main>
     </div>
   );

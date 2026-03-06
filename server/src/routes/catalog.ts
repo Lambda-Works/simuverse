@@ -5,6 +5,7 @@ import { TechSheet } from '../entities/TechSheet';
 import { CourseDocument } from '../entities/CourseDocument';
 import { SimulationAssignment } from '../entities/SimulationAssignment';
 import { User } from '../entities/User';
+import { Scenario } from '../entities/Scenario';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
@@ -393,6 +394,102 @@ router.post('/evaluations', async (req: Request, res: Response) => {
     res.status(201).json({ id: result.insertId, message: 'Evaluación registrada correctamente' });
   } catch (error: any) {
     res.status(500).json({ error: 'Error al registrar evaluación', details: error.message });
+  }
+});
+
+// ============================================================
+// ESCENARIOS DE SIMULACIÓN (scenarios)
+// Cada escenario define el contexto, emails, documentos y metas del simulador
+// ============================================================
+
+/**
+ * GET /api/scenarios
+ * Lista escenarios (filtro: ?course_id=&scenario_type=&difficulty=)
+ */
+router.get('/scenarios', async (req: Request, res: Response) => {
+  try {
+    const repo = AppDataSource.getRepository(Scenario);
+    const { course_id, scenario_type, difficulty } = req.query as Record<string, string>;
+    const where: any = { is_active: true };
+    if (course_id) where.course_id = course_id;
+    if (scenario_type) where.scenario_type = scenario_type;
+    if (difficulty) where.difficulty = difficulty;
+    const scenarios = await repo.find({ where, order: { created_at: 'DESC' } });
+    res.json(scenarios);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/scenarios/:id
+ */
+router.get('/scenarios/:id', async (req: Request, res: Response) => {
+  try {
+    const scenario = await AppDataSource.getRepository(Scenario).findOne({ where: { id: req.params.id } });
+    if (!scenario) return res.status(404).json({ error: 'Escenario no encontrado' });
+    res.json(scenario);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/scenarios
+ * Crear nuevo escenario de simulación
+ */
+router.post('/scenarios', async (req: Request, res: Response) => {
+  try {
+    const repo = AppDataSource.getRepository(Scenario);
+    const { course_id, title, description, scenario_type, difficulty, content, expected_outcomes } = req.body;
+    if (!course_id || !title) return res.status(400).json({ error: 'course_id y title son obligatorios' });
+    const scenario = repo.create({
+      course_id,
+      title,
+      description,
+      scenario_type: scenario_type || 'practice',
+      difficulty: difficulty || 'medium',
+      content: content || {},
+      expected_outcomes: expected_outcomes || [],
+      is_active: true,
+    });
+    const saved = await repo.save(scenario);
+    res.status(201).json(saved);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * PUT /api/scenarios/:id
+ */
+router.put('/scenarios/:id', async (req: Request, res: Response) => {
+  try {
+    const repo = AppDataSource.getRepository(Scenario);
+    const scenario = await repo.findOne({ where: { id: req.params.id } });
+    if (!scenario) return res.status(404).json({ error: 'Escenario no encontrado' });
+    Object.assign(scenario, req.body);
+    const saved = await repo.save(scenario);
+    res.json(saved);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/scenarios/:id
+ * Desactiva el escenario (soft delete)
+ */
+router.delete('/scenarios/:id', async (req: Request, res: Response) => {
+  try {
+    const repo = AppDataSource.getRepository(Scenario);
+    const scenario = await repo.findOne({ where: { id: req.params.id } });
+    if (!scenario) return res.status(404).json({ error: 'Escenario no encontrado' });
+    scenario.is_active = false;
+    await repo.save(scenario);
+    res.json({ message: 'Escenario desactivado correctamente' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 

@@ -30,6 +30,76 @@ const AVAILABLE_MODULES = [
 
 const CATEGORIES = ['seguros', 'contable', 'rrhh', 'ventas', 'oratoria', 'legal', 'administracion', 'general'];
 
+// ─── Plantillas de Prompts FEPEI (Lego de IA) ───────────────────────────────
+const PROMPT_TEMPLATES = [
+  {
+    id: 'cliente_insatisfecho',
+    label: '😠 Cliente insatisfecho (Atención al Cliente)',
+    modules: ['chat_ia', 'email_simulado'],
+    ai_config: {
+      base_role: 'Eres un cliente enojado que tuvo un problema grave con el producto/servicio que compró. Estás frustrado y exigís una solución inmediata.',
+      course_context: 'El alumno trabaja como asesor de atención al cliente. Debe gestionar el reclamo del cliente, mantener la calma y ofrecer una solución concreta.',
+      personality_traits: ['impaciente', 'exigente', 'emocional'],
+      knowledge_base_prompt: 'Si el alumno solo pide disculpas sin ofrecer una solución concreta, seguir insistiendo. Si el alumno explica el problema y ofrece una alternativa real, calmarse gradualmente.',
+    },
+  },
+  {
+    id: 'empleado_conflictivo',
+    label: '👤 Empleado con conflicto (RRHH)',
+    modules: ['chat_ia', 'email_simulado', 'documentos'],
+    ai_config: {
+      base_role: 'Eres un empleado con 15 años de antigüedad que se siente injustamente tratado. Estás en guardia, eres defensivo y emocional.',
+      course_context: 'El alumno es responsable de RRHH y debe realizar una entrevista de retroalimentación con un empleado problemático. El desafío es que el empleado se sienta escuchado y llegar a un acuerdo.',
+      personality_traits: ['defensivo', 'emocional', 'desconfiado', 'veterano'],
+      knowledge_base_prompt: 'Si el alumno usa lenguaje acusatorio, ponerse más a la defensiva. Si el alumno escucha activamente y valida tus sentimientos, abrirse gradualmente. Mencionar años de servicio como argumento.',
+    },
+  },
+  {
+    id: 'auditor_afip',
+    label: '📊 Auditor AFIP/ARCA (Contable/Impuestos)',
+    modules: ['chat_ia', 'email_simulado', 'hoja_calculo', 'documentos'],
+    ai_config: {
+      base_role: 'Eres un Auditor Técnico de AFIP/ARCA, riguroso y formal. Detectaste inconsistencias en la declaración jurada del contribuyente y estás realizando una auditoría de control.',
+      course_context: 'El alumno es el contador/asesor impositivo de la empresa. Debe responder a las observaciones del auditor con documentación correcta y argumentos técnicos.',
+      personality_traits: ['riguroso', 'formal', 'metódico', 'no acepta evasivas'],
+      knowledge_base_prompt: 'Solo aceptar respuestas que citen normativa específica (resoluciones AFIP, artículos del Código Tributario). Ignorar respuestas genéricas. Si el alumno cita correctamente la normativa, reconocer la validez.',
+    },
+  },
+  {
+    id: 'tech_lead',
+    label: '💻 Tech Lead exigente (Tecnología/IT)',
+    modules: ['chat_ia', 'email_simulado'],
+    ai_config: {
+      base_role: 'Eres un Tech Lead extremadamente eficiente que solo habla con datos y métricas. Sos escaso en palabras pero profundo en contenido. No tolerás respuestas imprecisas.',
+      course_context: 'El alumno debe presentar un informe técnico o propuesta de solución IT al Tech Lead. Debe usar terminología precisa y justificar cada decisión con datos.',
+      personality_traits: ['exigente', 'data-driven', 'conciso', 'impaciente con la impresión'],
+      knowledge_base_prompt: 'Rechazar respuestas sin métricas concretas. Preguntar siempre "¿Cuál es el impacto en performance/costo/tiempo?". Si el alumno responde con datos sólidos, aprobar la propuesta.',
+    },
+  },
+  {
+    id: 'cliente_ecommerce',
+    label: '🛒 Cliente e-commerce con reclamo (Tienda Online)',
+    modules: ['chat_ia', 'email_simulado'],
+    ai_config: {
+      base_role: 'Eres un cliente exigente llamado Julián, que ha realizado una compra y tiene un problema con el proceso. Estás frustrado y aménazas con hacer un reclamo legal.',
+      course_context: 'El alumno trabaja en soporte de una tienda online. Recibió un email de IT informando un problema técnico. Debe usar esa información para tranquilizar al cliente.',
+      personality_traits: ['impaciente', 'amenazante', 'exigente', 'conoce sus derechos'],
+      knowledge_base_prompt: 'Si el alumno solo pide disculpas, seguir insistiendo en el reclamo. Si el alumno explica el problema técnico y ofrece seguimiento manual, calmarse. Mencionar posible reclamo en Defensa del Consumidor si no hay solución.',
+    },
+  },
+  {
+    id: 'negociador_proveedor',
+    label: '🤝 Negociación con Proveedor (Compras/Comercial)',
+    modules: ['chat_ia', 'email_simulado', 'hoja_calculo'],
+    ai_config: {
+      base_role: 'Eres un representante de ventas de un proveedor estratégico. Tenés una posición dominante en el mercado y sos consciente de ello. Defendés tus precios con argumentos sólidos.',
+      course_context: 'El alumno es el responsable de compras de una empresa. Debe negociar mejores condiciones (precio, plazo, volúmen) con el proveedor sin romper la relación comercial.',
+      personality_traits: ['confiado', 'argumentativo', 'flexible ante buenas propuestas'],
+      knowledge_base_prompt: 'Resistir descuentos menores al 5%. Ceder ante argumentos de volumen o exclusividad. Si el alumno negocia con datos de mercado, mostrar más apertura.',
+    },
+  },
+];
+
 interface CourseForm {
   course_id: string;
   title: string;
@@ -74,6 +144,7 @@ const AdminPanel = () => {
   const [saving, setSaving] = useState(false);
   const [newCriterion, setNewCriterion] = useState('');
   const [newTrait, setNewTrait] = useState('');
+  const [showTemplates, setShowTemplates] = useState(false);
   const [currentTab, setCurrentTab] = useState<'courses' | 'categories' | 'documents' | 'techsheets' | 'assignments' | 'reports'>('courses');
 
   useEffect(() => {
@@ -289,6 +360,48 @@ const AdminPanel = () => {
                           </label>
                         ))}
                       </div>
+                    </div>
+
+                    {/* Template quick-load */}
+                    <div className="space-y-2 p-3 rounded-lg border border-dashed border-blue-300 bg-blue-50">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-semibold text-blue-800">📝 Plantillas de Prompt (Lego)</Label>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="text-blue-700 h-7 text-xs"
+                          onClick={() => setShowTemplates(v => !v)}
+                        >
+                          {showTemplates ? '✕ Cerrar' : '▼ Elegir plantilla...'}
+                        </Button>
+                      </div>
+                      {showTemplates && (
+                        <div className="grid grid-cols-1 gap-1 mt-2">
+                          {PROMPT_TEMPLATES.map(tpl => (
+                            <button
+                              key={tpl.id}
+                              type="button"
+                              className="text-left px-3 py-2 rounded-md text-sm hover:bg-blue-100 border border-transparent hover:border-blue-300 transition-colors"
+                              onClick={() => {
+                                setForm(p => ({
+                                  ...p,
+                                  ai_config: { ...tpl.ai_config },
+                                  modules: [...new Set([...p.modules, ...tpl.modules])],
+                                }));
+                                setShowTemplates(false);
+                              }}
+                            >
+                              {tpl.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {!showTemplates && (
+                        <p className="text-xs text-blue-600">
+                          Cargá un prompt base pre-armado y luego ajustá los campos a mano.
+                        </p>
+                      )}
                     </div>
 
                     {/* AI Config */}
