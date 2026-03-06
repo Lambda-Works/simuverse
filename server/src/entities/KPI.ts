@@ -57,6 +57,9 @@ export class KPI {
   };
 
   // Evento que dispara este KPI
+  @Column({ type: 'text', nullable: true })
+  prompt_instruction!: string; // Instrucción para el prompt de IA
+
   @Column({ type: 'varchar', length: 100 })
   trigger_event!: string; // "salary_calculation_completed", "crisis_resolved", etc.
 

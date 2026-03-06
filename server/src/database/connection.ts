@@ -20,6 +20,7 @@ import { Category } from '../entities/Category';
 import { TechSheet } from '../entities/TechSheet';
 import { CourseDocument } from '../entities/CourseDocument';
 import { SimulationAssignment } from '../entities/SimulationAssignment';
+import { FlowTemplate } from '../entities/FlowTemplate';
 
 export const AppDataSource = new DataSource({
   type: 'mysql',
@@ -50,7 +51,8 @@ export const AppDataSource = new DataSource({
     Category,
     TechSheet,
     CourseDocument,
-    SimulationAssignment
+    SimulationAssignment,
+    FlowTemplate
   ],
   migrations: ['dist/database/migrations/*.js'],
   subscribers: [],

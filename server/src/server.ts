@@ -9,6 +9,7 @@ import simulationsRouter from './routes/simulations.js';
 import adminRouter from './routes/admin.js';
 import ministryRouter from './routes/ministry.js';
 import catalogRouter from './routes/catalog.js';
+import templatesRouter from './routes/templates.js';
 
 dotenv.config();
 
@@ -44,8 +45,10 @@ app.use('/api/courses', coursesRouter);
 app.use('/api/simulations', simulationsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/ministry', ministryRouter);
-// Catalog routes: categories, tech-sheets, documents, assignments, users
+// Catalog routes: categories, tech-sheets, documents, assignments, users, evaluations
 app.use('/api', catalogRouter);
+// Templates (FlowTemplates persistidos en BD)
+app.use('/api/templates', templatesRouter);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

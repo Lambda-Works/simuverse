@@ -35,9 +35,42 @@ const TemplatesPanel = () => {
   }, [user, loading, hasRole, navigate]);
 
   useEffect(() => {
-    // Cargar plantillas predeterminadas
-    setTemplates(getAllTemplates());
+    loadTemplates();
   }, []);
+
+  const loadTemplates = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/templates?active=true');
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setTemplates(data);
+          return;
+        }
+      }
+    } catch {
+      // Si falla la API, cargar estáticas
+    }
+    // Fallback: plantillas estáticas
+    setTemplates(getAllTemplates());
+  };
+
+  // Sincronizar plantillas estáticas a la BD (primera vez)
+  const handleSyncToDB = async () => {
+    const staticTemplates = getAllTemplates();
+    try {
+      const response = await fetch('http://localhost:5000/api/templates/bulk-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ templates: staticTemplates })
+      });
+      const result = await response.json();
+      toast.success(`Sincronizado: ${result.created} creadas, ${result.updated} actualizadas`);
+      await loadTemplates();
+    } catch (err: any) {
+      toast.error(`Error al sincronizar: ${err.message}`);
+    }
+  };
 
   const handleEdit = (template: FlowTemplate) => {
     setEditingTemplate({ ...template });
@@ -46,14 +79,28 @@ const TemplatesPanel = () => {
   };
 
   const handleDuplicateTemplate = async (template: FlowTemplate) => {
-    const newTemplate = {
-      ...template,
-      id: `${template.id}-copia-${Date.now()}`,
-      course_code: `${template.course_code}-COPIA`,
-    };
-    setEditingTemplate(newTemplate);
-    setDialogOpen(true);
-    toast.success('Plantilla duplicada. Edita los campos necesarios.');
+    try {
+      const response = await fetch(`http://localhost:5000/api/templates/${template.id}/duplicate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ title: `${template.title} (Copia)`, course_code: `${template.course_code}-COPIA` })
+      });
+      if (response.ok) {
+        const copy = await response.json();
+        setTemplates(prev => [...prev, copy]);
+        toast.success('Plantilla duplicada correctamente');
+      } else {
+        // Fallback: abrir en editor
+        const newTemplate = { ...template, id: `${template.id}-copia-${Date.now()}`, course_code: `${template.course_code}-COPIA` };
+        setEditingTemplate(newTemplate);
+        setDialogOpen(true);
+        toast.success('Plantilla duplicada. Edita los campos necesarios.');
+      }
+    } catch {
+      const newTemplate = { ...template, id: `${template.id}-copia-${Date.now()}`, course_code: `${template.course_code}-COPIA` };
+      setEditingTemplate(newTemplate);
+      setDialogOpen(true);
+    }
   };
 
   const handleJsonEdit = (template: FlowTemplate) => {
@@ -83,21 +130,33 @@ const TemplatesPanel = () => {
     }
 
     try {
-      // Aquí iría la llamada a API para guardar en BD
-      // const response = await apiClient.post('/api/templates', editingTemplate);
-      
-      // Por ahora, simulamos guardado
-      setTemplates(prev => {
-        const existing = prev.findIndex(t => t.id === editingTemplate.id);
-        if (existing >= 0) {
-          const updated = [...prev];
-          updated[existing] = editingTemplate as FlowTemplate;
-          return updated;
-        }
-        return [...prev, editingTemplate as FlowTemplate];
+      const isNew = !templates.find(t => t.id === editingTemplate.id);
+      const url = isNew ? 'http://localhost:5000/api/templates' : `http://localhost:5000/api/templates/${editingTemplate.id}`;
+      const method = isNew ? 'POST' : 'PUT';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ ...editingTemplate, template_data: editingTemplate })
       });
 
-      toast.success('Plantilla guardada correctamente');
+      if (response.ok) {
+        const saved = await response.json();
+        setTemplates(prev => {
+          const existing = prev.findIndex(t => t.id === saved.id);
+          if (existing >= 0) { const updated = [...prev]; updated[existing] = saved; return updated; }
+          return [...prev, saved];
+        });
+        toast.success('Plantilla guardada en base de datos');
+      } else {
+        // Fallback local
+        setTemplates(prev => {
+          const existing = prev.findIndex(t => t.id === editingTemplate.id);
+          if (existing >= 0) { const updated = [...prev]; updated[existing] = editingTemplate as FlowTemplate; return updated; }
+          return [...prev, editingTemplate as FlowTemplate];
+        });
+        toast.success('Plantilla guardada localmente (sin conexión a BD)');
+      }
       setDialogOpen(false);
       setEditingTemplate(null);
     } catch (err: any) {
@@ -109,6 +168,10 @@ const TemplatesPanel = () => {
     if (!confirm('¿Eliminar esta plantilla? Esta acción no se puede deshacer.')) return;
     
     try {
+      await fetch(`http://localhost:5000/api/templates/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
       setTemplates(prev => prev.filter(t => t.id !== id));
       toast.success('Plantilla eliminada');
     } catch (err: any) {
@@ -139,19 +202,24 @@ const TemplatesPanel = () => {
               <p className="text-xs text-muted-foreground">MSM - Motor de Simulación Modular</p>
             </div>
           </div>
-          <Select value={filterFamily} onValueChange={setFilterFamily}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filtrar por familia" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas las familias</SelectItem>
-              {families.map(f => (
-                <SelectItem key={f} value={f}>
-                  {f.charAt(0).toUpperCase() + f.slice(1)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleSyncToDB} title="Sincronizar plantillas estáticas del sistema a la base de datos">
+              <Zap className="w-4 h-4 mr-1" /> Sync BD
+            </Button>
+            <Select value={filterFamily} onValueChange={setFilterFamily}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filtrar por familia" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las familias</SelectItem>
+                {families.map(f => (
+                  <SelectItem key={f} value={f}>
+                    {f.charAt(0).toUpperCase() + f.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </header>
 

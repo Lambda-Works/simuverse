@@ -306,4 +306,94 @@ router.get('/users', async (req: Request, res: Response) => {
   }
 });
 
+// ============================================================
+// EVALUACIONES
+// ============================================================
+
+/**
+ * GET /api/evaluations/student/all
+ * Lista todas las evaluaciones con datos del alumno y curso
+ * Usado por ReportsABM para el panel de reportes
+ */
+router.get('/evaluations/student/all', async (req: Request, res: Response) => {
+  try {
+    const { course_id, student_id } = req.query;
+
+    let query = `
+      SELECT
+        se.id, se.assignment_id, se.student_id, se.simulation_id,
+        se.attempt_number, se.kpi_results, se.overall_score,
+        se.overall_feedback, se.completion_percentage, se.time_spent_seconds,
+        se.evaluated_at,
+        u.name AS student_name, u.email AS student_email,
+        c.title AS course_title, c.id AS course_id,
+        sa.course_id AS assignment_course_id
+      FROM simulation_evaluations se
+      LEFT JOIN users u ON u.id = se.student_id
+      LEFT JOIN simulation_assignments sa ON sa.id = se.assignment_id
+      LEFT JOIN courses c ON c.id = sa.course_id
+    `;
+    const params: any[] = [];
+    const conditions: string[] = [];
+
+    if (student_id) { conditions.push('se.student_id = ?'); params.push(student_id); }
+    if (course_id) { conditions.push('sa.course_id = ?'); params.push(course_id); }
+    if (conditions.length) query += ' WHERE ' + conditions.join(' AND ');
+    query += ' ORDER BY se.evaluated_at DESC';
+
+    const evaluations = await AppDataSource.query(query, params);
+    res.json(evaluations);
+  } catch (error: any) {
+    console.error('[Evaluations] GET /student/all error:', error.message);
+    res.status(500).json({ error: 'Error al obtener evaluaciones', details: error.message });
+  }
+});
+
+/**
+ * GET /api/evaluations/:simulation_id
+ * Evaluación de una simulación específica
+ */
+router.get('/evaluations/:simulation_id', async (req: Request, res: Response) => {
+  try {
+    const evals = await AppDataSource.query(
+      `SELECT se.*, u.name AS student_name FROM simulation_evaluations se
+       LEFT JOIN users u ON u.id = se.student_id
+       WHERE se.simulation_id = ? ORDER BY se.evaluated_at DESC`,
+      [req.params.simulation_id]
+    );
+    res.json(evals);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al obtener evaluación', details: error.message });
+  }
+});
+
+/**
+ * POST /api/evaluations
+ * Registra una nueva evaluación de simulación
+ */
+router.post('/evaluations', async (req: Request, res: Response) => {
+  try {
+    const { assignment_id, student_id, simulation_id, attempt_number,
+      kpi_results, overall_score, overall_feedback, completion_percentage,
+      time_spent_seconds, responses } = req.body;
+
+    if (!student_id || !simulation_id) {
+      return res.status(400).json({ error: 'student_id y simulation_id son requeridos' });
+    }
+
+    const result = await AppDataSource.query(
+      `INSERT INTO simulation_evaluations
+       (assignment_id, student_id, simulation_id, attempt_number, kpi_results,
+        overall_score, overall_feedback, completion_percentage, time_spent_seconds, responses)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [assignment_id || null, student_id, simulation_id, attempt_number || 1,
+       JSON.stringify(kpi_results || {}), overall_score || 0, overall_feedback || '',
+       completion_percentage || 0, time_spent_seconds || 0, JSON.stringify(responses || {})]
+    );
+    res.status(201).json({ id: result.insertId, message: 'Evaluación registrada correctamente' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al registrar evaluación', details: error.message });
+  }
+});
+
 export default router;
