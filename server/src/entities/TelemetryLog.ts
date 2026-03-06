@@ -1,5 +1,4 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, Index } from 'typeorm';
-import { Course } from './Course';
 
 export enum ActionType {
   USER_INPUT = 'user_input',
@@ -66,7 +65,7 @@ export class TelemetryLog {
   @JoinColumn({ name: 'user_id' })
   user!: any;
 
-  @ManyToOne(() => Course, course => course.telemetry_logs, { onDelete: 'CASCADE' })
+  @ManyToOne('Course', 'telemetry_logs', { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'course_id' })
-  course!: Course;
+  course!: any;
 }
