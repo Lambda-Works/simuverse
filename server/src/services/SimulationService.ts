@@ -92,10 +92,9 @@ export class TelemetryService {
       user_id,
       course_id,
       action,
-      action_type,
-      timestamp: new Date(),
-      responseTimeMs,
-      metadata: JSON.stringify(metadata),
+      action_type: action_type as any,
+      response_time_ms: responseTimeMs,
+      metadata,
       integrity_hash,
     });
 

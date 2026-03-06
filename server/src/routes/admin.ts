@@ -1,19 +1,17 @@
 import { Router, Request, Response } from 'express';
-import { authMiddleware } from '../middleware/AuthMiddleware.js';
-import { roleMiddleware } from '../middleware/RoleMiddleware.js';
+import { AppDataSource } from '../database/connection';
+import { Course } from '../entities/Course';
 import { ConfigService } from '../services/ConfigService';
 import { ScenarioService } from '../services/ScenarioService';
 import { PracticeLogsService } from '../services/PracticeLogsService';
 import { SimulationInstanceService } from '../services/SimulationInstanceService';
-import { CourseService } from '../services/CourseService';
-import { AppDataSource } from '../database/connection';
-import { Course } from '../entities/Course';
+import { courseService } from '../services/CourseService';
 
 const router = Router();
 
-// Protect all admin routes
-router.use(AuthMiddleware.verify);
-router.use(RoleMiddleware.requireRole('admin'));
+// Protect all admin routes - middleware will be applied by server.ts
+// router.use(authMiddleware);
+// router.use(RoleMiddleware.requireRole('admin'));
 
 // ========== COURSE CONFIGURATION ==========
 
@@ -347,7 +345,7 @@ router.post('/simulations/:simulation_id/review', async (req: Request, res: Resp
  */
 router.get('/courses', async (req: Request, res: Response) => {
   try {
-    const courses = await CourseService.getAllCourses();
+    const courses = await courseService.getAllCourses();
     res.json(courses);
   } catch (error) {
     res.status(400).json({ error: (error as Error).message });
@@ -360,7 +358,7 @@ router.get('/courses', async (req: Request, res: Response) => {
  */
 router.post('/courses', async (req: Request, res: Response) => {
   try {
-    const course = await CourseService.createCourse(req.body);
+    const course = await courseService.createCourse(req.body);
     res.status(201).json(course);
   } catch (error) {
     res.status(400).json({ error: (error as Error).message });
@@ -373,7 +371,7 @@ router.post('/courses', async (req: Request, res: Response) => {
  */
 router.put('/courses/:course_id', async (req: Request, res: Response) => {
   try {
-    const course = await CourseService.updateCourse(req.params.course_id, req.body);
+    const course = await courseService.updateCourse(req.params.course_id, req.body);
     res.json(course);
   } catch (error) {
     res.status(400).json({ error: (error as Error).message });

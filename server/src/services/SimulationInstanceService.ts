@@ -31,7 +31,7 @@ export class SimulationInstanceService {
       course_id,
       scenario_id,
       status: 'in_progress',
-      progress_percentage: 0,
+      progress: 0,
       current_state: {},
     });
 

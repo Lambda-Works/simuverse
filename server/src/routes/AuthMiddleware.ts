@@ -122,7 +122,7 @@ export const createAuthRoutes = (): Router => {
         return res.status(401).json({ error: 'Not authenticated' });
       }
 
-      const user = await userService.getUserById(req.user.user_id);
+      const user = await userService.getUserById(req.user.id);
 
       res.status(200).json({
         user: {
@@ -152,7 +152,7 @@ export const createAuthRoutes = (): Router => {
 
       const { name } = req.body;
 
-      const updatedUser = await userService.updateUser(req.user.user_id, {
+      const updatedUser = await userService.updateUser(req.user.id, {
         name: name || undefined
       } as any);
 

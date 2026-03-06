@@ -104,7 +104,7 @@ export class PracticeLogsService {
   /**
    * Get logs for a specific simulation instance
    */
-  static async getLogsForSimulation(simulation_instance_id: number): Promise<PracticeLogs[]> {
+  static async getLogsForSimulation(simulation_instance_id: string): Promise<PracticeLogs[]> {
     return this.logsRepository.find({
       where: { simulation_instance_id },
       order: { sequence_number: 'ASC' },
@@ -141,8 +141,8 @@ export class PracticeLogsService {
       // Recompute hash and verify
       const computedHash = PracticeLogs.computeIntegrityHash(
         previous_hash,
-        parseInt(student_id),
-        parseInt(course_id),
+        student_id,
+        course_id,
         log.action_type,
         log.timestamp
       );
@@ -226,8 +226,8 @@ export class PracticeLogsService {
       const date = new Date(log.timestamp);
       const verified = PracticeLogs.computeIntegrityHash(
         log.previous_hash,
-        parseInt(student_id),
-        parseInt(course_id),
+        student_id,
+        course_id,
         log.action_type,
         log.timestamp
       ) === log.integrity_hash ? 'YES' : 'NO';

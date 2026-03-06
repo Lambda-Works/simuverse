@@ -112,7 +112,7 @@ export class ScenarioService {
    * Clone a scenario for another course
    */
   static async cloneScenario(
-    sourceScenarioId: number,
+    sourceScenarioId: string,
     targetCourseId: string,
     newName?: string
   ): Promise<Scenario> {

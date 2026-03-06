@@ -1,5 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 
+declare global {
+  namespace Express {
+    interface Request {
+      requestTime?: number;
+    }
+  }
+}
+
 /**
  * Middleware anti-jailbreak: Filtra intentos de inyección de prompts
  */
