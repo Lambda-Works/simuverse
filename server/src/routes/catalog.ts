@@ -493,4 +493,63 @@ router.delete('/scenarios/:id', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/students/:id/history
+ * Historial completo de un alumno:
+ * - Sus asignaciones con curso y escenario
+ * - Instancias de simulación completadas
+ * - Evaluaciones con KPIs detallados
+ */
+router.get('/students/:id/history', async (req: Request, res: Response) => {
+  try {
+    const studentId = req.params.id;
+
+    // Datos del alumno
+    const [student] = await AppDataSource.query(
+      `SELECT id, name, email, role, created_at FROM users WHERE id = ?`,
+      [studentId]
+    );
+    if (!student) return res.status(404).json({ error: 'Alumno no encontrado' });
+
+    // Asignaciones con curso y escenario
+    const assignments = await AppDataSource.query(`
+      SELECT
+        sa.id, sa.simulation_id AS scenario_id, sa.course_id,
+        sa.start_date, sa.end_date, sa.max_attempts, sa.attempts_used,
+        sa.status AS assignment_status, sa.created_at,
+        c.title AS course_title, c.category AS course_category,
+        sc.title AS scenario_title, sc.scenario_type, sc.difficulty
+      FROM simulation_assignments sa
+      LEFT JOIN courses c ON c.id = sa.course_id
+      LEFT JOIN scenarios sc ON sc.id = sa.simulation_id
+      WHERE sa.student_id = ?
+      ORDER BY sa.created_at DESC
+    `, [studentId]);
+
+    // Instancias completadas
+    const instances = await AppDataSource.query(`
+      SELECT si.*, sc.title AS scenario_title
+      FROM simulation_instances si
+      LEFT JOIN scenarios sc ON sc.id = si.scenario_id
+      WHERE si.student_id = ?
+      ORDER BY si.started_at DESC
+    `, [studentId]);
+
+    // Evaluaciones con detalles
+    const evaluations = await AppDataSource.query(`
+      SELECT se.*, c.title AS course_title
+      FROM simulation_evaluations se
+      LEFT JOIN simulation_assignments sa ON sa.id = se.assignment_id
+      LEFT JOIN courses c ON c.id = sa.course_id
+      WHERE se.student_id = ?
+      ORDER BY se.evaluated_at DESC
+    `, [studentId]);
+
+    res.json({ student, assignments, instances, evaluations });
+  } catch (error: any) {
+    console.error('[Students] GET /:id/history error:', error.message);
+    res.status(500).json({ error: 'Error al obtener historial', details: error.message });
+  }
+});
+
 export default router;

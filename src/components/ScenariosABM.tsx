@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Trash2, Plus, Edit2, BookOpen, Target, Mail, FileText,
-  ChevronRight, GraduationCap, Layers, Clock, CheckCircle
+  ChevronRight, GraduationCap, Layers, Clock, CheckCircle, Copy
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -200,6 +200,24 @@ export function ScenariosABM() {
     await loadScenarios();
   };
 
+  const handleDuplicate = async (s: Scenario) => {
+    const payload = {
+      course_id: s.course_id,
+      title: s.title + ' (Copia)',
+      description: s.description,
+      scenario_type: s.scenario_type,
+      difficulty: s.difficulty,
+      content: s.content,
+      expected_outcomes: s.expected_outcomes,
+    };
+    await fetch('http://localhost:5000/api/scenarios', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    await loadScenarios();
+  };
+
   const handleNew = () => {
     setForm(emptyForm());
     setEditingId(null);
@@ -359,6 +377,9 @@ export function ScenariosABM() {
                   </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
+                  <Button size="sm" variant="outline" title="Duplicar" onClick={() => handleDuplicate(s)}>
+                    <Copy className="w-4 h-4" />
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => handleEdit(s)}>
                     <Edit2 className="w-4 h-4" />
                   </Button>

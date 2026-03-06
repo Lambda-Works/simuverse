@@ -12,12 +12,14 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield, FolderOpen, FileUp, UserCheck, BarChart3 } from 'lucide-react';
+import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield, FolderOpen, FileUp, UserCheck, BarChart3, ClipboardList, Wand2, Copy } from 'lucide-react';
 import { CategoriesABM } from '@/components/CategoriesABM';
 import { DocumentsABM } from '@/components/DocumentsABM';
 import { TechSheetsABM } from '@/components/TechSheetsABM';
 import { AssignmentsABM } from '@/components/AssignmentsABM';
 import { ReportsABM } from '@/components/ReportsABM';
+import { ScenariosABM } from '@/components/ScenariosABM';
+import { TemplatesABM } from '@/components/TemplatesABM';
 
 const AVAILABLE_MODULES = [
   { id: 'chat_ia', label: 'Chat IA (Simulación Conversacional)' },
@@ -145,7 +147,7 @@ const AdminPanel = () => {
   const [newCriterion, setNewCriterion] = useState('');
   const [newTrait, setNewTrait] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
-  const [currentTab, setCurrentTab] = useState<'courses' | 'categories' | 'documents' | 'techsheets' | 'assignments' | 'reports'>('courses');
+  const [currentTab, setCurrentTab] = useState<'courses' | 'categories' | 'documents' | 'techsheets' | 'assignments' | 'reports' | 'scenarios' | 'templates'>('courses');
 
   useEffect(() => {
     if (!loading && (!user || !hasRole('admin'))) navigate('/dashboard');
@@ -225,6 +227,29 @@ const AdminPanel = () => {
     }
   };
 
+  const handleDuplicate = async (course: any) => {
+    const newId = (course.course_id + '-COPIA').substring(0, 50);
+    const payload = {
+      course_id: newId,
+      title: course.title + ' (Copia)',
+      description: course.description || '',
+      category: course.category,
+      modules: course.modules || [],
+      ai_config: course.ai_config || emptyForm.ai_config,
+      eval_criteria: course.eval_criteria || [],
+      crisis_events: course.crisis_events || [],
+      is_active: false,
+      created_by: user!.id,
+    };
+    try {
+      await apiClient.post('/courses', payload);
+      toast.success(`Copia creada: "${payload.title}"`);
+      fetchCourses();
+    } catch (e: any) {
+      toast.error(e.message || 'Error al duplicar el curso');
+    }
+  };
+
   const toggleModule = (mod: string) => {
     setForm(prev => ({
       ...prev,
@@ -300,6 +325,24 @@ const AdminPanel = () => {
             >
               <BarChart3 className="w-4 h-4 mr-2" />
               Reportes
+            </Button>
+            <Button
+              variant={currentTab === 'scenarios' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentTab('scenarios')}
+              className="rounded-b-none"
+            >
+              <ClipboardList className="w-4 h-4 mr-2" />
+              Escenarios
+            </Button>
+            <Button
+              variant={currentTab === 'templates' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentTab('templates')}
+              className="rounded-b-none"
+            >
+              <Wand2 className="w-4 h-4 mr-2" />
+              Plantillas
             </Button>
           </div>
         </div>
@@ -466,6 +509,9 @@ const AdminPanel = () => {
                       <p className="text-sm text-muted-foreground mt-1">{course.course_id} — {(course.modules as string[])?.join(', ')}</p>
                     </div>
                     <div className="flex gap-2">
+                      <Button variant="outline" size="sm" title="Duplicar curso" onClick={() => handleDuplicate(course)}>
+                        <Copy className="w-4 h-4" />
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => handleEdit(course)}>
                         <Settings className="w-4 h-4" />
                       </Button>
@@ -500,6 +546,12 @@ const AdminPanel = () => {
 
         {/* Reports Tab */}
         {currentTab === 'reports' && <ReportsABM />}
+
+        {/* Scenarios Tab */}
+        {currentTab === 'scenarios' && <ScenariosABM />}
+
+        {/* Templates Tab */}
+        {currentTab === 'templates' && <TemplatesABM />}
       </main>
     </div>
   );
