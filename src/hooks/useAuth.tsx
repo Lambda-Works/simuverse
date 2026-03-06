@@ -1,20 +1,28 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import type { User, Session } from '@supabase/supabase-js';
+import { apiClient } from '@/services/ApiClient';
 
-type AppRole = 'alumno' | 'profesor' | 'administrador' | 'ministerio';
+type AppRole = 'student' | 'teacher' | 'admin' | 'ministerio';
+
+interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  role: AppRole;
+}
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  roles: AppRole[];
-  profile: { full_name: string; avatar_url: string | null } | null;
+  user: AuthUser | null;
+  token: string | null;
   loading: boolean;
-  signOut: () => Promise<void>;
+  signOut: () => void;
+  isAuthenticated: boolean;
   hasRole: (role: AppRole) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Custom event for storage changes in same tab
+export const authChangeEvent = new EventTarget();
 
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
@@ -23,53 +31,84 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [roles, setRoles] = useState<AppRole[]>([]);
-  const [profile, setProfile] = useState<{ full_name: string; avatar_url: string | null } | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserData = async (userId: string) => {
-    const [rolesRes, profileRes] = await Promise.all([
-      supabase.from('user_roles').select('role').eq('user_id', userId),
-      supabase.from('profiles').select('full_name, avatar_url').eq('user_id', userId).single(),
-    ]);
-    if (rolesRes.data) setRoles(rolesRes.data.map(r => r.role));
-    if (profileRes.data) setProfile(profileRes.data);
+  // Función para cargar usuario desde localStorage
+  const loadAuthFromStorage = () => {
+    const storedToken = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
+
+    console.log('🔍 loadAuthFromStorage called:', { storedToken: storedToken?.substring(0, 20), storedUser });
+
+    if (storedToken && storedUser) {
+      try {
+        const userData = JSON.parse(storedUser);
+        console.log('✅ Parsed user data:', userData);
+        setToken(storedToken);
+        setUser(userData);
+      } catch (error) {
+        console.error('❌ Error parsing stored user data:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setToken(null);
+        setUser(null);
+      }
+    } else {
+      console.log('⚠️  No stored token or user');
+      setToken(null);
+      setUser(null);
+    }
+    setLoading(false);
   };
 
+  // Cargar usuario desde localStorage al montar
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        setTimeout(() => fetchUserData(session.user.id), 0);
-      } else {
-        setRoles([]);
-        setProfile(null);
-      }
-      setLoading(false);
-    });
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) fetchUserData(session.user.id);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    loadAuthFromStorage();
   }, []);
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
+  // Escuchar cambios en localStorage
+  useEffect(() => {
+    const handleStorageChange = () => {
+      loadAuthFromStorage();
+    };
+
+    // Event listener para cambios de localStorage en la misma pestaña
+    authChangeEvent.addEventListener('authChange', handleStorageChange);
+
+    // Event listener para cambios de localStorage desde otra pestaña
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      authChangeEvent.removeEventListener('authChange', handleStorageChange);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  const signOut = () => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    // Redirigir a login
+    window.location.href = '/auth';
   };
 
-  const hasRole = (role: AppRole) => roles.includes(role);
+  const hasRole = (role: AppRole): boolean => {
+    return user?.role === role;
+  };
 
-  return (
-    <AuthContext.Provider value={{ user, session, roles, profile, loading, signOut, hasRole }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value: AuthContextType = {
+    user,
+    token,
+    loading,
+    signOut,
+    isAuthenticated: !!token && !!user,
+    hasRole,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+

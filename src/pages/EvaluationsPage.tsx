@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/services/ApiClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,29 +17,35 @@ const EvaluationsPage = () => {
   const [logs, setLogs] = useState<Record<string, any[]>>({});
 
   useEffect(() => {
-    if (!loading && (!user || (!hasRole('profesor') && !hasRole('administrador') && !hasRole('ministerio')))) {
+    if (!loading && (!user || (!hasRole('teacher') && !hasRole('admin')))) {
       navigate('/dashboard');
     }
   }, [user, loading, hasRole, navigate]);
 
   useEffect(() => {
     const fetch = async () => {
-      const [simsRes, coursesRes] = await Promise.all([
-        supabase.from('simulations').select('*, courses(title, category, eval_criteria)')
-          .order('started_at', { ascending: false }),
-        supabase.from('courses').select('id, title'),
-      ]);
-      if (simsRes.data) setSimulations(simsRes.data);
-      if (coursesRes.data) setCourses(coursesRes.data);
+      try {
+        const [simsRes, coursesRes] = await Promise.all([
+          apiClient.get('/simulations'),
+          apiClient.get('/courses'),
+        ]);
+        if (simsRes.data) setSimulations(simsRes.data);
+        if (coursesRes.data) setCourses(coursesRes.data);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
     };
     if (user) fetch();
   }, [user]);
 
   const loadLogs = async (simId: string) => {
     if (logs[simId]) return;
-    const { data } = await supabase.from('simulation_logs')
-      .select('*').eq('simulation_id', simId).order('created_at', { ascending: true });
-    if (data) setLogs(prev => ({ ...prev, [simId]: data }));
+    try {
+      const res = await apiClient.get(`/simulations/${simId}/logs`);
+      if (res.data) setLogs(prev => ({ ...prev, [simId]: res.data }));
+    } catch (error) {
+      console.error('Error loading logs:', error);
+    }
   };
 
   const filtered = selectedCourse === 'all' ? simulations : simulations.filter(s => s.course_id === selectedCourse);

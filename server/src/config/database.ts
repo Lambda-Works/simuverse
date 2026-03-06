@@ -1,19 +1,24 @@
-import mongoose from 'mongoose';
+/**
+ * Database configuration is now handled by TypeORM in database/connection.ts
+ * This file is kept for legacy reference only.
+ */
 
-const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/msm-fepei';
+// TypeORM configuration is in src/database/connection.ts
+// MySQL/MariaDB connection details:
+// - Host: localhost (configurable via DB_HOST env var)
+// - Port: 3306 (configurable via DB_PORT env var)
+// - Database: msm_fepei
+// - User: root (configurable via DB_USER env var)
+// - Password: (from DB_PASSWORD env var)
 
-export const connectDatabase = async () => {
-  try {
-    await mongoose.connect(mongoURI);
-    console.log('✓ MongoDB conectado exitosamente');
-    return mongoose.connection;
-  } catch (error) {
-    console.error('✗ Error conectando a MongoDB:', error);
-    process.exit(1);
-  }
+export const config = {
+  type: 'mysql' as const,
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '3306', 10),
+  username: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'msm_fepei',
+  synchronize: false,
+  logging: process.env.NODE_ENV === 'development',
 };
 
-export const disconnectDatabase = async () => {
-  await mongoose.disconnect();
-  console.log('✓ MongoDB desconectado');
-};

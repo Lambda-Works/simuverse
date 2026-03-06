@@ -1,35 +1,46 @@
-import { Course } from '../models/Course.js';
+import { AppDataSource } from '../database/connection.js';
+import { Course } from '../entities/Course.js';
 
 export class CourseService {
-  async getAllCourses(isActive = true) {
-    return await Course.find({ is_active: isActive }).lean();
+  private courseRepository = AppDataSource.getRepository(Course);
+
+  async getAllCourses(is_active = true) {
+    return await this.courseRepository.find({
+      where: { is_active },
+      relations: ['modules', 'instructor']
+    });
   }
 
-  async getCourseById(courseId: string) {
-    return await Course.findOne({ course_id: courseId }).lean();
+  async getCourseById(course_id: string) {
+    return await this.courseRepository.findOne({
+      where: { id: course_id },
+      relations: ['modules', 'instructor']
+    });
   }
 
   async createCourse(courseData: any) {
-    const course = new Course(courseData);
-    return await course.save();
+    const course = this.courseRepository.create(courseData);
+    return await this.courseRepository.save(course);
   }
 
-  async updateCourse(courseId: string, updates: any) {
-    return await Course.findOneAndUpdate({ course_id: courseId }, updates, { new: true });
+  async updateCourse(course_id: string, updates: any) {
+    await this.courseRepository.update(course_id, updates);
+    return await this.getCourseById(course_id);
   }
 
-  async deleteCourse(courseId: string) {
-    return await Course.findOneAndUpdate({ course_id: courseId }, { is_active: false });
+  async deleteCourse(course_id: string) {
+    return await this.courseRepository.update(course_id, { is_active: false });
   }
 
   async getCoursesByFamily(family: string) {
-    return await Course.find({ family, is_active: true }).lean();
+    return await this.courseRepository.find({ where: { is_active: true } });
   }
 
-  async getModulesBysCourseId(courseId: string) {
-    const course = await Course.findOne({ course_id: courseId });
+  async getModulesBysCourseId(course_id: string) {
+    const course = await this.getCourseById(course_id);
     return course?.modules || [];
   }
 }
 
 export const courseService = new CourseService();
+

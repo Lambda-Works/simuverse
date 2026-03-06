@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/services/ApiClient';
+import { authChangeEvent } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,11 +20,32 @@ const Auth = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      toast.error(error.message);
-    } else {
-      navigate('/dashboard');
+    try {
+      const response = await apiClient.post('/auth/login', { email, password });
+      const { token, user } = response.data;
+      
+      console.log('✅ Login Response:', { token, user });
+      
+      // Guardar token y usuario en localStorage
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      
+      console.log('✅ localStorage saved:', {
+        token: localStorage.getItem('token'),
+        user: localStorage.getItem('user')
+      });
+      
+      // Disparar evento custom para notificar al AuthProvider
+      authChangeEvent.dispatchEvent(new Event('authChange'));
+      
+      toast.success('Sesión iniciada exitosamente');
+      
+      // Esperar un bit para que el contexto se actualice
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 100);
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Error al iniciar sesión');
     }
     setLoading(false);
   };
@@ -35,18 +57,29 @@ const Auth = () => {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName },
-        emailRedirectTo: window.location.origin,
-      },
-    });
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success('Cuenta creada. Revise su email para confirmar.');
+    try {
+      const response = await apiClient.post('/auth/register', {
+        email,
+        password,
+        name: fullName,
+      });
+      const { token, user } = response.data;
+      
+      // Guardar token y usuario en localStorage
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      
+      // Disparar evento custom para notificar al AuthProvider
+      authChangeEvent.dispatchEvent(new Event('authChange'));
+      
+      toast.success('Cuenta creada exitosamente');
+      
+      // Esperar un poco para que el contexto se actualice
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 100);
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Error al crear cuenta');
     }
     setLoading(false);
   };

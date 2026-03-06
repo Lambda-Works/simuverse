@@ -1,59 +1,78 @@
-import express, { Request, Response } from 'express';
-import cors from 'express-cors';
-import { connectDatabase } from './config/database.js';
-import { env } from './config/env.js';
-import { promptInjectionFilter, rateLimitMiddleware, auditLoggingMiddleware } from './middleware/security.js';
-
-// Import routes
+import 'reflect-metadata';
+import express, { Request, Response, NextFunction } from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { AppDataSource } from './database/connection.js';
+import { createAuthRoutes } from './routes/AuthMiddleware.js';
 import coursesRouter from './routes/courses.js';
 import simulationsRouter from './routes/simulations.js';
+import adminRouter from './routes/admin.js';
+
+dotenv.config();
 
 const app = express();
+const PORT = process.env.PORT || 5000;
+const FRONTEND_URL = process.env.CORS_ORIGIN || 'http://localhost:5173';
 
 // Middleware
 app.use(express.json({ limit: '10mb' }));
-app.use(cors({ origin: env.FRONTEND_URL }));
-app.use(auditLoggingMiddleware);
-app.use(rateLimitMiddleware);
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(cors({ 
+  origin: FRONTEND_URL,
+  credentials: true 
+}));
+
+// Logging middleware
+app.use((req: Request, res: Response, next: NextFunction) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
 
 // Health check
 app.get('/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date() });
+  res.json({ status: 'ok', timestamp: new Date(), message: 'Server is running' });
 });
 
 // API Routes
+const authRoutes = createAuthRoutes();
+app.use('/api/auth', authRoutes);
 app.use('/api/courses', coursesRouter);
 app.use('/api/simulations', simulationsRouter);
+app.use('/api/admin', adminRouter);
 
-// Error handling
-app.use((err: any, req: Request, res: Response) => {
-  console.error('Error:', err);
-  res.status(500).json({ error: 'Error interno del servidor' });
+// 404 handler
+app.use((req: Request, res: Response) => {
+  res.status(404).json({ error: 'Ruta no encontrada', path: req.path });
 });
 
-// Declare requestTime on Request type
-declare global {
-  namespace Express {
-    interface Request {
-      requestTime?: number;
-    }
-  }
-}
+// Error handling middleware
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('Error:', err.message);
+  res.status(err.status || 500).json({ 
+    error: err.message || 'Error interno del servidor',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
 
 // Start server
 const start = async () => {
   try {
-    // Connect to MongoDB
-    await connectDatabase();
+    // Initialize TypeORM connection
+    console.log('🔄 Conectando a la base de datos...');
+    await AppDataSource.initialize();
+    console.log('✅ Base de datos conectada exitosamente');
 
-    app.listen(env.PORT, () => {
-      console.log(`\n✓ Servidor MSM iniciado en puerto ${env.PORT}`);
-      console.log(`✓ Entorno: ${env.NODE_ENV}`);
-      console.log(`✓ Database: ${env.MONGODB_URI}`);
-      console.log(`✓ URL del frontend: ${env.FRONTEND_URL}\n`);
+    app.listen(PORT, () => {
+      console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+      console.log(`✓ Servidor MSM iniciado en puerto ${PORT}`);
+      console.log(`✓ URL: http://localhost:${PORT}`);
+      console.log(`✓ Health check: http://localhost:${PORT}/health`);
+      console.log(`✓ Entorno: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`✓ Frontend: ${FRONTEND_URL}`);
+      console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
     });
   } catch (error) {
-    console.error('Error iniciando servidor:', error);
+    console.error('❌ Error iniciando servidor:', error);
     process.exit(1);
   }
 };
@@ -61,3 +80,5 @@ const start = async () => {
 start();
 
 export default app;
+
+

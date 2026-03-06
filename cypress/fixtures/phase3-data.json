@@ -1,0 +1,127 @@
+{
+  "studentData": {
+    "id": "STU-001",
+    "name": "Juan García López",
+    "email": "juan.garcia@example.com",
+    "course": "Simulador de Gestión Empresarial",
+    "family": "RRHH",
+    "score": 92,
+    "completionTime": "2:45:30",
+    "completionDate": "2024-01-15",
+    "simulationId": "SIM-2024-001",
+    "competencies": {
+      "Compliance": 95,
+      "Management": 88,
+      "Communication": 92,
+      "Innovation": 85,
+      "Leadership": 90
+    },
+    "actionsLog": [
+      { "timestamp": "2024-01-15T10:30:00", "action": "started_simulation", "details": "User started the simulation" },
+      { "timestamp": "2024-01-15T10:45:00", "action": "completed_module", "details": "Completed HR Module" },
+      { "timestamp": "2024-01-15T11:20:00", "action": "completed_module", "details": "Completed Compliance Module" }
+    ]
+  },
+  "chatMessages": [
+    {
+      "id": "msg-1",
+      "role": "user",
+      "content": "¿Cuáles son los pasos para una contratación correcta?"
+    },
+    {
+      "id": "msg-2",
+      "role": "assistant",
+      "content": "La contratación correcta en RRHH involucra varios pasos clave..."
+    }
+  ],
+  "certificateThemes": [
+    "professional",
+    "modern",
+    "light",
+    "dark"
+  ],
+  "chatFamilies": [
+    {
+      "name": "RRHH",
+      "description": "Especialista en Recursos Humanos",
+      "systemPrompt": "Eres un especialista en RRHH con enfoque en compliance y relaciones laborales."
+    },
+    {
+      "name": "IT",
+      "description": "Arquitecto de Sistemas",
+      "systemPrompt": "Eres un arquitecto de sistemas con profundo conocimiento técnico."
+    },
+    {
+      "name": "Administración",
+      "description": "Administrador Público",
+      "systemPrompt": "Eres un experto en administración pública y regulaciones."
+    },
+    {
+      "name": "Emprendimiento",
+      "description": "Mentor de Negocios",
+      "systemPrompt": "Eres un mentor de negocios con enfoque en resultados."
+    }
+  ],
+  "offlineTestData": {
+    "cachedPages": ["/", "/dashboard", "/modules"],
+    "cachedApis": [
+      "/api/student/profile",
+      "/api/certificate/template",
+      "/api/chat/history"
+    ],
+    "pendingActions": [
+      {
+        "id": "action-1",
+        "type": "certificate_download",
+        "timestamp": 1705318800000,
+        "data": { "studentId": "STU-001" }
+      },
+      {
+        "id": "action-2",
+        "type": "chat_message",
+        "timestamp": 1705318900000,
+        "data": { "message": "Offline test message" }
+      }
+    ]
+  },
+  "apiResponses": {
+    "studentSuccess": {
+      "statusCode": 200,
+      "body": {
+        "id": "STU-001",
+        "name": "Juan García López",
+        "score": 92
+      }
+    },
+    "geminiSuccess": {
+      "statusCode": 200,
+      "body": {
+        "candidates": [
+          {
+            "content": {
+              "parts": [
+                {
+                  "text": "La contratación correcta requiere seguir un proceso estructurado..."
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "certificateSuccess": {
+      "statusCode": 200,
+      "body": {
+        "dataUrl": "data:image/png;base64,...",
+        "filename": "certificate-STU-001.pdf"
+      }
+    },
+    "emailSuccess": {
+      "statusCode": 200,
+      "body": {
+        "message": "Email sent successfully",
+        "messageId": "msg-xyz123"
+      }
+    }
+  }
+}

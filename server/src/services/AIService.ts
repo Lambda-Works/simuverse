@@ -96,7 +96,7 @@ INSTRUCCIONES CRÍTICAS:
    * Análisis de desempeño del alumno usando IA
    */
   async analyzStudentPerformance(
-    courseId: string,
+    course_id: string,
     logs: any[],
     evalCriteria: string[]
   ): Promise<Record<string, any>> {

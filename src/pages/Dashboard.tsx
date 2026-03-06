@@ -1,45 +1,48 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/services/ApiClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, Play, Settings, BarChart3, LogOut, Users, Shield, GraduationCap } from 'lucide-react';
+import { BookOpen, Play, Settings, BarChart3, LogOut, Shield, GraduationCap } from 'lucide-react';
 
-interface CourseRow {
+interface Course {
   id: string;
-  course_id: string;
   title: string;
   description: string | null;
   category: string;
-  modules: any;
-  is_active: boolean;
+  modules: string[];
+  is_active: number;
 }
 
 const Dashboard = () => {
-  const { user, roles, profile, signOut, hasRole, loading } = useAuth();
+  const { user, signOut, loading, isAuthenticated, hasRole } = useAuth();
   const navigate = useNavigate();
-  const [courses, setCourses] = useState<CourseRow[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
 
   useEffect(() => {
-    if (!loading && !user) navigate('/auth');
-  }, [user, loading, navigate]);
+    if (!loading && !isAuthenticated) navigate('/auth');
+  }, [isAuthenticated, loading, navigate]);
 
   useEffect(() => {
     const fetchCourses = async () => {
-      const { data } = await supabase.from('courses').select('*');
-      if (data) setCourses(data as CourseRow[]);
+      try {
+        const response = await apiClient.get('/courses');
+        setCourses(response.data);
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+      }
     };
-    if (user) fetchCourses();
-  }, [user]);
+    if (user && isAuthenticated) fetchCourses();
+  }, [user, isAuthenticated]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
 
   const roleLabels: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
-    alumno: { label: 'Alumno', icon: <GraduationCap className="w-3 h-3" />, color: 'bg-primary/10 text-primary' },
-    profesor: { label: 'Profesor', icon: <BookOpen className="w-3 h-3" />, color: 'bg-success/10 text-success' },
-    administrador: { label: 'Administrador', icon: <Settings className="w-3 h-3" />, color: 'bg-accent/10 text-accent' },
+    student: { label: 'Estudiante', icon: <GraduationCap className="w-3 h-3" />, color: 'bg-primary/10 text-primary' },
+    teacher: { label: 'Profesor', icon: <BookOpen className="w-3 h-3" />, color: 'bg-success/10 text-success' },
+    admin: { label: 'Administrador', icon: <Settings className="w-3 h-3" />, color: 'bg-accent/10 text-accent' },
     ministerio: { label: 'Ministerio', icon: <Shield className="w-3 h-3" />, color: 'bg-warning/10 text-warning' },
   };
 
@@ -55,21 +58,17 @@ const Dashboard = () => {
             <span className="font-bold text-lg">MSM</span>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex gap-1">
-              {roles.map(role => (
-                <Badge key={role} variant="secondary" className={`${roleLabels[role]?.color} text-xs gap-1`}>
-                  {roleLabels[role]?.icon}
-                  {roleLabels[role]?.label}
-                </Badge>
-              ))}
-            </div>
-            <span className="text-sm text-muted-foreground hidden sm:inline">{profile?.full_name}</span>
-            {(hasRole('administrador')) && (
+            <span className="text-sm font-medium">{user?.name}</span>
+            <Badge variant="secondary" className={`${roleLabels[user?.role as keyof typeof roleLabels]?.color} text-xs gap-1`}>
+              {roleLabels[user?.role as keyof typeof roleLabels]?.icon}
+              {roleLabels[user?.role as keyof typeof roleLabels]?.label}
+            </Badge>
+            {hasRole('admin') && (
               <Button variant="outline" size="sm" onClick={() => navigate('/admin')}>
                 <Settings className="w-4 h-4 mr-1" /> Admin
               </Button>
             )}
-            {(hasRole('profesor') || hasRole('administrador') || hasRole('ministerio')) && (
+            {(hasRole('teacher') || hasRole('admin')) && (
               <Button variant="outline" size="sm" onClick={() => navigate('/evaluations')}>
                 <BarChart3 className="w-4 h-4 mr-1" /> Evaluaciones
               </Button>
@@ -85,12 +84,12 @@ const Dashboard = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">
-            {hasRole('alumno') && !hasRole('profesor') && !hasRole('administrador')
-              ? `Bienvenido, ${profile?.full_name || 'Alumno'}`
+            {hasRole('student') && !hasRole('teacher') && !hasRole('admin')
+              ? `Bienvenido, ${user?.name || 'Estudiante'}`
               : 'Panel de Control'}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {hasRole('alumno') ? 'Seleccione un curso para iniciar la simulación' : 'Gestione cursos y simulaciones'}
+            {hasRole('student') ? 'Seleccione un curso para iniciar la simulación' : 'Gestione cursos y simulaciones'}
           </p>
         </div>
 
@@ -100,9 +99,9 @@ const Dashboard = () => {
               <BookOpen className="w-12 h-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold">No hay cursos disponibles</h3>
               <p className="text-muted-foreground text-sm mt-1">
-                {hasRole('administrador') ? 'Cree un nuevo curso desde el panel de administración.' : 'Contacte a su administrador.'}
+                {hasRole('admin') ? 'Cree un nuevo curso desde el panel de administración.' : 'Contacte a su administrador.'}
               </p>
-              {hasRole('administrador') && (
+              {hasRole('admin') && (
                 <Button className="mt-4" onClick={() => navigate('/admin')}>
                   <Settings className="w-4 h-4 mr-2" /> Crear Curso
                 </Button>

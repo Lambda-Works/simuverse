@@ -1,8 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { simulationService, telemetryService } from '../services/SimulationService.js';
 import { courseService } from '../services/CourseService.js';
-import { aiService } from '../services/AIService.js';
-import { rulesEngine } from '../services/RulesEngine.js';
+import { authMiddleware } from '../middleware/AuthMiddleware.js';
 
 const router = Router();
 
@@ -10,29 +9,30 @@ const router = Router();
  * POST /api/simulations/start
  * Iniciar una nueva simulación
  */
-router.post('/start', async (req: Request, res: Response) => {
+router.post('/start', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { userId, courseId, scenarioId } = req.body;
+    const { course_id, scenario_id } = req.body;
+    const user_id = (req as any).user?.user_id;
 
-    if (!userId || !courseId) {
-      return res.status(400).json({ error: 'userId y courseId requeridos' });
+    if (!user_id || !course_id) {
+      return res.status(400).json({ error: 'user_id y course_id requeridos' });
     }
 
-    const course = await courseService.getCourseById(courseId);
+    const course = await courseService.getCourseById(course_id);
     if (!course) {
       return res.status(404).json({ error: 'Curso no encontrado' });
     }
 
-    const simulation = await simulationService.createSimulation(userId, courseId, scenarioId);
+    const simulation = await simulationService.createSimulation(user_id, course_id, scenario_id);
 
     // Log inicial
     await telemetryService.logAction(
-      simulation._id.toString(),
-      userId,
-      courseId,
+      simulation.id,
+      user_id,
+      course_id,
       'Simulación iniciada',
       'navigation',
-      { scenario_id: scenarioId }
+      { scenario_id: scenario_id }
     );
 
     res.status(201).json(simulation);
@@ -63,7 +63,7 @@ router.get('/:simulationId', async (req: Request, res: Response) => {
  */
 router.post('/:simulationId/message', async (req: Request, res: Response) => {
   try {
-    const { userId, courseId, message, conversationHistory } = req.body;
+    const { user_id, course_id, message, conversationHistory } = req.body;
     const startTime = Date.now();
 
     const simulation = await simulationService.getSimulation(req.params.simulationId);
@@ -71,7 +71,7 @@ router.post('/:simulationId/message', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Simulación no encontrada' });
     }
 
-    const course = await courseService.getCourseById(courseId);
+    const course = await courseService.getCourseById(course_id);
     if (!course) {
       return res.status(404).json({ error: 'Curso no encontrado' });
     }
@@ -93,8 +93,8 @@ router.post('/:simulationId/message', async (req: Request, res: Response) => {
     // Log de la acción
     await telemetryService.logAction(
       req.params.simulationId,
-      userId,
-      courseId,
+      user_id,
+      course_id,
       message.substring(0, 100),
       'message_sent',
       {
@@ -121,28 +121,28 @@ router.post('/:simulationId/message', async (req: Request, res: Response) => {
  */
 router.post('/:simulationId/action', async (req: Request, res: Response) => {
   try {
-    const { userId, courseId, actionType, actionData } = req.body;
+    const { user_id, course_id, action_type, actionData } = req.body;
     const startTime = Date.now();
 
-    const course = await courseService.getCourseById(courseId);
+    const course = await courseService.getCourseById(course_id);
     if (!course) {
       return res.status(404).json({ error: 'Curso no encontrado' });
     }
 
     // Validar con el Rules Engine según el tipo de curso
-    const validation = await rulesEngine.validate(course.family, actionType, actionData);
+    const validation = await rulesEngine.validate(course.family, action_type, actionData);
 
     const responseTime = Date.now() - startTime;
 
     // Log de la acción
     await telemetryService.logAction(
       req.params.simulationId,
-      userId,
-      courseId,
-      `Acción: ${actionType}`,
+      user_id,
+      course_id,
+      `Acción: ${action_type}`,
       'click',
       {
-        action_type: actionType,
+        action_type: action_type,
         validation_result: validation,
         action_data: actionData,
       },

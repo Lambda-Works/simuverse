@@ -18,12 +18,12 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/courses/:courseId
+ * GET /api/courses/:course_id
  * Obtiene un curso específico
  */
-router.get('/:courseId', async (req: Request, res: Response) => {
+router.get('/:course_id', async (req: Request, res: Response) => {
   try {
-    const course = await courseService.getCourseById(req.params.courseId);
+    const course = await courseService.getCourseById(req.params.course_id);
     if (!course) {
       return res.status(404).json({ error: 'Curso no encontrado' });
     }
@@ -66,12 +66,12 @@ router.post('/', promptInjectionFilter, async (req: Request, res: Response) => {
 });
 
 /**
- * PUT /api/courses/:courseId
+ * PUT /api/courses/:course_id
  * Actualizar un curso
  */
-router.put('/:courseId', async (req: Request, res: Response) => {
+router.put('/:course_id', async (req: Request, res: Response) => {
   try {
-    const updated = await courseService.updateCourse(req.params.courseId, req.body);
+    const updated = await courseService.updateCourse(req.params.course_id, req.body);
     if (!updated) {
       return res.status(404).json({ error: 'Curso no encontrado' });
     }
@@ -82,12 +82,12 @@ router.put('/:courseId', async (req: Request, res: Response) => {
 });
 
 /**
- * DELETE /api/courses/:courseId
+ * DELETE /api/courses/:course_id
  * Desactivar un curso (soft delete)
  */
-router.delete('/:courseId', async (req: Request, res: Response) => {
+router.delete('/:course_id', async (req: Request, res: Response) => {
   try {
-    const deleted = await courseService.deleteCourse(req.params.courseId);
+    const deleted = await courseService.deleteCourse(req.params.course_id);
     if (!deleted) {
       return res.status(404).json({ error: 'Curso no encontrado' });
     }

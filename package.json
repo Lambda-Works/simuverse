@@ -10,7 +10,14 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "cypress:open": "cypress open",
+    "cypress:e2e": "cypress run",
+    "cypress:e2e:watch": "cypress run --headed",
+    "test:phase3": "cypress run --spec 'cypress/e2e/phase3-*.cy.ts'",
+    "test:llm": "cypress run --spec 'cypress/e2e/llm-*.cy.ts'",
+    "test:certificate": "cypress run --spec 'cypress/e2e/certificate-*.cy.ts'",
+    "test:pwa": "cypress run --spec 'cypress/e2e/pwa-*.cy.ts'"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -43,6 +50,7 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "@supabase/supabase-js": "^2.98.0",
     "@tanstack/react-query": "^5.83.0",
+    "axios": "^1.13.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -75,6 +83,7 @@
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.21",
+    "cypress": "^15.11.0",
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",

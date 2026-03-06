@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/services/ApiClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +12,12 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield } from 'lucide-react';
+import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield, FolderOpen, FileUp, UserCheck, BarChart3 } from 'lucide-react';
+import { CategoriesABM } from '@/components/CategoriesABM';
+import { DocumentsABM } from '@/components/DocumentsABM';
+import { TechSheetsABM } from '@/components/TechSheetsABM';
+import { AssignmentsABM } from '@/components/AssignmentsABM';
+import { ReportsABM } from '@/components/ReportsABM';
 
 const AVAILABLE_MODULES = [
   { id: 'chat_ia', label: 'Chat IA (Simulación Conversacional)' },
@@ -69,14 +74,20 @@ const AdminPanel = () => {
   const [saving, setSaving] = useState(false);
   const [newCriterion, setNewCriterion] = useState('');
   const [newTrait, setNewTrait] = useState('');
+  const [currentTab, setCurrentTab] = useState<'courses' | 'categories' | 'documents' | 'techsheets' | 'assignments' | 'reports'>('courses');
 
   useEffect(() => {
-    if (!loading && (!user || !hasRole('administrador'))) navigate('/dashboard');
+    if (!loading && (!user || !hasRole('admin'))) navigate('/dashboard');
   }, [user, loading, hasRole, navigate]);
 
   const fetchCourses = async () => {
-    const { data } = await supabase.from('courses').select('*').order('created_at', { ascending: false });
-    if (data) setCourses(data);
+    try {
+      const res = await apiClient.get('/courses');
+      if (res.data) setCourses(res.data);
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+      toast.error('Error al cargar los cursos');
+    }
   };
 
   useEffect(() => { if (user) fetchCourses(); }, [user]);
@@ -100,21 +111,19 @@ const AdminPanel = () => {
       created_by: user!.id,
     };
 
-    let error;
-    if (editingId) {
-      ({ error } = await supabase.from('courses').update(payload).eq('id', editingId));
-    } else {
-      ({ error } = await supabase.from('courses').insert(payload));
-    }
-
-    if (error) {
-      toast.error(error.message);
-    } else {
+    try {
+      if (editingId) {
+        await apiClient.put(`/courses/${editingId}`, payload);
+      } else {
+        await apiClient.post('/courses', payload);
+      }
       toast.success(editingId ? 'Curso actualizado' : 'Curso creado');
       setDialogOpen(false);
       setForm({ ...emptyForm });
       setEditingId(null);
       fetchCourses();
+    } catch (error: any) {
+      toast.error(error.message || 'Error al guardar el curso');
     }
     setSaving(false);
   };
@@ -136,9 +145,13 @@ const AdminPanel = () => {
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('courses').delete().eq('id', id);
-    if (error) toast.error(error.message);
-    else { toast.success('Curso eliminado'); fetchCourses(); }
+    try {
+      await apiClient.delete(`/courses/${id}`);
+      toast.success('Curso eliminado');
+      fetchCourses();
+    } catch (error: any) {
+      toast.error(error.message || 'Error al eliminar el curso');
+    }
   };
 
   const toggleModule = (mod: string) => {
@@ -156,137 +169,224 @@ const AdminPanel = () => {
             <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
               <ArrowLeft className="w-4 h-4 mr-1" /> Volver
             </Button>
-            <span className="font-bold text-lg">Administración MSM</span>
+            <span className="font-bold text-lg">Administración SimuVerse 3.0</span>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setForm({ ...emptyForm }); setEditingId(null); } }}>
-            <DialogTrigger asChild>
-              <Button><Plus className="w-4 h-4 mr-2" /> Nuevo Curso</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{editingId ? 'Editar Curso' : 'Crear Nuevo Curso'}</DialogTitle>
-                <DialogDescription>Configure los módulos, rol de IA y criterios de evaluación</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-6 mt-4">
-                {/* Basic info */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>ID del Curso</Label>
-                    <Input value={form.course_id} onChange={e => setForm(p => ({ ...p, course_id: e.target.value }))} placeholder="SEGUROS_01" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Categoría</Label>
-                    <Select value={form.category} onValueChange={v => setForm(p => ({ ...p, category: v }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Título</Label>
-                  <Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Simulación de Seguros de Vida" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Descripción</Label>
-                  <Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="El alumno actuará como asesor de seguros..." />
-                </div>
+        </div>
 
-                {/* Modules */}
-                <div className="space-y-2">
-                  <Label className="text-base font-semibold">Módulos (Lego)</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {AVAILABLE_MODULES.map(mod => (
-                      <label key={mod.id} className="flex items-center gap-2 p-2 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors">
-                        <Switch checked={form.modules.includes(mod.id)} onCheckedChange={() => toggleModule(mod.id)} />
-                        <span className="text-sm">{mod.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* AI Config */}
-                <div className="space-y-3 p-4 rounded-lg border bg-muted/30">
-                  <Label className="text-base font-semibold">🤖 Configuración de IA</Label>
-                  <div className="space-y-2">
-                    <Label className="text-sm">Rol Base de la IA</Label>
-                    <Input value={form.ai_config.base_role} onChange={e => setForm(p => ({ ...p, ai_config: { ...p.ai_config, base_role: e.target.value } }))} placeholder="Eres un cliente que busca un seguro de vida..." />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm">Contexto del Curso</Label>
-                    <Textarea value={form.ai_config.course_context} onChange={e => setForm(p => ({ ...p, ai_config: { ...p.ai_config, course_context: e.target.value } }))} placeholder="Simulación en una oficina de seguros. El alumno es un asesor junior..." />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm">Base de Conocimiento (Prompt)</Label>
-                    <Textarea value={form.ai_config.knowledge_base_prompt} onChange={e => setForm(p => ({ ...p, ai_config: { ...p.ai_config, knowledge_base_prompt: e.target.value } }))} placeholder="Información legal relevante, normativas, procedimientos..." rows={3} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm">Rasgos de Personalidad</Label>
-                    <div className="flex gap-2">
-                      <Input value={newTrait} onChange={e => setNewTrait(e.target.value)} placeholder="impaciente" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (newTrait.trim()) { setForm(p => ({ ...p, ai_config: { ...p.ai_config, personality_traits: [...p.ai_config.personality_traits, newTrait.trim()] } })); setNewTrait(''); } } }} />
-                      <Button type="button" variant="outline" size="sm" onClick={() => { if (newTrait.trim()) { setForm(p => ({ ...p, ai_config: { ...p.ai_config, personality_traits: [...p.ai_config.personality_traits, newTrait.trim()] } })); setNewTrait(''); } }}>+</Button>
-                    </div>
-                    <div className="flex flex-wrap gap-1">{form.ai_config.personality_traits.map((t, i) => <Badge key={i} variant="secondary" className="cursor-pointer" onClick={() => setForm(p => ({ ...p, ai_config: { ...p.ai_config, personality_traits: p.ai_config.personality_traits.filter((_, j) => j !== i) } }))}>{t} ×</Badge>)}</div>
-                  </div>
-                </div>
-
-                {/* Eval criteria */}
-                <div className="space-y-2">
-                  <Label className="text-base font-semibold">📊 Criterios de Evaluación (KPIs)</Label>
-                  <div className="flex gap-2">
-                    <Input value={newCriterion} onChange={e => setNewCriterion(e.target.value)} placeholder="empatía, resolución, conocimiento técnico..." onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (newCriterion.trim()) { setForm(p => ({ ...p, eval_criteria: [...p.eval_criteria, newCriterion.trim()] })); setNewCriterion(''); } } }} />
-                    <Button type="button" variant="outline" size="sm" onClick={() => { if (newCriterion.trim()) { setForm(p => ({ ...p, eval_criteria: [...p.eval_criteria, newCriterion.trim()] })); setNewCriterion(''); } }}>+</Button>
-                  </div>
-                  <div className="flex flex-wrap gap-1">{form.eval_criteria.map((c, i) => <Badge key={i} variant="outline" className="cursor-pointer" onClick={() => setForm(p => ({ ...p, eval_criteria: p.eval_criteria.filter((_, j) => j !== i) }))}>{c} ×</Badge>)}</div>
-                </div>
-
-                {/* Active toggle */}
-                <div className="flex items-center justify-between">
-                  <Label>Curso Activo</Label>
-                  <Switch checked={form.is_active} onCheckedChange={v => setForm(p => ({ ...p, is_active: v }))} />
-                </div>
-
-                <Button className="w-full" onClick={handleSave} disabled={saving}>
-                  <Save className="w-4 h-4 mr-2" /> {saving ? 'Guardando...' : editingId ? 'Actualizar Curso' : 'Crear Curso'}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+        {/* Tab navigation */}
+        <div className="border-t bg-muted/30 px-4">
+          <div className="container mx-auto flex gap-1 overflow-x-auto">
+            <Button
+              variant={currentTab === 'courses' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentTab('courses')}
+              className="rounded-b-none"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Cursos
+            </Button>
+            <Button
+              variant={currentTab === 'categories' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentTab('categories')}
+              className="rounded-b-none"
+            >
+              <FolderOpen className="w-4 h-4 mr-2" />
+              Categorías
+            </Button>
+            <Button
+              variant={currentTab === 'documents' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentTab('documents')}
+              className="rounded-b-none"
+            >
+              <FileUp className="w-4 h-4 mr-2" />
+              Documentos
+            </Button>
+            <Button
+              variant={currentTab === 'techsheets' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentTab('techsheets')}
+              className="rounded-b-none"
+            >
+              <FileUp className="w-4 h-4 mr-2" />
+              Fichas Técnicas
+            </Button>
+            <Button
+              variant={currentTab === 'assignments' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentTab('assignments')}
+              className="rounded-b-none"
+            >
+              <UserCheck className="w-4 h-4 mr-2" />
+              Asignaciones
+            </Button>
+            <Button
+              variant={currentTab === 'reports' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentTab('reports')}
+              className="rounded-b-none"
+            >
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Reportes
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <div className="grid gap-4">
-          {courses.map(course => (
-            <Card key={course.id} className="glass-card">
-              <CardContent className="flex items-center justify-between py-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold">{course.title}</h3>
-                    <Badge variant="secondary" className="text-xs">{course.category}</Badge>
-                    {course.is_active ? <span className="w-2 h-2 rounded-full bg-success" /> : <span className="w-2 h-2 rounded-full bg-muted-foreground" />}
+        {/* Courses Tab */}
+        {currentTab === 'courses' && (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-2xl font-bold">Gestión de Cursos</h2>
+                <p className="text-gray-600 mt-1">Crea, edita y configura los cursos disponibles</p>
+              </div>
+              <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setForm({ ...emptyForm }); setEditingId(null); } }}>
+                <DialogTrigger asChild>
+                  <Button><Plus className="w-4 h-4 mr-2" /> Nuevo Curso</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>{editingId ? 'Editar Curso' : 'Crear Nuevo Curso'}</DialogTitle>
+                    <DialogDescription>Configure los módulos, rol de IA y criterios de evaluación</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-6 mt-4">
+                    {/* Basic info */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>ID del Curso</Label>
+                        <Input value={form.course_id} onChange={e => setForm(p => ({ ...p, course_id: e.target.value }))} placeholder="SEGUROS_01" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Categoría</Label>
+                        <Select value={form.category} onValueChange={v => setForm(p => ({ ...p, category: v }))}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Título</Label>
+                      <Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Simulación de Seguros de Vida" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Descripción</Label>
+                      <Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="El alumno actuará como asesor de seguros..." />
+                    </div>
+
+                    {/* Modules */}
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold">Módulos (Lego)</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {AVAILABLE_MODULES.map(mod => (
+                          <label key={mod.id} className="flex items-center gap-2 p-2 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors">
+                            <Switch checked={form.modules.includes(mod.id)} onCheckedChange={() => toggleModule(mod.id)} />
+                            <span className="text-sm">{mod.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* AI Config */}
+                    <div className="space-y-3 p-4 rounded-lg border bg-muted/30">
+                      <Label className="text-base font-semibold">🤖 Configuración de IA</Label>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Rol Base de la IA</Label>
+                        <Input value={form.ai_config.base_role} onChange={e => setForm(p => ({ ...p, ai_config: { ...p.ai_config, base_role: e.target.value } }))} placeholder="Eres un cliente que busca un seguro de vida..." />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Contexto del Curso</Label>
+                        <Textarea value={form.ai_config.course_context} onChange={e => setForm(p => ({ ...p, ai_config: { ...p.ai_config, course_context: e.target.value } }))} placeholder="Simulación en una oficina de seguros. El alumno es un asesor junior..." />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Base de Conocimiento (Prompt)</Label>
+                        <Textarea value={form.ai_config.knowledge_base_prompt} onChange={e => setForm(p => ({ ...p, ai_config: { ...p.ai_config, knowledge_base_prompt: e.target.value } }))} placeholder="Información legal relevante, normativas, procedimientos..." rows={3} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Rasgos de Personalidad</Label>
+                        <div className="flex gap-2">
+                          <Input value={newTrait} onChange={e => setNewTrait(e.target.value)} placeholder="impaciente" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (newTrait.trim()) { setForm(p => ({ ...p, ai_config: { ...p.ai_config, personality_traits: [...p.ai_config.personality_traits, newTrait.trim()] } })); setNewTrait(''); } } }} />
+                          <Button type="button" variant="outline" size="sm" onClick={() => { if (newTrait.trim()) { setForm(p => ({ ...p, ai_config: { ...p.ai_config, personality_traits: [...p.ai_config.personality_traits, newTrait.trim()] } })); setNewTrait(''); } }}>+</Button>
+                        </div>
+                        <div className="flex flex-wrap gap-1">{form.ai_config.personality_traits.map((t, i) => <Badge key={i} variant="secondary" className="cursor-pointer" onClick={() => setForm(p => ({ ...p, ai_config: { ...p.ai_config, personality_traits: p.ai_config.personality_traits.filter((_, j) => j !== i) } }))}>{t} ×</Badge>)}</div>
+                      </div>
+                    </div>
+
+                    {/* Eval criteria */}
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold">📊 Criterios de Evaluación (KPIs)</Label>
+                      <div className="flex gap-2">
+                        <Input value={newCriterion} onChange={e => setNewCriterion(e.target.value)} placeholder="empatía, resolución, conocimiento técnico..." onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (newCriterion.trim()) { setForm(p => ({ ...p, eval_criteria: [...p.eval_criteria, newCriterion.trim()] })); setNewCriterion(''); } } }} />
+                        <Button type="button" variant="outline" size="sm" onClick={() => { if (newCriterion.trim()) { setForm(p => ({ ...p, eval_criteria: [...p.eval_criteria, newCriterion.trim()] })); setNewCriterion(''); } }}>+</Button>
+                      </div>
+                      <div className="flex flex-wrap gap-1">{form.eval_criteria.map((c, i) => <Badge key={i} variant="outline" className="cursor-pointer" onClick={() => setForm(p => ({ ...p, eval_criteria: p.eval_criteria.filter((_, j) => j !== i) }))}>{c} ×</Badge>)}</div>
+                    </div>
+
+                    {/* Active toggle */}
+                    <div className="flex items-center justify-between">
+                      <Label>Curso Activo</Label>
+                      <Switch checked={form.is_active} onCheckedChange={v => setForm(p => ({ ...p, is_active: v }))} />
+                    </div>
+
+                    <Button className="w-full" onClick={handleSave} disabled={saving}>
+                      <Save className="w-4 h-4 mr-2" /> {saving ? 'Guardando...' : editingId ? 'Actualizar Curso' : 'Crear Curso'}
+                    </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">{course.course_id} — {(course.modules as string[])?.join(', ')}</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleEdit(course)}>
-                    <Settings className="w-4 h-4" />
-                  </Button>
-                  <Button variant="destructive" size="sm" onClick={() => handleDelete(course.id)}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          {courses.length === 0 && (
-            <div className="text-center py-16 text-muted-foreground">
-              <Settings className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No hay cursos configurados. Cree el primero.</p>
+                </DialogContent>
+              </Dialog>
             </div>
-          )}
-        </div>
+
+            <div className="grid gap-4">
+              {courses.map(course => (
+                <Card key={course.id} className="glass-card">
+                  <CardContent className="flex items-center justify-between py-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold">{course.title}</h3>
+                        <Badge variant="secondary" className="text-xs">{course.category}</Badge>
+                        {course.is_active ? <span className="w-2 h-2 rounded-full bg-success" /> : <span className="w-2 h-2 rounded-full bg-muted-foreground" />}
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">{course.course_id} — {(course.modules as string[])?.join(', ')}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleEdit(course)}>
+                        <Settings className="w-4 h-4" />
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => handleDelete(course.id)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {courses.length === 0 && (
+                <div className="text-center py-16 text-muted-foreground">
+                  <Settings className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No hay cursos configurados. Cree el primero.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Categories Tab */}
+        {currentTab === 'categories' && <CategoriesABM />}
+
+        {/* Documents Tab */}
+        {currentTab === 'documents' && <DocumentsABM />}
+
+        {/* Tech Sheets Tab */}
+        {currentTab === 'techsheets' && <TechSheetsABM />}
+
+        {/* Assignments Tab */}
+        {currentTab === 'assignments' && <AssignmentsABM />}
+
+        {/* Reports Tab */}
+        {currentTab === 'reports' && <ReportsABM />}
       </main>
     </div>
   );

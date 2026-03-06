@@ -1,118 +1,130 @@
-import { Simulation } from '../models/Simulation.js';
-import { TelemetryLog } from '../models/TelemetryLog.js';
+import { AppDataSource } from '../database/connection.js';
+import { Simulation, SimulationStatus } from '../entities/Simulation.js';
+import { TelemetryLog } from '../entities/TelemetryLog.js';
 import crypto from 'crypto';
 
 export class SimulationService {
-  async createSimulation(userId: string, courseId: string, scenarioId?: string) {
-    const simulation = new Simulation({
-      user_id: userId,
-      course_id: courseId,
-      scenario_id: scenarioId,
-      status: 'in-progress',
+  private simulationRepository = AppDataSource.getRepository(Simulation);
+
+  async createSimulation(user_id: string, course_id: string, scenario_id?: string) {
+    const simulation = this.simulationRepository.create({
+      user_id,
+      course_id,
+      status: SimulationStatus.IN_PROGRESS,
       started_at: new Date(),
     });
-    return await simulation.save();
+    return await this.simulationRepository.save(simulation);
   }
 
   async getSimulation(simulationId: string) {
-    return await Simulation.findById(simulationId).lean();
+    return await this.simulationRepository.findOne({
+      where: { id: simulationId },
+      relations: ['course', 'user']
+    });
   }
 
-  async getActiveSimulation(userId: string, courseId: string) {
-    return await Simulation.findOne({
-      user_id: userId,
-      course_id: courseId,
-      status: 'in-progress',
-    }).lean();
+  async getActiveSimulation(user_id: string, course_id: string) {
+    return await this.simulationRepository.findOne({
+      where: {
+        user_id,
+        course_id,
+        status: SimulationStatus.IN_PROGRESS,
+      }
+    });
   }
 
   async pauseSimulation(simulationId: string) {
-    return await Simulation.findByIdAndUpdate(
+    await this.simulationRepository.update(
       simulationId,
-      { status: 'paused', paused_at: new Date() },
-      { new: true }
+      { status: SimulationStatus.PAUSED, paused_at: new Date() }
     );
+    return await this.getSimulation(simulationId);
   }
 
   async resumeSimulation(simulationId: string) {
-    return await Simulation.findByIdAndUpdate(
+    await this.simulationRepository.update(
       simulationId,
-      { status: 'in-progress', paused_at: null },
-      { new: true }
+      { status: SimulationStatus.IN_PROGRESS, paused_at: null }
     );
+    return await this.getSimulation(simulationId);
   }
 
   async completeSimulation(simulationId: string) {
-    return await Simulation.findByIdAndUpdate(
+    await this.simulationRepository.update(
       simulationId,
       {
-        status: 'completed',
+        status: SimulationStatus.COMPLETED,
         completed_at: new Date(),
-        progress: 100,
-      },
-      { new: true }
+        progress_percentage: 100,
+      }
     );
+    return await this.getSimulation(simulationId);
   }
 
   async updateSimulationState(simulationId: string, state: Record<string, any>) {
-    return await Simulation.findByIdAndUpdate(
+    await this.simulationRepository.update(
       simulationId,
-      { current_state: state },
-      { new: true }
+      { current_state: state }
     );
+    return await this.getSimulation(simulationId);
   }
 }
 
 export class TelemetryService {
+  private telemetryRepository = AppDataSource.getRepository(TelemetryLog);
+
   async logAction(
     simulationId: string,
-    userId: string,
-    courseId: string,
+    user_id: string,
+    course_id: string,
     action: string,
-    actionType: any,
+    action_type: string,
     metadata: Record<string, any> = {},
     responseTimeMs: number = 0
   ) {
-    const integrityHash = crypto
+    const integrity_hash = crypto
       .createHash('sha256')
       .update(`${simulationId}${action}${Date.now()}`)
       .digest('hex');
 
-    const log = new TelemetryLog({
-      simulation_id: simulationId,
-      user_id: userId,
-      course_id: courseId,
+    const log = this.telemetryRepository.create({
+      simulationId,
+      user_id,
+      course_id,
       action,
-      action_type: actionType,
+      action_type,
       timestamp: new Date(),
-      response_time_ms: responseTimeMs,
-      metadata,
-      integrity_hash: integrityHash,
+      responseTimeMs,
+      metadata: JSON.stringify(metadata),
+      integrity_hash,
     });
 
-    return await log.save();
+    return await this.telemetryRepository.save(log);
   }
 
   async getSimulationLogs(simulationId: string) {
-    return await TelemetryLog.find({ simulation_id: simulationId })
-      .sort({ timestamp: 1 })
-      .lean();
+    return await this.telemetryRepository.find({
+      where: { simulation_id: simulationId },
+      order: { created_at: 'ASC' }
+    });
   }
 
-  async getUserCourseLogs(userId: string, courseId: string) {
-    return await TelemetryLog.find({ user_id: userId, course_id: courseId })
-      .sort({ timestamp: -1 })
-      .lean();
+  async getUserCourseLogs(user_id: string, course_id: string) {
+    return await this.telemetryRepository.find({
+      where: { user_id, course_id },
+      order: { created_at: 'DESC' }
+    });
   }
 
   async getLogsInTimeRange(startDate: Date, endDate: Date) {
-    return await TelemetryLog.find({
-      timestamp: { $gte: startDate, $lte: endDate },
-    })
-      .sort({ timestamp: -1 })
-      .lean();
+    return await this.telemetryRepository
+      .createQueryBuilder('log')
+      .where('log.created_at BETWEEN :startDate AND :endDate', { startDate, endDate })
+      .orderBy('log.created_at', 'DESC')
+      .getMany();
   }
 }
 
 export const simulationService = new SimulationService();
 export const telemetryService = new TelemetryService();
+

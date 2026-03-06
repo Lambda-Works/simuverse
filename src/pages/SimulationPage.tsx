@@ -1,303 +1,373 @@
-import { useEffect, useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/services/ApiClient';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { toast } from 'sonner';
-import { ArrowLeft, Send, AlertTriangle, Clock, FileText, Pause, Square, MessageCircle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ArrowLeft, MessageSquare, Mail, FileText, BarChart3, Send, Loader } from 'lucide-react';
 
-interface SimMessage {
-  id?: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  created_at?: string;
+interface Email {
+  id: string;
+  from: string;
+  subject: string;
+  body: string;
+  timestamp: Date;
+  unread: boolean;
 }
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/simulation-chat`;
+interface Document {
+  id: string;
+  name: string;
+  type: string;
+  content: string;
+}
 
-const SimulationPage = () => {
+const SimulationPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
-  const { user, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
+
+  // State
   const [course, setCourse] = useState<any>(null);
-  const [simulation, setSimulation] = useState<any>(null);
-  const [messages, setMessages] = useState<SimMessage[]>([]);
-  const [input, setInput] = useState('');
-  const [sending, setSending] = useState(false);
-  const [crisisActive, setCrisisActive] = useState(false);
-  const [elapsedMinutes, setElapsedMinutes] = useState(0);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval>>();
+  const [simId, setSimId] = useState<string>('');
+  const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'ai'; message: string; timestamp: Date }>>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [emails, setEmails] = useState<Email[]>([]);
+  const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [spreadsheet, setSpreadsheet] = useState<any>(null);
+  const [loadingChat, setLoadingChat] = useState(false);
 
+  // Load course and initialize simulation
   useEffect(() => {
-    if (!authLoading && !user) navigate('/auth');
-  }, [user, authLoading, navigate]);
+    if (!loading && !isAuthenticated) {
+      navigate('/auth');
+      return;
+    }
+    if (!courseId) {
+      navigate('/dashboard');
+      return;
+    }
 
-  // Fetch course & create/resume simulation
-  useEffect(() => {
-    if (!user || !courseId) return;
     const init = async () => {
-      const { data: courseData } = await supabase.from('courses').select('*').eq('id', courseId).single();
-      if (!courseData) { toast.error('Curso no encontrado'); navigate('/dashboard'); return; }
-      setCourse(courseData);
+      try {
+        // Get course details
+        const courseRes = await apiClient.get(`/courses/${courseId}`);
+        setCourse(courseRes.data);
 
-      // Check for existing active simulation
-      const { data: existing } = await supabase.from('simulations')
-        .select('*').eq('user_id', user.id).eq('course_id', courseId).eq('status', 'active').maybeSingle();
-
-      let sim = existing;
-      if (!sim) {
-        const { data: newSim, error } = await supabase.from('simulations')
-          .insert({ user_id: user.id, course_id: courseId }).select().single();
-        if (error) { toast.error(error.message); return; }
-        sim = newSim;
-
-        // Log simulation start
-        await supabase.from('simulation_logs').insert({
-          simulation_id: sim.id, user_id: user.id, event_type: 'simulation_start',
-          event_data: { course_id: courseId },
+        // Create simulation
+        const simRes = await apiClient.post('/simulations', {
+          course_id: courseId,
+          user_id: user?.id || '1'
         });
+        setSimId(simRes.data.id);
+
+        // Load modules
+        loadModules(simRes.data.id);
+      } catch (error) {
+        console.error('Error initializing simulation:', error);
       }
-      setSimulation(sim);
-
-      // Load existing messages
-      const { data: msgs } = await supabase.from('simulation_messages')
-        .select('*').eq('simulation_id', sim.id).order('created_at', { ascending: true });
-      if (msgs) setMessages(msgs.map(m => ({ id: m.id, role: m.role as any, content: m.content, created_at: m.created_at })));
     };
-    init();
-  }, [user, courseId, navigate]);
 
-  // Timer
-  useEffect(() => {
-    if (simulation?.status === 'active') {
-      timerRef.current = setInterval(() => {
-        const started = new Date(simulation.started_at).getTime();
-        setElapsedMinutes(Math.floor((Date.now() - started) / 60000));
-      }, 1000);
+    if (user) init();
+  }, [courseId, user, loading, isAuthenticated, navigate]);
+
+  const loadModules = async (simId: string) => {
+    try {
+      const [emailsRes, docsRes, spreadRes] = await Promise.all([
+        apiClient.get(`/simulations/${simId}/emails`),
+        apiClient.get(`/simulations/${simId}/documents`),
+        apiClient.get(`/simulations/${simId}/spreadsheet`)
+      ]);
+
+      setEmails(emailsRes.data);
+      setDocuments(docsRes.data);
+      setSpreadsheet(spreadRes.data);
+    } catch (error) {
+      console.error('Error loading modules:', error);
     }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [simulation]);
-
-  // Crisis engine
-  useEffect(() => {
-    if (!course || !simulation) return;
-    const crisisEvents = (course.crisis_events || []) as Array<{ trigger_minutes: number; event_text: string; severity: string }>;
-    const triggered = crisisEvents.find(e => e.trigger_minutes === elapsedMinutes);
-    if (triggered) {
-      setCrisisActive(true);
-      const crisisMsg: SimMessage = { role: 'system', content: `⚠️ EVENTO DE CRISIS: ${triggered.event_text}` };
-      setMessages(prev => [...prev, crisisMsg]);
-      // Save crisis log
-      supabase.from('simulation_logs').insert({
-        simulation_id: simulation.id, user_id: user!.id, event_type: 'crisis_triggered',
-        event_data: triggered,
-      });
-      setTimeout(() => setCrisisActive(false), 10000);
-    }
-  }, [elapsedMinutes, course, simulation, user]);
-
-  // Auto scroll
-  useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  };
 
   const sendMessage = async () => {
-    if (!input.trim() || !simulation || !user) return;
-    const userMsg: SimMessage = { role: 'user', content: input.trim() };
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
-    setSending(true);
+    if (!chatInput.trim()) return;
 
-    // Save user message
-    await supabase.from('simulation_messages').insert({
-      simulation_id: simulation.id, user_id: user.id, role: 'user', content: userMsg.content,
-    });
+    // Add user message
+    const userMsg = { role: 'user' as const, message: chatInput, timestamp: new Date() };
+    setChatMessages(prev => [...prev, userMsg]);
+    setChatInput('');
+    setLoadingChat(true);
 
-    // Log user action
-    await supabase.from('simulation_logs').insert({
-      simulation_id: simulation.id, user_id: user.id, event_type: 'message_sent',
-      event_data: { content_length: userMsg.content.length },
-    });
-
-    // Stream AI response
     try {
-      const resp = await fetch(CHAT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({
-          simulation_id: simulation.id,
-          course_id: courseId,
-          messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
-          ai_config: course.ai_config,
-          course_context: {
-            title: course.title,
-            category: course.category,
-            modules: course.modules,
-          },
-        }),
+      const res = await apiClient.post(`/simulations/${simId}/chat`, {
+        message: chatInput
       });
-
-      if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}));
-        throw new Error(errData.error || `Error ${resp.status}`);
-      }
-
-      // Stream SSE
-      const reader = resp.body?.getReader();
-      if (!reader) throw new Error('No stream');
-      const decoder = new TextDecoder();
-      let assistantContent = '';
-      let textBuffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        textBuffer += decoder.decode(value, { stream: true });
-
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (line.startsWith(':') || line.trim() === '') continue;
-          if (!line.startsWith('data: ')) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === '[DONE]') break;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              assistantContent += content;
-              setMessages(prev => {
-                const last = prev[prev.length - 1];
-                if (last?.role === 'assistant' && !last.id) {
-                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantContent } : m);
-                }
-                return [...prev, { role: 'assistant', content: assistantContent }];
-              });
-            }
-          } catch { textBuffer = line + '\n' + textBuffer; break; }
-        }
-      }
-
-      // Save assistant message
-      if (assistantContent) {
-        await supabase.from('simulation_messages').insert({
-          simulation_id: simulation.id, user_id: user.id, role: 'assistant', content: assistantContent,
-        });
-      }
-    } catch (err: any) {
-      toast.error(err.message || 'Error de comunicación con IA');
+      const aiMsg = { role: 'ai' as const, message: res.data.message, timestamp: new Date() };
+      setChatMessages(prev => [...prev, aiMsg]);
+    } catch (error) {
+      console.error('Error sending message:', error);
+    } finally {
+      setLoadingChat(false);
     }
-    setSending(false);
   };
 
-  const endSimulation = async () => {
-    if (!simulation || !user) return;
-    await supabase.from('simulations').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', simulation.id);
-    await supabase.from('simulation_logs').insert({
-      simulation_id: simulation.id, user_id: user.id, event_type: 'simulation_end',
-      event_data: { elapsed_minutes: elapsedMinutes, total_messages: messages.length },
-    });
-    toast.success('Simulación finalizada');
-    navigate('/dashboard');
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-center">
+          <Loader className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Cargando simulación...</p>
+        </div>
+      </div>
+    );
+  }
 
-  if (!course || !simulation) {
-    return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
+  if (!isAuthenticated || !courseId) {
+    return null;
   }
 
   return (
-    <div className={`min-h-screen bg-background flex flex-col ${crisisActive ? 'crisis-pulse' : ''}`}>
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className={`border-b sticky top-0 z-50 transition-colors duration-500 ${crisisActive ? 'bg-crisis/10 border-crisis/30' : 'bg-card/80 backdrop-blur-xl'}`}>
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <div>
-              <h2 className="font-semibold text-sm">{course.title}</h2>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">{course.category}</Badge>
-                {crisisActive && <Badge variant="destructive" className="text-xs animate-pulse"><AlertTriangle className="w-3 h-3 mr-1" /> Crisis</Badge>}
-              </div>
-            </div>
+      <div className="border-b bg-card sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/dashboard')}
+            className="gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Volver
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">{course?.title || 'Simulación'}</h1>
+            <p className="text-sm text-muted-foreground">{course?.description}</p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Clock className="w-4 h-4" />
-              <span>{elapsedMinutes}min</span>
-            </div>
-            <Badge variant="outline" className="text-xs">
-              <MessageCircle className="w-3 h-3 mr-1" /> {messages.filter(m => m.role === 'user').length} msgs
-            </Badge>
-            <Button variant="destructive" size="sm" onClick={endSimulation}>
-              <Square className="w-4 h-4 mr-1" /> Finalizar
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Chat area */}
-      <div className="flex-1 flex flex-col container mx-auto px-4 max-w-4xl">
-        <ScrollArea className="flex-1 py-4">
-          <div className="space-y-4">
-            {/* Initial system message */}
-            {messages.length === 0 && (
-              <div className="text-center py-8 fade-in">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-                  <MessageCircle className="w-8 h-8 text-primary" />
-                </div>
-                <h3 className="font-semibold text-lg">Simulación Iniciada</h3>
-                <p className="text-muted-foreground text-sm mt-1 max-w-md mx-auto">
-                  {course.description || 'Interactúe con el personaje IA para completar la simulación.'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-3">Escriba su primer mensaje para comenzar...</p>
-              </div>
-            )}
-
-            {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} fade-in`}>
-                <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                  msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-md' :
-                  msg.role === 'system' ? 'bg-warning/10 text-warning border border-warning/30' :
-                  'bg-card border rounded-bl-md'
-                }`}>
-                  {msg.role === 'system' && <AlertTriangle className="w-4 h-4 inline mr-2" />}
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                </div>
-              </div>
-            ))}
-            <div ref={scrollRef} />
-          </div>
-        </ScrollArea>
-
-        {/* Input */}
-        <div className="py-4 border-t">
-          <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="flex gap-2">
-            <Input
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              placeholder="Escriba su mensaje..."
-              disabled={sending}
-              className="flex-1"
-              autoFocus
-            />
-            <Button type="submit" disabled={sending || !input.trim()}>
-              <Send className="w-4 h-4" />
-            </Button>
-          </form>
+          <div className="w-32" />
         </div>
       </div>
+
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-8">
+        <Tabs defaultValue="chat" className="w-full">
+          <TabsList className="grid w-full grid-cols-4 mb-8">
+            <TabsTrigger value="chat" className="gap-2">
+              <MessageSquare className="w-4 h-4" />
+              <span className="hidden sm:inline">Chat IA</span>
+            </TabsTrigger>
+            <TabsTrigger value="email" className="gap-2">
+              <Mail className="w-4 h-4" />
+              <span className="hidden sm:inline">Correo</span>
+            </TabsTrigger>
+            <TabsTrigger value="docs" className="gap-2">
+              <FileText className="w-4 h-4" />
+              <span className="hidden sm:inline">Documentos</span>
+            </TabsTrigger>
+            <TabsTrigger value="sheet" className="gap-2">
+              <BarChart3 className="w-4 h-4" />
+              <span className="hidden sm:inline">Planilla</span>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Chat IA Tab */}
+          <TabsContent value="chat">
+            <Card>
+              <CardHeader>
+                <CardTitle>Asesor IA - Consulte sus dudas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-4">
+                  {/* Chat Messages */}
+                  <div className="bg-muted rounded-lg p-4 h-96 overflow-y-auto space-y-4 mb-4">
+                    {chatMessages.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-20">
+                        Inicia una conversación con el asesor IA
+                      </p>
+                    ) : (
+                      chatMessages.map((msg, idx) => (
+                        <div
+                          key={idx}
+                          className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div
+                            className={`max-w-xs px-4 py-2 rounded-lg ${
+                              msg.role === 'user'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-secondary text-secondary-foreground'
+                            }`}
+                          >
+                            <p>{msg.message}</p>
+                            <span className="text-xs opacity-70">
+                              {new Date(msg.timestamp).toLocaleTimeString()}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                    {loadingChat && (
+                      <div className="flex gap-2">
+                        <Loader className="w-4 h-4 animate-spin" />
+                        <p className="text-sm text-muted-foreground">El asesor está escribiendo...</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Input */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={chatInput}
+                      onChange={e => setChatInput(e.target.value)}
+                      onKeyPress={e => e.key === 'Enter' && sendMessage()}
+                      placeholder="Escribe tu pregunta..."
+                      className="flex-1 px-4 py-2 border rounded-lg"
+                    />
+                    <Button
+                      onClick={sendMessage}
+                      disabled={!chatInput.trim() || loadingChat}
+                      className="gap-2"
+                    >
+                      <Send className="w-4 h-4" />
+                      Enviar
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Email Tab */}
+          <TabsContent value="email">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <Card className="lg:col-span-1">
+                <CardHeader>
+                  <CardTitle className="text-lg">Bandeja ({emails.length})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {emails.map(email => (
+                      <button
+                        key={email.id}
+                        onClick={() => setSelectedEmail(email)}
+                        className={`w-full text-left p-3 rounded-lg border transition ${
+                          selectedEmail?.id === email.id
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'hover:bg-muted'
+                        }`}
+                      >
+                        <p className={`text-sm font-semibold ${email.unread ? 'font-bold' : ''}`}>
+                          {email.from}
+                        </p>
+                        <p className="text-xs truncate opacity-75">{email.subject}</p>
+                      </button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>
+                    {selectedEmail ? selectedEmail.subject : 'Selecciona un correo'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {selectedEmail ? (
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">De:</p>
+                        <p className="font-semibold">{selectedEmail.from}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Mensaje:</p>
+                        <p className="mt-2">{selectedEmail.body}</p>
+                      </div>
+                      <Button className="w-full gap-2">
+                        <Mail className="w-4 h-4" />
+                        Responder
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-center py-8">
+                      Selecciona un correo de la bandeja
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Documents Tab */}
+          <TabsContent value="docs">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {documents.map(doc => (
+                <Card key={doc.id} className="cursor-pointer hover:shadow-lg transition">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <FileText className="w-5 h-5" />
+                      {doc.name}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="bg-muted rounded p-3 max-h-32 overflow-y-auto text-sm">
+                      {doc.content}
+                    </div>
+                    <Button className="w-full mt-4" variant="outline">
+                      Ver Documento Completo
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          {/* Spreadsheet Tab */}
+          <TabsContent value="sheet">
+            <Card>
+              <CardHeader>
+                <CardTitle>{spreadsheet?.name || 'Planilla de Cálculos'}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b bg-muted">
+                        <th className="text-left p-3 font-semibold">Item</th>
+                        <th className="text-right p-3 font-semibold">Valor</th>
+                        <th className="text-right p-3 font-semibold">Moneda</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {spreadsheet?.data?.map((row: any, idx: number) => (
+                        <tr key={idx} className="border-b hover:bg-muted/50">
+                          <td className="p-3">{row.item}</td>
+                          <td className="text-right p-3 font-semibold">${row.value?.toLocaleString()}</td>
+                          <td className="text-right p-3 text-muted-foreground">{row.currency}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {spreadsheet?.formulas && (
+                  <div className="mt-6 p-4 bg-muted rounded">
+                    <h4 className="font-semibold mb-2">Fórmulas Utilizadas:</h4>
+                    {Object.entries(spreadsheet.formulas).map(([key, formula]) => (
+                      <p key={key} className="text-sm font-mono">
+                        <span className="text-primary">{key}:</span> {formula}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                <Button className="w-full mt-6" variant="outline">
+                  📥 Descargar Planilla (Excel)
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </main>
     </div>
   );
 };
