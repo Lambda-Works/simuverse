@@ -1,6 +1,9 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, Index } from 'typeorm';
 import { Simulation } from './Simulation';
 import { Scenario } from './Scenario';
+import { Assessment } from './Assessment';
+import { CourseModule } from './CourseModule';
+import { TelemetryLog } from './TelemetryLog';
 
 @Entity('courses')
 @Index(['course_id'], { unique: true })
@@ -51,4 +54,13 @@ export class Course {
 
   @OneToMany(() => Scenario, scenario => scenario.course)
   scenarios?: Scenario[];
+
+  @OneToMany(() => Assessment, assessment => assessment.course)
+  assessments?: Assessment[];
+
+  @OneToMany(() => CourseModule, courseModule => courseModule.course)
+  course_modules?: CourseModule[];
+
+  @OneToMany(() => TelemetryLog, log => log.course)
+  telemetry_logs?: TelemetryLog[];
 }

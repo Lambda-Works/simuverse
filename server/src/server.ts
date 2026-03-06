@@ -72,7 +72,7 @@ const start = async () => {
       console.log(`✓ URL: http://localhost:${PORT}`);
       console.log(`✓ Health check: http://localhost:${PORT}/health`);
       console.log(`✓ Entorno: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`✓ Frontend: ${FRONTEND_URL}`);
+      console.log(`✓ Orígenes CORS permitidos: ${CORS_ORIGINS.join(', ')}`);
       console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
     });
   } catch (error) {
