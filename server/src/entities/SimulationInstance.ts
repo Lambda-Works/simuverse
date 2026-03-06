@@ -44,10 +44,10 @@ export class SimulationInstance {
   @CreateDateColumn()
   started_at!: Date;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   completed_at?: Date;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   submitted_at?: Date;
 
   @UpdateDateColumn()
