@@ -34,9 +34,10 @@ export function CategoriesABM() {
     try {
       const response = await fetch('http://localhost:5000/api/categories');
       const data = await response.json();
-      setCategories(data);
+      setCategories(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching categories:', error);
+      setCategories([]);
     } finally {
       setLoading(false);
     }

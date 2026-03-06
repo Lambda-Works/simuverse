@@ -1,5 +1,5 @@
 import { AppDataSource } from '../database/connection';
-import { Scenario, CaseData } from '../entities/Scenario';
+import { Scenario } from '../entities/Scenario';
 import { SimulationInstance } from '../entities/SimulationInstance';
 
 export class ScenarioService {
@@ -8,131 +8,84 @@ export class ScenarioService {
 
   /**
    * Get all scenarios for a course
+   * scenario_type='practice' → múltiples intentos (practica libre)
+   * scenario_type='evaluation' → instancia única evaluada
    */
-  static async getScenariosByCourse(course_id: string): Promise<Scenario[]> {
+  static async getScenariosByCourse(course_id: string, type?: string): Promise<Scenario[]> {
+    const where: any = { course_id, is_active: true };
+    if (type) where.scenario_type = type;
     return this.scenarioRepository.find({
-      where: { course_id, is_active: true },
-      order: { sequence: 'ASC' },
+      where,
+      order: { created_at: 'ASC' },
     });
   }
 
-  /**
-   * Get a specific scenario
-   */
   static async getScenario(id: string): Promise<Scenario | null> {
-    return this.scenarioRepository.findOne({
-      where: { id },
-    });
+    return this.scenarioRepository.findOne({ where: { id } });
   }
 
-  /**
-   * Create a new scenario for a course
-   */
   static async createScenario(course_id: string, data: {
-    name: string;
-    description: string;
-    case_data: CaseData;
-    initial_state?: Record<string, any>;
-    validation_rules?: Record<string, any>;
-    success_criteria?: string[];
-    sequence?: number;
+    title: string;
+    description?: string;
+    scenario_type?: string;
+    difficulty?: 'easy' | 'medium' | 'hard';
+    content?: any;
+    expected_outcomes?: any;
   }): Promise<Scenario> {
-    const scenario = this.scenarioRepository.create({
-      course_id,
-      ...data,
-    });
-
+    const scenario = this.scenarioRepository.create({ course_id, ...data });
     return await this.scenarioRepository.save(scenario);
   }
 
-  /**
-   * Update a scenario
-   */
   static async updateScenario(id: string, updates: Partial<Scenario>): Promise<Scenario> {
     await this.scenarioRepository.update(id, updates);
     const scenario = await this.getScenario(id);
-    if (!scenario) {
-      throw new Error(`Scenario ${id} not found`);
-    }
+    if (!scenario) throw new Error(`Scenario ${id} not found`);
     return scenario;
   }
 
-  /**
-   * Deactivate a scenario (soft delete)
-   */
   static async deactivateScenario(id: string): Promise<Scenario> {
     return this.updateScenario(id, { is_active: false });
   }
 
-  /**
-   * Get all instances of a scenario
-   */
   static async getScenarioInstances(scenario_id: string): Promise<SimulationInstance[]> {
     return this.simulationRepository.find({
       where: { scenario_id },
-      relations: ['student', 'course'],
       order: { started_at: 'DESC' },
     });
   }
 
-  /**
-   * Get scenario statistics (for admin dashboard)
-   */
-  static async getScenarioStats(scenario_id: string): Promise<{
-    totalAttempts: number;
-    completed_attempts: number;
-    failed_attempts: number;
-    averageTimeSpent: number;
-    successRate: number;
-  }> {
+  static async getScenarioStats(scenario_id: string) {
     const instances = await this.getScenarioInstances(scenario_id);
-
     const completedInstances = instances.filter((i) => i.status === 'completed');
     const failedInstances = instances.filter((i) => i.status === 'failed');
-
     const averageTimeSpent =
       instances.length > 0
         ? instances.reduce((sum, i) => {
             if (!i.completed_at || !i.started_at) return sum;
             return sum + (i.completed_at.getTime() - i.started_at.getTime());
-          }, 0) / instances.length / 1000 / 60 // Convert to minutes
+          }, 0) / instances.length / 1000 / 60
         : 0;
-
     return {
       totalAttempts: instances.length,
       completed_attempts: completedInstances.length,
       failed_attempts: failedInstances.length,
       averageTimeSpent: Math.round(averageTimeSpent),
-      successRate:
-        instances.length > 0 ? (completedInstances.length / instances.length) * 100 : 0,
+      successRate: instances.length > 0 ? (completedInstances.length / instances.length) * 100 : 0,
     };
   }
 
-  /**
-   * Clone a scenario for another course
-   */
-  static async cloneScenario(
-    sourceScenarioId: string,
-    targetCourseId: string,
-    newName?: string
-  ): Promise<Scenario> {
+  static async cloneScenario(sourceScenarioId: string, targetCourseId: string, newTitle?: string): Promise<Scenario> {
     const sourceScenario = await this.getScenario(sourceScenarioId);
-    if (!sourceScenario) {
-      throw new Error(`Scenario ${sourceScenarioId} not found`);
-    }
-
+    if (!sourceScenario) throw new Error(`Scenario ${sourceScenarioId} not found`);
     const clonedScenario = this.scenarioRepository.create({
       course_id: targetCourseId,
-      name: newName || `${sourceScenario.name} (Clone)`,
+      title: newTitle || `${sourceScenario.title} (Clone)`,
       description: sourceScenario.description,
-      case_data: { ...sourceScenario.case_data },
-      initial_state: sourceScenario.initial_state ? { ...sourceScenario.initial_state } : undefined,
-      validation_rules: sourceScenario.validation_rules
-        ? { ...sourceScenario.validation_rules }
-        : undefined,
-      success_criteria: sourceScenario.success_criteria ? [...sourceScenario.success_criteria] : undefined,
+      scenario_type: sourceScenario.scenario_type,
+      difficulty: sourceScenario.difficulty,
+      content: sourceScenario.content ? { ...sourceScenario.content } : undefined,
+      expected_outcomes: sourceScenario.expected_outcomes ? { ...sourceScenario.expected_outcomes } : undefined,
     });
-
     return await this.scenarioRepository.save(clonedScenario);
   }
 }

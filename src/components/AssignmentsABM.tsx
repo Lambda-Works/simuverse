@@ -65,9 +65,10 @@ export function AssignmentsABM() {
     try {
       const response = await fetch('http://localhost:5000/api/assignments');
       const data = await response.json();
-      setAssignments(data);
+      setAssignments(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching assignments:', error);
+      setAssignments([]);
     }
   };
 
@@ -75,9 +76,10 @@ export function AssignmentsABM() {
     try {
       const response = await fetch('http://localhost:5000/api/courses');
       const data = await response.json();
-      setCourses(data);
+      setCourses(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching courses:', error);
+      setCourses([]);
     }
   };
 
@@ -85,23 +87,21 @@ export function AssignmentsABM() {
     try {
       const response = await fetch('http://localhost:5000/api/simulations');
       const data = await response.json();
-      setSimulations(data);
+      setSimulations(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching simulations:', error);
+      setSimulations([]);
     }
   };
 
   const fetchStudents = async () => {
     try {
-      // Mock students since we don't have a dedicated endpoint
-      const mockStudents: User[] = [
-        { id: 'user-1', name: 'Juan Pérez', email: 'student@example.com', role: 'student' },
-        { id: 'user-2', name: 'María García', email: 'maria@example.com', role: 'student' },
-        { id: 'user-3', name: 'Carlos López', email: 'carlos@example.com', role: 'student' },
-      ];
-      setUsers(mockStudents);
+      const response = await fetch('http://localhost:5000/api/users?role=student');
+      const data = await response.json();
+      setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching students:', error);
+      setUsers([]);
     }
   };
 

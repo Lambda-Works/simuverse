@@ -13,6 +13,13 @@ import { SimulationInstance } from '../entities/SimulationInstance';
 import { PracticeLogs } from '../entities/PracticeLogs';
 import { Notification } from '../entities/Notification';
 import { FileUpload } from '../entities/FileUpload';
+import { MinistryRequirement } from '../entities/MinistryRequirement';
+import { KPI } from '../entities/KPI';
+import { Task } from '../entities/Task';
+import { Category } from '../entities/Category';
+import { TechSheet } from '../entities/TechSheet';
+import { CourseDocument } from '../entities/CourseDocument';
+import { SimulationAssignment } from '../entities/SimulationAssignment';
 
 export const AppDataSource = new DataSource({
   type: 'mysql',
@@ -36,7 +43,14 @@ export const AppDataSource = new DataSource({
     SimulationInstance,
     PracticeLogs,
     Notification,
-    FileUpload
+    FileUpload,
+    MinistryRequirement,
+    KPI,
+    Task,
+    Category,
+    TechSheet,
+    CourseDocument,
+    SimulationAssignment
   ],
   migrations: ['dist/database/migrations/*.js'],
   subscribers: [],

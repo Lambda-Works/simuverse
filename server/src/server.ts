@@ -8,6 +8,7 @@ import coursesRouter from './routes/courses.js';
 import simulationsRouter from './routes/simulations.js';
 import adminRouter from './routes/admin.js';
 import ministryRouter from './routes/ministry.js';
+import catalogRouter from './routes/catalog.js';
 
 dotenv.config();
 
@@ -43,6 +44,8 @@ app.use('/api/courses', coursesRouter);
 app.use('/api/simulations', simulationsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/ministry', ministryRouter);
+// Catalog routes: categories, tech-sheets, documents, assignments, users
+app.use('/api', catalogRouter);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
