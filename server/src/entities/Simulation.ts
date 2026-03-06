@@ -1,7 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn, Index } from 'typeorm';
 import { User } from './User';
 import { Course } from './Course';
-import { TelemetryLog } from './TelemetryLog';
 import { Assessment } from './Assessment';
 
 export enum SimulationStatus {
@@ -66,8 +65,8 @@ export class Simulation {
   @JoinColumn({ name: 'course_id' })
   course!: Course;
 
-  @OneToMany(() => TelemetryLog, log => log.simulation, { cascade: true })
-  telemetry_logs!: TelemetryLog[];
+  @OneToMany('TelemetryLog', 'simulation', { cascade: true })
+  telemetry_logs!: any[];
 
   @OneToMany(() => Assessment, assessment => assessment.simulation)
   assessments!: Assessment[];
