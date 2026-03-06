@@ -1,6 +1,9 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { Course } from './Course';
 import { SimulationInstance } from './SimulationInstance';
+import { Task } from './Task';
+
+export type ScenarioType = 'practice' | 'evaluation';
 
 export interface CaseData {
   title: string;
@@ -35,6 +38,9 @@ export class Scenario {
 
   @Column({ type: 'json', nullable: true })
   success_criteria?: string[];
+
+  @Column({ type: 'varchar', default: 'practice' })
+  type!: ScenarioType; // 'practice' = permite errores, enseña | 'evaluation' = debe pasar
 
   @Column({ type: 'boolean', default: true })
   is_active!: boolean;

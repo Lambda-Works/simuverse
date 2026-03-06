@@ -4,11 +4,15 @@ import { TelemetryLog } from './TelemetryLog';
 import { Assessment } from './Assessment';
 import { SimulationInstance } from './SimulationInstance';
 import { PracticeLogs } from './PracticeLogs';
+import { MinistryRequirement } from './MinistryRequirement';
+import { Notification } from './Notification';
+import { FileUpload } from './FileUpload';
 
 export enum UserRole {
   STUDENT = 'student',
   TEACHER = 'teacher',
-  ADMIN = 'admin'
+  ADMIN = 'admin',
+  MINISTRY = 'ministry'
 }
 
 @Entity('users')
@@ -61,4 +65,13 @@ export class User {
 
   @OneToMany(() => Assessment, assessment => assessment.user)
   assessments!: Assessment[];
+
+  @OneToMany(() => MinistryRequirement, req => req.uploaded_by)
+  ministry_requirements_uploaded?: MinistryRequirement[];
+
+  @OneToMany(() => Notification, notif => notif.recipient)
+  notifications_received?: Notification[];
+
+  @OneToMany(() => FileUpload, file => file.uploaded_by)
+  file_uploads?: FileUpload[];
 }

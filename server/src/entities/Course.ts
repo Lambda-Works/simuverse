@@ -7,6 +7,9 @@ import { CourseModule } from './CourseModule';
 import { CourseConfig } from './CourseConfig';
 import { Scenario } from './Scenario';
 import { SimulationInstance } from './SimulationInstance';
+import { MinistryRequirement } from './MinistryRequirement';
+import { KPI } from './KPI';
+import { Task } from './Task';
 
 @Entity('courses')
 @Index(['course_id'], { unique: true })
@@ -95,4 +98,13 @@ export class Course {
 
   @OneToMany(() => Assessment, assessment => assessment.course)
   assessments!: Assessment[];
+
+  @OneToMany(() => MinistryRequirement, req => req.course)
+  ministry_requirements?: MinistryRequirement[];
+
+  @OneToMany(() => KPI, kpi => kpi.course)
+  kpis?: KPI[];
+
+  @OneToMany(() => Task, task => task.course)
+  tasks?: Task[];
 }
