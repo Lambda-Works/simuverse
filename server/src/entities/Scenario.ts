@@ -18,7 +18,7 @@ export class Scenario {
   @Column({ type: 'uuid' })
   course_id!: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   name!: string;
 
   @Column({ type: 'text' })
@@ -36,10 +36,10 @@ export class Scenario {
   @Column({ type: 'json', nullable: true })
   success_criteria?: string[];
 
-  @Column({ default: true })
+  @Column({ type: 'boolean', default: true })
   is_active!: boolean;
 
-  @Column({ default: 0 })
+  @Column({ type: 'int', default: 0 })
   sequence!: number;
 
   @CreateDateColumn()

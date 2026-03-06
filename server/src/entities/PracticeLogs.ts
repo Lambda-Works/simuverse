@@ -77,20 +77,20 @@ export class PracticeLogs {
 
   // Integrity hash: SHA256(previousHash + student_id + course_id + action_type + timestamp)
   // This makes logs immutable (cryptographically verifiable)
-  @Column()
+  @Column({ type: 'varchar', length: 64 }) // SHA256 = 64 hex chars
   integrity_hash!: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', length: 64, nullable: true })
   previous_hash?: string;
 
   @CreateDateColumn()
   created_at!: Date;
 
   // Computed timestamp for Ministry verification (immutable)
-  @Column()
+  @Column({ type: 'bigint' })
   timestamp!: number; // Unix timestamp in milliseconds
 
-  @Column({ nullable: true })
+  @Column({ type: 'text', nullable: true })
   docenter_notes?: string; // Teacher notes during review
 
   @ManyToOne(() => User, (user) => user.practice_logs)
