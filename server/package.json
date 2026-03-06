@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "tsc && npm run fix-esm",
+    "fix-esm": "node scripts/fixEsm.js",
     "seed": "tsx src/scripts/seedDatabase.ts",
     "test": "vitest"
   },
