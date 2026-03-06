@@ -50,9 +50,10 @@ export function ReportsABM() {
     try {
       const response = await fetch('http://localhost:5000/api/courses');
       const data = await response.json();
-      setCourses(data);
+      setCourses(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching courses:', error);
+      setCourses([]);
     }
   };
 

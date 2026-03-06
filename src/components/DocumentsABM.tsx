@@ -43,9 +43,10 @@ export function DocumentsABM() {
     try {
       const response = await fetch('http://localhost:5000/api/documents');
       const data = await response.json();
-      setDocuments(data);
+      setDocuments(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching documents:', error);
+      setDocuments([]);
     } finally {
       setLoading(false);
     }
@@ -55,9 +56,10 @@ export function DocumentsABM() {
     try {
       const response = await fetch('http://localhost:5000/api/courses');
       const data = await response.json();
-      setCourses(data);
+      setCourses(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching courses:', error);
+      setCourses([]);
     }
   };
 
