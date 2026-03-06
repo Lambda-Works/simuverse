@@ -1,21 +1,21 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
-import { User } from '../entities/User.js';
-import { Course } from '../entities/Course.js';
-import { Simulation } from '../entities/Simulation.js';
-import { Module } from '../entities/Module.js';
-import { CourseModule } from '../entities/CourseModule.js';
-import { TelemetryLog } from '../entities/TelemetryLog.js';
-import { Assessment } from '../entities/Assessment.js';
-import { CourseConfig } from '../entities/CourseConfig.js';
-import { Scenario } from '../entities/Scenario.js';
-import { SimulationInstance } from '../entities/SimulationInstance.js';
-import { PracticeLogs } from '../entities/PracticeLogs.js';
-import { MinistryRequirement } from '../entities/MinistryRequirement.js';
-import { KPI } from '../entities/KPI.js';
-import { Task } from '../entities/Task.js';
-import { Notification } from '../entities/Notification.js';
-import { FileUpload } from '../entities/FileUpload.js';
+import { User } from '../entities/User';
+import { Course } from '../entities/Course';
+import { Simulation } from '../entities/Simulation';
+import { Module } from '../entities/Module';
+import { CourseModule } from '../entities/CourseModule';
+import { TelemetryLog } from '../entities/TelemetryLog';
+import { Assessment } from '../entities/Assessment';
+import { CourseConfig } from '../entities/CourseConfig';
+import { Scenario } from '../entities/Scenario';
+import { SimulationInstance } from '../entities/SimulationInstance';
+import { PracticeLogs } from '../entities/PracticeLogs';
+import { MinistryRequirement } from '../entities/MinistryRequirement';
+import { KPI } from '../entities/KPI';
+import { Task } from '../entities/Task';
+import { Notification } from '../entities/Notification';
+import { FileUpload } from '../entities/FileUpload';
 
 export const AppDataSource = new DataSource({
   type: 'mysql',

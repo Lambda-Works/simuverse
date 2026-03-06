@@ -2,13 +2,11 @@
   "name": "msm-backend",
   "version": "2.0.0",
   "description": "Backend para el Motor de Simulación Modular (MSM) - FEPEI 360",
-  "type": "module",
   "main": "dist/server.js",
   "scripts": {
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
-    "build": "tsc && npm run fix-esm",
-    "fix-esm": "node scripts/fixEsm.js",
+    "build": "tsc",
     "seed": "tsx src/scripts/seedDatabase.ts",
     "test": "vitest"
   },

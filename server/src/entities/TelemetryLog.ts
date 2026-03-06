@@ -1,4 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, Index } from 'typeorm';
+import { User } from './User';
+import { Course } from './Course';
+import { Simulation } from './Simulation';
 
 export enum ActionType {
   USER_INPUT = 'user_input',
@@ -57,15 +60,15 @@ export class TelemetryLog {
   integrity_hash!: string; // SHA-256 hash for immutability verification
 
   // Relations
-  @ManyToOne('Simulation', 'telemetry_logs', { onDelete: 'CASCADE' })
+  @ManyToOne(() => Simulation, sim => sim.telemetry_logs, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'simulation_id' })
-  simulation!: any;
+  simulation!: Simulation;
 
-  @ManyToOne('User', 'telemetry_logs', { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, user => user.telemetry_logs, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-  user!: any;
+  user!: User;
 
-  @ManyToOne('Course', 'telemetry_logs', { onDelete: 'CASCADE' })
+  @ManyToOne(() => Course, course => course.telemetry_logs, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'course_id' })
-  course!: any;
+  course!: Course;
 }
