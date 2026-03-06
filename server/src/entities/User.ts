@@ -4,7 +4,6 @@ import { TelemetryLog } from './TelemetryLog';
 import { Assessment } from './Assessment';
 import { SimulationInstance } from './SimulationInstance';
 import { PracticeLogs } from './PracticeLogs';
-import { MinistryRequirement } from './MinistryRequirement';
 import { Notification } from './Notification';
 import { FileUpload } from './FileUpload';
 
@@ -59,9 +58,6 @@ export class User {
 
   @OneToMany(() => Assessment, assessment => assessment.user)
   assessments!: Assessment[];
-
-  @OneToMany(() => MinistryRequirement, req => req.uploaded_by)
-  ministry_requirements_uploaded?: MinistryRequirement[];
 
   @OneToMany(() => Notification, notif => notif.recipient)
   notifications_received?: Notification[];

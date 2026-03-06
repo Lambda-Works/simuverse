@@ -1,7 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { Course } from './Course';
 import { SimulationInstance } from './SimulationInstance';
-import { Task } from './Task';
 
 export type ScenarioType = 'practice' | 'evaluation';
 
@@ -60,7 +59,4 @@ export class Scenario {
 
   @OneToMany(() => SimulationInstance, (instance) => instance.scenario)
   instances?: SimulationInstance[];
-
-  @OneToMany(() => Task, task => task.scenario)
-  tasks?: Task[];
 }

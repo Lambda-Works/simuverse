@@ -11,9 +11,6 @@ import { CourseConfig } from '../entities/CourseConfig';
 import { Scenario } from '../entities/Scenario';
 import { SimulationInstance } from '../entities/SimulationInstance';
 import { PracticeLogs } from '../entities/PracticeLogs';
-import { MinistryRequirement } from '../entities/MinistryRequirement';
-import { KPI } from '../entities/KPI';
-import { Task } from '../entities/Task';
 import { Notification } from '../entities/Notification';
 import { FileUpload } from '../entities/FileUpload';
 
@@ -38,9 +35,6 @@ export const AppDataSource = new DataSource({
     Scenario,
     SimulationInstance,
     PracticeLogs,
-    MinistryRequirement,
-    KPI,
-    Task,
     Notification,
     FileUpload
   ],

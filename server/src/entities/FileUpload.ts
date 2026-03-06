@@ -1,7 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, Index } from 'typeorm';
 import { User } from './User';
 import { Course } from './Course';
-import { MinistryRequirement } from './MinistryRequirement';
 
 export type FileUploadType = 'ministry_requirement' | 'scenario_resource' | 'student_submission';
 
@@ -12,7 +11,6 @@ export type FileUploadType = 'ministry_requirement' | 'scenario_resource' | 'stu
 @Entity('file_uploads')
 @Index(['uploaded_by_id'])
 @Index(['course_id'])
-@Index(['ministry_requirement_id'])
 @Index(['created_at'])
 export class FileUpload {
   @PrimaryGeneratedColumn('uuid')
@@ -23,9 +21,6 @@ export class FileUpload {
 
   @Column({ type: 'uuid', nullable: true })
   course_id?: string;
-
-  @Column({ type: 'uuid', nullable: true })
-  ministry_requirement_id?: string;
 
   // Información del archivo
   @Column({ type: 'varchar', length: 255 })
@@ -63,8 +58,4 @@ export class FileUpload {
   @ManyToOne(() => Course, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'course_id' })
   course?: Course;
-
-  @ManyToOne(() => MinistryRequirement, { onDelete: 'CASCADE', nullable: true })
-  @JoinColumn({ name: 'ministry_requirement_id' })
-  ministry_requirement?: MinistryRequirement;
 }

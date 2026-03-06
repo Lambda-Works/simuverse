@@ -1,9 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, OneToOne, Index } from 'typeorm';
 import { Simulation } from './Simulation';
 import { Scenario } from './Scenario';
 import { Assessment } from './Assessment';
 import { CourseModule } from './CourseModule';
 import { TelemetryLog } from './TelemetryLog';
+import { CourseConfig } from './CourseConfig';
+import { SimulationInstance } from './SimulationInstance';
 
 @Entity('courses')
 @Index(['course_id'], { unique: true })
@@ -49,6 +51,9 @@ export class Course {
   updated_at!: Date;
 
   // Relations
+  @OneToOne(() => CourseConfig, config => config.course)
+  config?: CourseConfig;
+
   @OneToMany(() => Simulation, simulation => simulation.course)
   simulations?: Simulation[];
 
@@ -63,4 +68,7 @@ export class Course {
 
   @OneToMany(() => TelemetryLog, log => log.course)
   telemetry_logs?: TelemetryLog[];
+
+  @OneToMany(() => SimulationInstance, instance => instance.course)
+  simulation_instances?: SimulationInstance[];
 }
