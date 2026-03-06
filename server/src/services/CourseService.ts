@@ -6,15 +6,13 @@ export class CourseService {
 
   async getAllCourses(is_active = true) {
     return await this.courseRepository.find({
-      where: { is_active },
-      relations: ['modules', 'instructor']
+      where: { is_active }
     });
   }
 
   async getCourseById(course_id: string) {
     return await this.courseRepository.findOne({
-      where: { id: course_id },
-      relations: ['modules', 'instructor']
+      where: { id: course_id }
     });
   }
 
