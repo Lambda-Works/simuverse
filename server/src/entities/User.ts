@@ -12,7 +12,7 @@ export enum UserRole {
   STUDENT = 'student',
   TEACHER = 'teacher',
   ADMIN = 'admin',
-  MINISTRY = 'ministry'
+  MINISTRY = 'ministerio'  // Changed to match actual database value
 }
 
 @Entity('users')
@@ -25,8 +25,8 @@ export class User {
   @Column({ type: 'varchar', length: 255, unique: true })
   email!: string;
 
-  @Column({ type: 'varchar', length: 255 })
-  password_hash!: string;
+  @Column({ type: 'varchar', length: 255, name: 'password' })  // Maps to 'password' column in DB
+  password!: string;
 
   @Column({ type: 'varchar', length: 255 })
   name!: string;
@@ -38,17 +38,11 @@ export class User {
   })
   role!: UserRole;
 
-  @Column({ type: 'boolean', default: true })
-  is_active!: boolean;
-
   @CreateDateColumn()
   created_at!: Date;
 
   @UpdateDateColumn()
   updated_at!: Date;
-
-  @Column({ type: 'timestamp', nullable: true })
-  last_login!: Date;
 
   // Relations
   @OneToMany(() => Simulation, simulation => simulation.user)
