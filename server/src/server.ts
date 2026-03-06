@@ -13,14 +13,16 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const FRONTEND_URL = process.env.CORS_ORIGIN || 'http://localhost:5173';
+const CORS_ORIGINS = (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:8082').split(',').map(url => url.trim());
 
 // Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cors({ 
-  origin: FRONTEND_URL,
-  credentials: true 
+  origin: CORS_ORIGINS,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Logging middleware
