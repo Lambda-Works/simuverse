@@ -32,8 +32,8 @@ async function seedExampleData() {
     // Superadmin
     const superAdmin = userRepo.create({
       email: 'admin@simuverse.edu',
-      password: 'Admin123!',
-      full_name: 'Admin Sistema',
+      password_hash: 'Admin123!',
+      name: 'Admin Sistema',
       role: UserRole.ADMIN,
       is_active: true,
       last_login: new Date(),
@@ -44,8 +44,8 @@ async function seedExampleData() {
     // Profesor
     const teacher = userRepo.create({
       email: 'profesor@simuverse.edu',
-      password: 'Prof123!',
-      full_name: 'Dr. José García',
+      password_hash: 'Prof123!',
+      name: 'Dr. José García',
       role: UserRole.TEACHER,
       is_active: true,
       last_login: new Date(),
@@ -56,8 +56,8 @@ async function seedExampleData() {
     // Ministerio
     const ministry = userRepo.create({
       email: 'ministerio@simuverse.edu',
-      password: 'Min123!',
-      full_name: 'Representante Ministerio',
+      password_hash: 'Min123!',
+      name: 'Representante Ministerio',
       role: UserRole.MINISTRY,
       is_active: true,
       last_login: new Date(),
@@ -68,8 +68,8 @@ async function seedExampleData() {
     // Alumno
     const student = userRepo.create({
       email: 'alumno@simuverse.edu',
-      password: 'Est123!',
-      full_name: 'Carlos Mendez',
+      password_hash: 'Est123!',
+      name: 'Carlos Mendez',
       role: UserRole.STUDENT,
       is_active: true,
       last_login: new Date(),
