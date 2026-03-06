@@ -44,14 +44,13 @@ export class AuthService {
       throw new Error('Email already registered');
     }
 
-    const password_hash = await bcrypt.hash(payload.password, this.BCRYPT_ROUNDS);
+    const passwordHash = await bcrypt.hash(payload.password, this.BCRYPT_ROUNDS);
 
     const newUser = this.userRepository.create({
       email: payload.email,
-      password_hash: password_hash,
+      password: passwordHash,
       name: payload.name,
-      role: payload.role || UserRole.STUDENT,
-      is_active: true
+      role: payload.role || UserRole.STUDENT
     });
 
     const savedUser = await this.userRepository.save(newUser);
@@ -65,7 +64,7 @@ export class AuthService {
     // Remove sensitive data before returning
     const userResponse = {
       ...savedUser,
-      password_hash: undefined
+      password: undefined
     } as any;
 
     return { user: userResponse, token };
@@ -76,19 +75,15 @@ export class AuthService {
       where: { email: payload.email }
     });
 
-    if (!user || !user.is_active) {
-      throw new Error('Invalid credentials or account disabled');
+    if (!user) {
+      throw new Error('Invalid credentials');
     }
 
-    const isPasswordValid = await bcrypt.compare(payload.password, user.password_hash);
+    const isPasswordValid = await bcrypt.compare(payload.password, user.password);
 
     if (!isPasswordValid) {
       throw new Error('Invalid credentials');
     }
-
-    // Update last login
-    user.last_login = new Date();
-    await this.userRepository.save(user);
 
     const token = this.generateAccessToken({
       user_id: user.id,
@@ -104,7 +99,7 @@ export class AuthService {
 
     const userResponse = {
       ...user,
-      password_hash: undefined
+      password: undefined
     } as any;
 
     return { user: userResponse, token, refreshToken };
@@ -127,8 +122,8 @@ export class AuthService {
         where: { id: decoded.user_id }
       });
 
-      if (!user || !user.is_active) {
-        throw new Error('User not found or inactive');
+      if (!user) {
+        throw new Error('User not found');
       }
 
       const newToken = this.generateAccessToken({

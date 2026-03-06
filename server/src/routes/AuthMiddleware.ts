@@ -67,8 +67,7 @@ export const createAuthRoutes = (): Router => {
           id: result.user.id,
           email: result.user.email,
           name: result.user.name,
-          role: result.user.role,
-          last_login: result.user.last_login
+          role: result.user.role
         },
         token: result.token,
         refreshToken: result.refreshToken
@@ -130,9 +129,7 @@ export const createAuthRoutes = (): Router => {
           email: user.email,
           name: user.name,
           role: user.role,
-          is_active: user.is_active,
-          created_at: user.created_at,
-          last_login: user.last_login
+          created_at: user.created_at
         }
       });
     } catch (error: any) {

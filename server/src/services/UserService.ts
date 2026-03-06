@@ -34,8 +34,8 @@ export class UserService {
     const user = await this.getUserById(user_id);
 
     // Don't allow direct password updates through this method
-    if (updates.password_hash) {
-      delete updates.password_hash;
+    if (updates.password) {
+      delete updates.password;
     }
 
     Object.assign(user, updates);
@@ -53,39 +53,19 @@ export class UserService {
     return await query.getMany();
   }
 
-  async listActiveUsers(): Promise<User[]> {
-    return await this.userRepository.find({
-      where: { is_active: true }
-    });
-  }
-
-  async deactivateUser(user_id: string): Promise<void> {
-    await this.userRepository.update(
-      { id: user_id },
-      { is_active: false }
-    );
-  }
-
-  async activateUser(user_id: string): Promise<void> {
-    await this.userRepository.update(
-      { id: user_id },
-      { is_active: true }
-    );
-  }
-
   async deleteUser(user_id: string): Promise<void> {
     await this.userRepository.delete({ id: user_id });
   }
 
   async getTeachers(): Promise<User[]> {
     return await this.userRepository.find({
-      where: { role: UserRole.TEACHER, is_active: true }
+      where: { role: UserRole.TEACHER }
     });
   }
 
   async getStudents(): Promise<User[]> {
     return await this.userRepository.find({
-      where: { role: UserRole.STUDENT, is_active: true }
+      where: { role: UserRole.STUDENT }
     });
   }
 }

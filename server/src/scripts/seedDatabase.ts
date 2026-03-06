@@ -31,26 +31,23 @@ async function seedDatabase() {
 
     const adminUser = userRepo.create({
       email: 'admin@msm-fepei.com',
-      password_hash: adminPassword,
+      password: adminPassword,
       name: 'Administrator',
-      role: UserRole.ADMIN,
-      is_active: true
+      role: UserRole.ADMIN
     });
 
     const teacherUser = userRepo.create({
       email: 'teacher@msm-fepei.com',
-      password_hash: teacherPassword,
+      password: teacherPassword,
       name: 'Teacher User',
-      role: UserRole.TEACHER,
-      is_active: true
+      role: UserRole.TEACHER
     });
 
     const studentUser = userRepo.create({
       email: 'student@msm-fepei.com',
-      password_hash: studentPassword,
+      password: studentPassword,
       name: 'Student User',
-      role: UserRole.STUDENT,
-      is_active: true
+      role: UserRole.STUDENT
     });
 
     const existingAdmin = await userRepo.findOne({ where: { email: 'admin@msm-fepei.com' } });
