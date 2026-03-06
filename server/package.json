@@ -9,6 +9,7 @@
     "build": "tsc",
     "seed": "tsx src/scripts/seedDatabase.ts",
     "seed-example": "tsx src/scripts/seedExampleData.ts",
+    "seed-complete": "tsx src/scripts/seedCompleteSystem.ts",
     "test": "vitest"
   },
   "keywords": [],
