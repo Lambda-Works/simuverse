@@ -30,8 +30,8 @@ export class CourseService {
     return await this.courseRepository.update(course_id, { is_active: false });
   }
 
-  async getCoursesByFamily(family: string) {
-    return await this.courseRepository.find({ where: { is_active: true } });
+  async getCoursesByCategory(category: string) {
+    return await this.courseRepository.find({ where: { category, is_active: true } });
   }
 
   async getModulesBysCourseId(course_id: string) {

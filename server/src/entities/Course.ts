@@ -1,19 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, OneToOne, ManyToMany, JoinTable, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, Index } from 'typeorm';
 import { Simulation } from './Simulation';
-import { Module } from './Module';
-import { TelemetryLog } from './TelemetryLog';
-import { Assessment } from './Assessment';
-import { CourseModule } from './CourseModule';
-import { CourseConfig } from './CourseConfig';
 import { Scenario } from './Scenario';
-import { SimulationInstance } from './SimulationInstance';
-import { MinistryRequirement } from './MinistryRequirement';
-import { KPI } from './KPI';
-import { Task } from './Task';
 
 @Entity('courses')
 @Index(['course_id'], { unique: true })
-@Index(['family'])
+@Index(['category'])
 export class Course {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -28,40 +19,25 @@ export class Course {
   description!: string;
 
   @Column({ type: 'varchar', length: 100 })
-  family!: string;
+  category!: string;
 
-  @Column({ type: 'int' })
-  duration_minutes!: number;
+  @Column({ type: 'json', nullable: true })
+  modules?: any;
+
+  @Column({ type: 'json', nullable: true })
+  ai_config?: any;
+
+  @Column({ type: 'json', nullable: true })
+  eval_criteria?: any;
+
+  @Column({ type: 'json', nullable: true })
+  crisis_events?: any;
 
   @Column({ type: 'boolean', default: true })
   is_active!: boolean;
 
-  @Column({ type: 'json', nullable: true })
-  ai_config!: {
-    system_prompt_template: string;
-    model: string;
-    temperature: number;
-    max_tokens: number;
-    streaming_enabled: boolean;
-  };
-
-  @Column({ type: 'json', nullable: true })
-  eval_criteria!: {
-    kpi_name: string;
-    weight: number;
-    type: string;
-    thresholds: Record<string, number>;
-  }[];
-
-  @Column({ type: 'json', nullable: true })
-  crisis_events!: {
-    event_id: string;
-    event_name: string;
-    description: string;
-    trigger_condition: string;
-    impact: string;
-    probability: number;
-  }[];
+  @Column({ type: 'varchar', length: 36, nullable: true })
+  created_by?: string;
 
   @CreateDateColumn()
   created_at!: Date;
@@ -71,40 +47,8 @@ export class Course {
 
   // Relations
   @OneToMany(() => Simulation, simulation => simulation.course)
-  simulations!: Simulation[];
+  simulations?: Simulation[];
 
-  @OneToOne(() => CourseConfig, (config) => config.course, { cascade: true, nullable: true })
-  config?: CourseConfig;
-
-  @OneToMany(() => Scenario, (scenario) => scenario.course)
+  @OneToMany(() => Scenario, scenario => scenario.course)
   scenarios?: Scenario[];
-
-  @OneToMany(() => SimulationInstance, (instance) => instance.course)
-  simulation_instances?: SimulationInstance[];
-
-  @ManyToMany(() => Module)
-  @JoinTable({
-    name: 'course_modules',
-    joinColumn: { name: 'course_id', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'module_id', referencedColumnName: 'id' }
-  })
-  modules!: Module[];
-
-  @OneToMany(() => CourseModule, cm => cm.course)
-  course_modules!: CourseModule[];
-
-  @OneToMany(() => TelemetryLog, log => log.course)
-  telemetry_logs!: TelemetryLog[];
-
-  @OneToMany(() => Assessment, assessment => assessment.course)
-  assessments!: Assessment[];
-
-  @OneToMany(() => MinistryRequirement, req => req.course)
-  ministry_requirements?: MinistryRequirement[];
-
-  @OneToMany(() => KPI, kpi => kpi.course)
-  kpis?: KPI[];
-
-  @OneToMany(() => Task, task => task.course)
-  tasks?: Task[];
 }

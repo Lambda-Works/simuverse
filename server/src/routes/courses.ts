@@ -39,9 +39,9 @@ router.get('/:course_id', async (req: Request, res: Response) => {
  */
 router.post('/', promptInjectionFilter, async (req: Request, res: Response) => {
   try {
-    const { course_id, title, description, family, modules, ai_config, eval_criteria } = req.body;
+    const { course_id, title, description, category, modules, ai_config, eval_criteria } = req.body;
 
-    if (!course_id || !title || !family) {
+    if (!course_id || !title || !category) {
       return res.status(400).json({ error: 'Campos requeridos faltantes' });
     }
 
@@ -49,7 +49,7 @@ router.post('/', promptInjectionFilter, async (req: Request, res: Response) => {
       course_id,
       title,
       description,
-      family,
+      category,
       modules: modules || [],
       ai_config: ai_config || {},
       eval_criteria: eval_criteria || [],
@@ -98,12 +98,12 @@ router.delete('/:course_id', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/courses/family/:family
- * Obtiene cursos por familia
+ * GET /api/courses/category/:category
+ * Obtiene cursos por categoría
  */
-router.get('/family/:family', async (req: Request, res: Response) => {
+router.get('/category/:category', async (req: Request, res: Response) => {
   try {
-    const courses = await courseService.getCoursesByFamily(req.params.family);
+    const courses = await courseService.getCoursesByCategory(req.params.category);
     res.json(courses);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

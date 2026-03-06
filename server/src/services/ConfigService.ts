@@ -21,7 +21,7 @@ export class ConfigService {
         throw new Error(`Course ${course_id} not found`);
       }
 
-      config = await this.createDefaultConfig(course_id, course.family);
+      config = await this.createDefaultConfig(course_id, course.category);
     }
 
     return config;
