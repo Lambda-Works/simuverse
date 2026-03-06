@@ -81,7 +81,7 @@ export class ScenarioService {
   static async getScenarioStats(scenario_id: string): Promise<{
     totalAttempts: number;
     completed_attempts: number;
-    failedAttempts: number;
+    failed_attempts: number;
     averageTimeSpent: number;
     successRate: number;
   }> {
@@ -101,7 +101,7 @@ export class ScenarioService {
     return {
       totalAttempts: instances.length,
       completed_attempts: completedInstances.length,
-      failedAttempts: failedInstances.length,
+      failed_attempts: failedInstances.length,
       averageTimeSpent: Math.round(averageTimeSpent),
       successRate:
         instances.length > 0 ? (completedInstances.length / instances.length) * 100 : 0,

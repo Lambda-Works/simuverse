@@ -18,7 +18,7 @@ export class SimulationInstanceService {
       where: {
         student_id,
         scenario_id,
-        status: SimulationStatus.IN_PROGRESS,
+        status: 'in_progress',
       },
     });
 
@@ -30,7 +30,7 @@ export class SimulationInstanceService {
       student_id,
       course_id,
       scenario_id,
-      status: SimulationStatus.IN_PROGRESS,
+      status: 'in_progress',
       progress_percentage: 0,
       current_state: {},
     });
@@ -45,7 +45,7 @@ export class SimulationInstanceService {
       `Started simulation for scenario ${scenario_id}`,
       {
         moduleName: 'SimulationInstance',
-        simulation_instanceId: savedSimulation.id,
+        simulation_instance_id: savedSimulation.id,
       },
       savedSimulation.id
     );
@@ -88,7 +88,7 @@ export class SimulationInstanceService {
       where: {
         student_id,
         course_id,
-        status: SimulationStatus.IN_PROGRESS,
+        status: 'in_progress',
       },
       relations: ['scenario'],
     });
@@ -109,9 +109,9 @@ export class SimulationInstanceService {
 
     simulation.current_state = { ...simulation.current_state, ...newState };
     simulation.metadata = { ...simulation.metadata, ...metadata };
-    simulation.progress_percentage = Math.min(
+    simulation.progress = Math.min(
       100,
-      (simulation.progress_percentage || 0) + (metadata?.progressDelta || 0)
+      (simulation.progress || 0) + (metadata?.progress_delta || 0)
     );
 
     const updated = await this.simulationRepository.save(simulation);
@@ -126,7 +126,7 @@ export class SimulationInstanceService {
         {
           moduleName: 'SimulationInstance',
           inputData: newState,
-          simulation_instanceId: id,
+          simulation_instance_id: id,
         },
         id
       );
@@ -144,7 +144,7 @@ export class SimulationInstanceService {
       throw new Error(`Simulation ${id} not found`);
     }
 
-    simulation.status = SimulationStatus.PAUSED;
+    simulation.status = 'paused';
     const updated = await this.simulationRepository.save(simulation);
 
     await PracticeLogsService.logAction(
@@ -168,7 +168,7 @@ export class SimulationInstanceService {
       throw new Error(`Simulation ${id} not found`);
     }
 
-    simulation.status = SimulationStatus.IN_PROGRESS;
+    simulation.status = 'in_progress';
     simulation.updated_at = new Date();
     const updated = await this.simulationRepository.save(simulation);
 
@@ -191,10 +191,10 @@ export class SimulationInstanceService {
     id: string,
     performance_metrics?: {
       accuracy: number;
-      timeSpent: number;
-      tasksCompleted: number;
-      tasksTotal: number;
-      errorCount: number;
+      time_spent: number;
+      tasks_completed: number;
+      tasks_total: number;
+      error_count: number;
     }
   ): Promise<SimulationInstance> {
     const simulation = await this.getSimulation(id);
@@ -202,9 +202,9 @@ export class SimulationInstanceService {
       throw new Error(`Simulation ${id} not found`);
     }
 
-    simulation.status = SimulationStatus.COMPLETED;
+    simulation.status = 'completed';
     simulation.completed_at = new Date();
-    simulation.progress_percentage = 100;
+    simulation.progress = 100;
     if (performance_metrics) {
       simulation.performance_metrics = performance_metrics;
     }
@@ -236,7 +236,7 @@ export class SimulationInstanceService {
       throw new Error(`Simulation ${id} not found`);
     }
 
-    simulation.status = SimulationStatus.SUBMITTED_FOR_REVIEW;
+    simulation.status = 'submitted_for_review';
     simulation.submitted_at = new Date();
     const updated = await this.simulationRepository.save(simulation);
 
@@ -261,11 +261,11 @@ export class SimulationInstanceService {
       throw new Error(`Simulation ${id} not found`);
     }
 
-    simulation.status = SimulationStatus.FAILED;
+    simulation.status = 'failed';
     simulation.metadata = {
       ...simulation.metadata,
-      failureReason: reason,
-      failedAt: new Date().toISOString(),
+      failure_reason: reason,
+      failed_at: new Date().toISOString(),
     };
 
     const updated = await this.simulationRepository.save(simulation);

@@ -49,10 +49,10 @@ export class Simulation {
   started_at!: Date;
 
   @Column({ type: 'timestamp', nullable: true })
-  paused_at!: Date;
+  paused_at?: Date | null;
 
   @Column({ type: 'timestamp', nullable: true })
-  completed_at!: Date;
+  completed_at?: Date | null;
 
   @UpdateDateColumn()
   updated_at!: Date;

@@ -277,13 +277,13 @@ router.get(
 );
 
 /**
- * GET /admin/logs/simulation/:simulation_instanceId
+ * GET /admin/logs/simulation/:simulation_instance_id
  * Get logs for a specific simulation instance
  */
-router.get('/logs/simulation/:simulation_instanceId', async (req: Request, res: Response) => {
+router.get('/logs/simulation/:simulation_instance_id', async (req: Request, res: Response) => {
   try {
     const logs = await PracticeLogsService.getLogsForSimulation(
-      parseInt(req.params.simulation_instanceId)
+      parseInt(req.params.simulation_instance_id)
     );
     res.json(logs);
   } catch (error) {
@@ -307,13 +307,13 @@ router.get('/courses/:course_id/statistics', async (req: Request, res: Response)
 });
 
 /**
- * GET /admin/simulations/:simulationId
+ * GET /admin/simulations/:simulation_id
  * Get simulation instance details
  */
-router.get('/simulations/:simulationId', async (req: Request, res: Response) => {
+router.get('/simulations/:simulation_id', async (req: Request, res: Response) => {
   try {
     const simulation = await SimulationInstanceService.getSimulation(
-      parseInt(req.params.simulationId)
+      parseInt(req.params.simulation_id)
     );
     if (!simulation) {
       return res.status(404).json({ error: 'Simulation not found' });
@@ -325,13 +325,13 @@ router.get('/simulations/:simulationId', async (req: Request, res: Response) => 
 });
 
 /**
- * POST /admin/simulations/:simulationId/review
+ * POST /admin/simulations/:simulation_id/review
  * Submit simulation for review (teacher review)
  */
-router.post('/simulations/:simulationId/review', async (req: Request, res: Response) => {
+router.post('/simulations/:simulation_id/review', async (req: Request, res: Response) => {
   try {
     const simulation = await SimulationInstanceService.submitForReview(
-      parseInt(req.params.simulationId)
+      parseInt(req.params.simulation_id)
     );
     res.json(simulation);
   } catch (error) {

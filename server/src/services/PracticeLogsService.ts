@@ -14,7 +14,7 @@ export class PracticeLogsService {
     action_type: ActionType,
     description: string,
     metadata: ActionMetadata,
-    simulation_instanceId?: string
+    simulation_instance_id?: string
   ): Promise<PracticeLogs> {
     // Get the sequence number for this student
     const lastLog = await this.logsRepository.findOne({
@@ -42,7 +42,7 @@ export class PracticeLogsService {
       action_type,
       description,
       metadata,
-      simulation_instanceId,
+      simulation_instance_id,
       sequence_number: nextSequenceNumber,
       integrity_hash,
       previous_hash,
@@ -104,9 +104,9 @@ export class PracticeLogsService {
   /**
    * Get logs for a specific simulation instance
    */
-  static async getLogsForSimulation(simulation_instanceId: number): Promise<PracticeLogs[]> {
+  static async getLogsForSimulation(simulation_instance_id: number): Promise<PracticeLogs[]> {
     return this.logsRepository.find({
-      where: { simulation_instanceId },
+      where: { simulation_instance_id },
       order: { sequence_number: 'ASC' },
     });
   }
@@ -173,7 +173,7 @@ export class PracticeLogsService {
   ): Promise<{
     totalActions: number;
     actionBreakdown: Record<ActionType, number>;
-    timeSpent: number; // minutes
+    time_spent: number; // minutes
     successRate: number;
     lastActionTime: Date | null;
   }> {
@@ -186,7 +186,7 @@ export class PracticeLogsService {
 
     const firstLog = logs[0];
     const lastLog = logs[logs.length - 1];
-    const timeSpent =
+    const time_spent =
       firstLog && lastLog ? (lastLog.timestamp - firstLog.timestamp) / 1000 / 60 : 0;
 
     const successfulActions = logs.filter(
@@ -199,7 +199,7 @@ export class PracticeLogsService {
     return {
       totalActions: logs.length,
       actionBreakdown: actionBreakdown as Record<ActionType, number>,
-      timeSpent: Math.round(timeSpent),
+      time_spent: Math.round(time_spent),
       successRate: logs.length > 0 ? (successfulActions / logs.length) * 100 : 0,
       lastActionTime: lastLog?.created_at || null,
     };
@@ -265,7 +265,7 @@ export class PracticeLogsService {
       completed_at: new Date().toISOString(),
       statistics: {
         totalActions: stats.totalActions,
-        timeSpent: stats.timeSpent,
+        time_spent: stats.time_spent,
         successRate: Math.round(stats.successRate),
       },
       logIntegrity: {

@@ -42,12 +42,12 @@ router.post('/start', authMiddleware, async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/simulations/:simulationId
+ * GET /api/simulations/:simulation_id
  * Obtener detalles de una simulación
  */
-router.get('/:simulationId', async (req: Request, res: Response) => {
+router.get('/:simulation_id', async (req: Request, res: Response) => {
   try {
-    const simulation = await simulationService.getSimulation(req.params.simulationId);
+    const simulation = await simulationService.getSimulation(req.params.simulation_id);
     if (!simulation) {
       return res.status(404).json({ error: 'Simulación no encontrada' });
     }
@@ -58,15 +58,15 @@ router.get('/:simulationId', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/simulations/:simulationId/message
+ * POST /api/simulations/:simulation_id/message
  * Enviar un mensaje en una simulación (interacción con IA)
  */
-router.post('/:simulationId/message', async (req: Request, res: Response) => {
+router.post('/:simulation_id/message', async (req: Request, res: Response) => {
   try {
     const { user_id, course_id, message, conversationHistory } = req.body;
     const startTime = Date.now();
 
-    const simulation = await simulationService.getSimulation(req.params.simulationId);
+    const simulation = await simulationService.getSimulation(req.params.simulation_id);
     if (!simulation) {
       return res.status(404).json({ error: 'Simulación no encontrada' });
     }
@@ -92,7 +92,7 @@ router.post('/:simulationId/message', async (req: Request, res: Response) => {
 
     // Log de la acción
     await telemetryService.logAction(
-      req.params.simulationId,
+      req.params.simulation_id,
       user_id,
       course_id,
       message.substring(0, 100),
@@ -105,7 +105,7 @@ router.post('/:simulationId/message', async (req: Request, res: Response) => {
     );
 
     res.json({
-      simulation_id: req.params.simulationId,
+      simulation_id: req.params.simulation_id,
       user_message: message,
       ai_response: aiResponse,
       response_time_ms: responseTime,
@@ -116,10 +116,10 @@ router.post('/:simulationId/message', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/simulations/:simulationId/action
+ * POST /api/simulations/:simulation_id/action
  * Registrar una acción (cálculo, archivo, etc.)
  */
-router.post('/:simulationId/action', async (req: Request, res: Response) => {
+router.post('/:simulation_id/action', async (req: Request, res: Response) => {
   try {
     const { user_id, course_id, action_type, actionData } = req.body;
     const startTime = Date.now();
@@ -136,7 +136,7 @@ router.post('/:simulationId/action', async (req: Request, res: Response) => {
 
     // Log de la acción
     await telemetryService.logAction(
-      req.params.simulationId,
+      req.params.simulation_id,
       user_id,
       course_id,
       `Acción: ${action_type}`,
@@ -150,7 +150,7 @@ router.post('/:simulationId/action', async (req: Request, res: Response) => {
     );
 
     res.json({
-      simulation_id: req.params.simulationId,
+      simulation_id: req.params.simulation_id,
       validation,
       response_time_ms: responseTime,
     });
@@ -160,12 +160,12 @@ router.post('/:simulationId/action', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/simulations/:simulationId/pause
+ * POST /api/simulations/:simulation_id/pause
  * Pausar una simulación
  */
-router.post('/:simulationId/pause', async (req: Request, res: Response) => {
+router.post('/:simulation_id/pause', async (req: Request, res: Response) => {
   try {
-    const paused = await simulationService.pauseSimulation(req.params.simulationId);
+    const paused = await simulationService.pauseSimulation(req.params.simulation_id);
     if (!paused) {
       return res.status(404).json({ error: 'Simulación no encontrada' });
     }
@@ -176,12 +176,12 @@ router.post('/:simulationId/pause', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/simulations/:simulationId/resume
+ * POST /api/simulations/:simulation_id/resume
  * Reanudar una simulación
  */
-router.post('/:simulationId/resume', async (req: Request, res: Response) => {
+router.post('/:simulation_id/resume', async (req: Request, res: Response) => {
   try {
-    const resumed = await simulationService.resumeSimulation(req.params.simulationId);
+    const resumed = await simulationService.resumeSimulation(req.params.simulation_id);
     if (!resumed) {
       return res.status(404).json({ error: 'Simulación no encontrada' });
     }
@@ -192,12 +192,12 @@ router.post('/:simulationId/resume', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/simulations/:simulationId/complete
+ * POST /api/simulations/:simulation_id/complete
  * Completar una simulación
  */
-router.post('/:simulationId/complete', async (req: Request, res: Response) => {
+router.post('/:simulation_id/complete', async (req: Request, res: Response) => {
   try {
-    const completed = await simulationService.completeSimulation(req.params.simulationId);
+    const completed = await simulationService.completeSimulation(req.params.simulation_id);
     if (!completed) {
       return res.status(404).json({ error: 'Simulación no encontrada' });
     }
@@ -208,12 +208,12 @@ router.post('/:simulationId/complete', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/simulations/:simulationId/logs
+ * GET /api/simulations/:simulation_id/logs
  * Obtener todos los logs de una simulación
  */
-router.get('/:simulationId/logs', async (req: Request, res: Response) => {
+router.get('/:simulation_id/logs', async (req: Request, res: Response) => {
   try {
-    const logs = await telemetryService.getSimulationLogs(req.params.simulationId);
+    const logs = await telemetryService.getSimulationLogs(req.params.simulation_id);
     res.json(logs);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

@@ -16,9 +16,9 @@ export class SimulationService {
     return await this.simulationRepository.save(simulation);
   }
 
-  async getSimulation(simulationId: string) {
+  async getSimulation(simulation_id: string) {
     return await this.simulationRepository.findOne({
-      where: { id: simulationId },
+      where: { id: simulation_id },
       relations: ['course', 'user']
     });
   }
@@ -33,40 +33,40 @@ export class SimulationService {
     });
   }
 
-  async pauseSimulation(simulationId: string) {
+  async pauseSimulation(simulation_id: string) {
     await this.simulationRepository.update(
-      simulationId,
+      simulation_id,
       { status: SimulationStatus.PAUSED, paused_at: new Date() }
     );
-    return await this.getSimulation(simulationId);
+    return await this.getSimulation(simulation_id);
   }
 
-  async resumeSimulation(simulationId: string) {
+  async resumeSimulation(simulation_id: string) {
     await this.simulationRepository.update(
-      simulationId,
+      simulation_id,
       { status: SimulationStatus.IN_PROGRESS, paused_at: null }
     );
-    return await this.getSimulation(simulationId);
+    return await this.getSimulation(simulation_id);
   }
 
-  async completeSimulation(simulationId: string) {
+  async completeSimulation(simulation_id: string) {
     await this.simulationRepository.update(
-      simulationId,
+      simulation_id,
       {
         status: SimulationStatus.COMPLETED,
         completed_at: new Date(),
         progress_percentage: 100,
       }
     );
-    return await this.getSimulation(simulationId);
+    return await this.getSimulation(simulation_id);
   }
 
-  async updateSimulationState(simulationId: string, state: Record<string, any>) {
+  async updateSimulationState(simulation_id: string, state: Record<string, any>) {
     await this.simulationRepository.update(
-      simulationId,
+      simulation_id,
       { current_state: state }
     );
-    return await this.getSimulation(simulationId);
+    return await this.getSimulation(simulation_id);
   }
 }
 
@@ -74,7 +74,7 @@ export class TelemetryService {
   private telemetryRepository = AppDataSource.getRepository(TelemetryLog);
 
   async logAction(
-    simulationId: string,
+    simulation_id: string,
     user_id: string,
     course_id: string,
     action: string,
@@ -84,11 +84,11 @@ export class TelemetryService {
   ) {
     const integrity_hash = crypto
       .createHash('sha256')
-      .update(`${simulationId}${action}${Date.now()}`)
+      .update(`${simulation_id}${action}${Date.now()}`)
       .digest('hex');
 
     const log = this.telemetryRepository.create({
-      simulationId,
+      simulation_id,
       user_id,
       course_id,
       action,
@@ -102,9 +102,9 @@ export class TelemetryService {
     return await this.telemetryRepository.save(log);
   }
 
-  async getSimulationLogs(simulationId: string) {
+  async getSimulationLogs(simulation_id: string) {
     return await this.telemetryRepository.find({
-      where: { simulation_id: simulationId },
+      where: { simulation_id: simulation_id },
       order: { created_at: 'ASC' }
     });
   }
