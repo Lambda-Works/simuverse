@@ -9,21 +9,25 @@ declare global {
 }
 
 /**
- * Middleware anti-jailbreak: Filtra intentos de inyección de prompts
+ * Middleware anti-jailbreak: Filtra intentos de inyección de prompts.
+ * SOLO aplicar en endpoints de CHAT/SIMULACIÓN donde el alumno escribe.
+ * NO aplicar en endpoints de configuración de cursos (son prompts legítimos del admin).
  */
 export const promptInjectionFilter = (req: Request, res: Response, next: NextFunction) => {
+  // Patrones de jailbreak real: intentos de escapar del sistema
   const jailbreakPatterns = [
-    /ignora.*instrucciones/i,
-    /olvida.*sistema/i,
-    /actúa como/i,
-    /sys.*prompt/i,
-    /eres un/i,
-    /forget.*previous/i,
+    /ignore\s+all\s+(previous|system)/i,
     /disregard.*instructions/i,
+    /forget.*previous.*instructions/i,
+    /you\s+are\s+now\s+(a|an|the)\s+/i,
+    /new\s+instructions?:/i,
+    /override\s+(previous|system|all)/i,
+    /\[SYSTEM\]/i,
+    /\[INST\]/i,
+    /<\|system\|>/i,
   ];
 
-  const input = JSON.stringify(req.body).toLowerCase();
-
+  const input = JSON.stringify(req.body);
   const blocked = jailbreakPatterns.some((pattern) => pattern.test(input));
 
   if (blocked) {

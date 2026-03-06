@@ -37,7 +37,7 @@ router.get('/:course_id', async (req: Request, res: Response) => {
  * POST /api/courses
  * Crear un nuevo curso (solo para admins)
  */
-router.post('/', promptInjectionFilter, async (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const { course_id, title, description, category, modules, ai_config, eval_criteria } = req.body;
 
