@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { AppDataSource } from '../database/connection';
-import { User } from '../entities/User';
+import { User, UserRole } from '../entities/User';
 
 async function seedExampleData() {
   try {
@@ -34,7 +34,7 @@ async function seedExampleData() {
         email: 'admin-demo@simuverse.edu',
         password: 'Admin123!Demo',
         name: 'Admin Demo Sistema',
-        role: 'admin',
+        role: UserRole.ADMIN,
       });
       await userRepo.save(admin);
       console.log('  ✅ Admin: admin-demo@simuverse.edu');
@@ -48,7 +48,7 @@ async function seedExampleData() {
         email: 'profesor-demo@simuverse.edu',
         password: 'Prof123!Demo',
         name: 'Dr. José García (Demo)',
-        role: 'teacher',
+        role: UserRole.TEACHER,
       });
       await userRepo.save(teacher);
       console.log('  ✅ Profesor: profesor-demo@simuverse.edu');
@@ -62,7 +62,7 @@ async function seedExampleData() {
         email: 'ministerio-demo@simuverse.edu',
         password: 'Min123!Demo',
         name: 'Representante Ministerio (Demo)',
-        role: 'ministerio',
+        role: UserRole.MINISTRY,
       });
       await userRepo.save(ministry);
       console.log('  ✅ Ministerio: ministerio-demo@simuverse.edu');
@@ -76,7 +76,7 @@ async function seedExampleData() {
         email: 'alumno-demo@simuverse.edu',
         password: 'Est123!Demo',
         name: 'Carlos Mendez (Demo)',
-        role: 'student',
+        role: UserRole.STUDENT,
       });
       await userRepo.save(student);
       console.log('  ✅ Alumno: alumno-demo@simuverse.edu');
