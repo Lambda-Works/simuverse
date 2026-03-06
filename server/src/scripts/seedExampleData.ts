@@ -32,48 +32,48 @@ async function seedExampleData() {
     // Superadmin
     const superAdmin = userRepo.create({
       email: 'admin@simuverse.edu',
-      password_hash: 'Admin123!',
+      passwordHash: 'Admin123!',
       name: 'Admin Sistema',
-      role: UserRole.ADMIN,
-      is_active: true,
-      last_login: new Date(),
-    });
+      role: 'admin' as any,
+      isActive: true,
+      lastLogin: new Date(),
+    } as any);
     await userRepo.save(superAdmin);
     console.log('  ✅ Superadmin: admin@simuverse.edu');
 
     // Profesor
     const teacher = userRepo.create({
       email: 'profesor@simuverse.edu',
-      password_hash: 'Prof123!',
+      passwordHash: 'Prof123!',
       name: 'Dr. José García',
-      role: UserRole.TEACHER,
-      is_active: true,
-      last_login: new Date(),
-    });
+      role: 'teacher' as any,
+      isActive: true,
+      lastLogin: new Date(),
+    } as any);
     await userRepo.save(teacher);
     console.log('  ✅ Profesor: profesor@simuverse.edu');
 
     // Ministerio
     const ministry = userRepo.create({
       email: 'ministerio@simuverse.edu',
-      password_hash: 'Min123!',
+      passwordHash: 'Min123!',
       name: 'Representante Ministerio',
-      role: UserRole.MINISTRY,
-      is_active: true,
-      last_login: new Date(),
-    });
+      role: 'admin' as any, // Con permiso para cargar requisitos
+      isActive: true,
+      lastLogin: new Date(),
+    } as any);
     await userRepo.save(ministry);
     console.log('  ✅ Ministerio: ministerio@simuverse.edu');
 
     // Alumno
     const student = userRepo.create({
       email: 'alumno@simuverse.edu',
-      password_hash: 'Est123!',
+      passwordHash: 'Est123!',
       name: 'Carlos Mendez',
-      role: UserRole.STUDENT,
-      is_active: true,
-      last_login: new Date(),
-    });
+      role: 'student' as any,
+      isActive: true,
+      lastLogin: new Date(),
+    } as any);
     await userRepo.save(student);
     console.log('  ✅ Alumno: alumno@simuverse.edu');
 
@@ -83,13 +83,12 @@ async function seedExampleData() {
     console.log('\n📚 Creando curso...');
 
     const course = courseRepo.create({
-      name: 'Simulación de Gestión Empresarial',
+      course_id: 'SGCE-2026',
+      title: 'Simulación de Gestión Empresarial',
       description: 'Curso de simulación empresarial para aprender toma de decisiones en contextos complejos',
-      level: 'advanced',
-      start_date: new Date(),
-      end_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-      status: 'active',
-      created_by_id: teacher.id,
+      family: 'management',
+      duration_minutes: 300,
+      is_active: true,
     });
     await courseRepo.save(course);
     console.log('  ✅ Curso: Simulación de Gestión Empresarial');
@@ -149,7 +148,7 @@ async function seedExampleData() {
       ministry_requirement_id: ministryReq.id,
       name: 'Análisis Financiero',
       description: 'Capacidad para interpretar y analizar estados financieros',
-      category: 'analitical',
+      category: 'analytical',
       weight: 25,
       target_value: 80,
       minimum_pass_value: 60,
