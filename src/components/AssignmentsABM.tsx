@@ -17,9 +17,12 @@ interface Assignment {
   created_at: string;
 }
 
-interface Simulation {
+interface Scenario {
   id: string;
   course_id: string;
+  title: string;
+  scenario_type: string;
+  difficulty: string;
 }
 
 interface Course {
@@ -37,13 +40,13 @@ interface User {
 export function AssignmentsABM() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
-  const [simulations, setSimulations] = useState<Simulation[]>([]);
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddingNew, setIsAddingNew] = useState(false);
 
   const [formData, setFormData] = useState({
-    simulation_id: '',
+    simulation_id: '',   // stores the scenario_id selected
     student_id: '',
     course_id: '',
     max_attempts: 1,
@@ -51,12 +54,23 @@ export function AssignmentsABM() {
     end_date: '',
   });
 
+  // Load scenarios when course changes
+  useEffect(() => {
+    if (formData.course_id) {
+      fetch(`http://localhost:5000/api/scenarios?course_id=${formData.course_id}`)
+        .then(r => r.json())
+        .then(d => setScenarios(Array.isArray(d) ? d : []))
+        .catch(() => setScenarios([]));
+    } else {
+      setScenarios([]);
+    }
+  }, [formData.course_id]);
+
   // Fetch data
   useEffect(() => {
     Promise.all([
       fetchAssignments(),
       fetchCourses(),
-      fetchSimulations(),
       fetchStudents(),
     ]).then(() => setLoading(false));
   }, []);
@@ -80,17 +94,6 @@ export function AssignmentsABM() {
     } catch (error) {
       console.error('Error fetching courses:', error);
       setCourses([]);
-    }
-  };
-
-  const fetchSimulations = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/simulations');
-      const data = await response.json();
-      setSimulations(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Error fetching simulations:', error);
-      setSimulations([]);
     }
   };
 
@@ -181,11 +184,6 @@ export function AssignmentsABM() {
     return user ? user.name : studentId;
   };
 
-  const getSimulationCourse = (simId: string) => {
-    const sim = simulations.find((s) => s.id === simId);
-    return sim ? getCourseName(sim.course_id) : 'Desconocido';
-  };
-
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       pending: 'bg-yellow-100 text-yellow-900',
@@ -242,20 +240,24 @@ export function AssignmentsABM() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Simulación</label>
+                <label className="block text-sm font-medium mb-2">Escenario a asignar</label>
                 <select
                   value={formData.simulation_id}
                   onChange={(e) => setFormData({ ...formData, simulation_id: e.target.value })}
                   className="w-full p-2 border rounded-md"
                   required
+                  disabled={!formData.course_id}
                 >
-                  <option value="">-- Selecciona una simulación --</option>
-                  {simulations.map((sim) => (
-                    <option key={sim.id} value={sim.id}>
-                      {getSimulationCourse(sim.id)}
+                  <option value="">{formData.course_id ? '-- Selecciona un escenario --' : '-- Primero elegí un curso --'}</option>
+                  {scenarios.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.scenario_type === 'evaluation' ? '🎯 [EVALUACIÓN]' : '📚 [PRÁCTICA]'} {s.title} ({s.difficulty})
                     </option>
                   ))}
                 </select>
+                {formData.course_id && scenarios.length === 0 && (
+                  <p className="text-xs text-orange-600 mt-1">⚠️ Este curso no tiene escenarios. Creá uno en la tab "Escenarios".</p>
+                )}
               </div>
             </div>
 
