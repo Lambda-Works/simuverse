@@ -8,6 +8,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "seed": "tsx src/scripts/seedDatabase.ts",
+    "seed-example": "tsx src/scripts/seedExampleData.ts",
     "test": "vitest"
   },
   "keywords": [],
