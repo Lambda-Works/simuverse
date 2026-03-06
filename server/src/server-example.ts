@@ -79,7 +79,7 @@ app.get('/api/profile', authMiddleware, async (req: Request, res: Response) => {
     }
 
     const UserRepository = AppDataSource.getRepository('User');
-    const user = await UserRepository.findOne(req.user.userId);
+    const user = await UserRepository.findOne({ where: { id: req.user.userId } } as any);
 
     res.json({ user });
   } catch (error: any) {
