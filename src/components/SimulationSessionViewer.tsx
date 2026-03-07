@@ -373,24 +373,31 @@ function SessionDetailDialog({
                 ) : (
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
-                      <div className={`text-4xl font-bold px-5 py-3 rounded-xl
-                        ${data.evaluation.overall_score >= 85 ? 'bg-green-100 text-green-700' :
-                          data.evaluation.overall_score >= 70 ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-red-100 text-red-700'}`}>
-                        {data.evaluation.overall_score.toFixed(1)}
-                      </div>
-                      <div>
-                        <p className="font-semibold">
-                          {data.evaluation.overall_score >= 85 ? '✅ Aprobado con distinción' :
-                           data.evaluation.overall_score >= 70 ? '⚠️ Aprobado (regular)' :
-                           '❌ No aprobado'}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Completitud: {data.evaluation.completion_percentage}%
-                          · {Math.round(data.evaluation.time_spent_seconds / 60)} min
-                          · {new Date(data.evaluation.evaluated_at).toLocaleString('es-AR')}
-                        </p>
-                      </div>
+                      {(() => {
+                        const evalScore = Number(data.evaluation.overall_score);
+                        return (
+                          <>
+                            <div className={`text-4xl font-bold px-5 py-3 rounded-xl
+                              ${evalScore >= 85 ? 'bg-green-100 text-green-700' :
+                                evalScore >= 70 ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-red-100 text-red-700'}`}>
+                              {isNaN(evalScore) ? '—' : evalScore.toFixed(1)}
+                            </div>
+                            <div>
+                              <p className="font-semibold">
+                                {isNaN(evalScore) ? '—' : evalScore >= 85 ? '✅ Aprobado con distinción' :
+                                 evalScore >= 70 ? '⚠️ Aprobado (regular)' :
+                                 '❌ No aprobado'}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Completitud: {data.evaluation.completion_percentage}%
+                                · {Math.round(data.evaluation.time_spent_seconds / 60)} min
+                                · {new Date(data.evaluation.evaluated_at).toLocaleString('es-AR')}
+                              </p>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
 
                     {/* KPIs */}
@@ -485,12 +492,14 @@ export function SimulationSessionViewer() {
     (filterType === 'all' || s.scenario_type === filterType)
   );
 
-  const scoreBadge = (score: number) => {
-    if (score == null) return <span className="text-xs text-gray-400">—</span>;
-    const cls = score >= 85 ? 'bg-green-100 text-green-800 border-green-300' :
-      score >= 70 ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+  const scoreBadge = (score: number | string | null) => {
+    if (score == null || score === '') return <span className="text-xs text-gray-400">—</span>;
+    const n = Number(score);
+    if (isNaN(n)) return <span className="text-xs text-gray-400">—</span>;
+    const cls = n >= 85 ? 'bg-green-100 text-green-800 border-green-300' :
+      n >= 70 ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
       'bg-red-100 text-red-800 border-red-300';
-    return <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${cls}`}>{score.toFixed(1)}</span>;
+    return <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${cls}`}>{n.toFixed(1)}</span>;
   };
 
   return (
