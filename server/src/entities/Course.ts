@@ -30,6 +30,9 @@ export class Course {
   category!: string;
 
   @Column({ type: 'json', nullable: true })
+  categories?: string[] | null;
+
+  @Column({ type: 'json', nullable: true })
   modules?: any;
 
   @Column({ type: 'json', nullable: true })
@@ -43,6 +46,9 @@ export class Course {
 
   @Column({ type: 'int', nullable: true })
   tech_sheet_id?: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  simulated_company_id?: number | null;
 
   @Column({ type: 'boolean', default: true })
   is_active!: boolean;

@@ -26,11 +26,14 @@ interface Scenario {
   title: string;
   scenario_type: string;
   difficulty: string;
+  categories?: string[];
 }
 
 interface Course {
   id: string;
   title: string;
+  category?: string;
+  categories?: string[];
 }
 
 interface User {
@@ -56,6 +59,17 @@ export function AssignmentsABM() {
   const [maxAttempts, setMaxAttempts] = useState(1);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [showAllScenarios, setShowAllScenarios] = useState(false);
+
+  const courseCategories = courses.find(c => c.id === selectedCourse)?.categories ||
+    (courses.find(c => c.id === selectedCourse)?.category ? [courses.find(c => c.id === selectedCourse)!.category!] : []);
+
+  const filteredScenarios = showAllScenarios
+    ? scenarios
+    : scenarios.filter(s => {
+        if (!courseCategories.length || !s.categories?.length) return true;
+        return s.categories.some(cat => courseCategories.includes(cat));
+      });
 
   const toggleScenario = (id: string) =>
     setSelectedScenarios(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
@@ -64,7 +78,7 @@ export function AssignmentsABM() {
   const toggleAllStudents = () =>
     setSelectedStudents(prev => prev.length === users.length ? [] : users.map(u => u.id));
   const toggleAllScenarios = () =>
-    setSelectedScenarios(prev => prev.length === scenarios.length ? [] : scenarios.map(s => s.id));
+    setSelectedScenarios(prev => prev.length === filteredScenarios.length ? [] : filteredScenarios.map(s => s.id));
 
   // Load scenarios when course changes
   useEffect(() => {
@@ -263,12 +277,22 @@ export function AssignmentsABM() {
                   {selectedScenarios.length > 0 && (
                     <Badge className="ml-2 bg-blue-600 text-white text-xs">{selectedScenarios.length} seleccionados</Badge>
                   )}
+                  {!showAllScenarios && filteredScenarios.length < scenarios.length && (
+                    <Badge className="ml-2 bg-purple-100 text-purple-800 text-xs">🎯 {filteredScenarios.length}/{scenarios.length} por categoría</Badge>
+                  )}
                 </label>
-                {scenarios.length > 0 && (
-                  <button type="button" onClick={toggleAllScenarios} className="text-xs text-blue-600 underline">
-                    {selectedScenarios.length === scenarios.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  {scenarios.length !== filteredScenarios.length && (
+                    <button type="button" onClick={() => setShowAllScenarios(v => !v)} className="text-xs text-purple-600 underline">
+                      {showAllScenarios ? 'Solo coincidentes' : 'Mostrar todos'}
+                    </button>
+                  )}
+                  {filteredScenarios.length > 0 && (
+                    <button type="button" onClick={toggleAllScenarios} className="text-xs text-blue-600 underline">
+                      {selectedScenarios.length === filteredScenarios.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                    </button>
+                  )}
+                </div>
               </div>
               {!selectedCourse ? (
                 <p className="text-xs text-gray-500 italic">Primero seleccioná un curso</p>
@@ -276,19 +300,22 @@ export function AssignmentsABM() {
                 <p className="text-xs text-orange-600">⚠️ Este curso no tiene escenarios. Creá uno en la tab "Escenarios".</p>
               ) : (
                 <div className="space-y-1 max-h-52 overflow-y-auto border rounded-md p-3 bg-white">
-                  {scenarios.map(s => {
+                  {filteredScenarios.map(s => {
                     const checked = selectedScenarios.includes(s.id);
                     const isEval = s.scenario_type === 'evaluation';
                     return (
                       <label key={s.id} className={`flex items-start gap-2 p-2 rounded cursor-pointer transition-colors ${checked ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50'}`}>
                         <input type="checkbox" checked={checked} onChange={() => toggleScenario(s.id)} className="mt-0.5 w-4 h-4" />
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-medium">{s.title}</span>
                             <span className={`text-xs px-1.5 py-0.5 rounded ${isEval ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                               {isEval ? '🎯 EVALUACIÓN' : '📚 PRÁCTICA'}
                             </span>
                             <span className="text-xs text-gray-400">{s.difficulty}</span>
+                            {s.categories && s.categories.length > 0 && s.categories.map(cat => (
+                              <span key={cat} className="text-xs bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded capitalize">{cat}</span>
+                            ))}
                           </div>
                         </div>
                       </label>

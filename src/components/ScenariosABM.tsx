@@ -48,6 +48,7 @@ interface Scenario {
   description: string;
   scenario_type: 'practice' | 'evaluation';
   difficulty: 'easy' | 'medium' | 'hard';
+  categories?: string[];
   content: ScenarioContent;
   expected_outcomes: ExpectedOutcomes;
   is_active: boolean;
@@ -83,6 +84,7 @@ const emptyForm = () => ({
   description: '',
   scenario_type: 'practice' as const,
   difficulty: 'medium' as const,
+  categories: [] as string[],
   content: emptyContent(),
   expected_outcomes: emptyOutcomes(),
 });
@@ -176,6 +178,7 @@ export function ScenariosABM() {
       description: s.description || '',
       scenario_type: s.scenario_type,
       difficulty: s.difficulty,
+      categories: Array.isArray(s.categories) ? s.categories : [],
       content: {
         context: s.content?.context || '',
         constraints: s.content?.constraints || [],
@@ -207,6 +210,7 @@ export function ScenariosABM() {
       description: s.description,
       scenario_type: s.scenario_type,
       difficulty: s.difficulty,
+      categories: s.categories || [],
       content: s.content,
       expected_outcomes: s.expected_outcomes,
     };
@@ -481,6 +485,21 @@ export function ScenariosABM() {
                   onChange={e => updateContent({ estimated_time_minutes: parseInt(e.target.value) || 30 })}
                   className="w-32"
                 />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium block mb-1">Categorías del escenario <span className="text-gray-400 font-normal text-xs">(para filtrar en asignaciones)</span></label>
+                <div className="border rounded-lg p-2 bg-white max-h-32 overflow-y-auto grid grid-cols-2 gap-0.5">
+                  {['seguros', 'contable', 'rrhh', 'ventas', 'oratoria', 'legal', 'administracion', 'general'].map(cat => (
+                    <label key={cat} className={`flex items-center gap-2 p-1 rounded cursor-pointer text-xs ${form.categories.includes(cat) ? 'bg-blue-50 text-blue-800' : ''}`}>
+                      <input type="checkbox"
+                        checked={form.categories.includes(cat)}
+                        onChange={() => setForm(f => ({ ...f, categories: f.categories.includes(cat) ? f.categories.filter(c => c !== cat) : [...f.categories, cat] }))}
+                        className="rounded" />
+                      <span className="capitalize">{cat}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </TabsContent>
 

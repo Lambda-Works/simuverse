@@ -12,8 +12,11 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield, FolderOpen, FileUp, UserCheck, BarChart3, ClipboardList, Wand2, Copy, MessageSquare, Bell, CalendarDays, Users2 } from 'lucide-react';
+import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield, FolderOpen, FileUp, UserCheck, BarChart3, ClipboardList, Wand2, Copy, MessageSquare, Bell, CalendarDays, Users2, Building2, GraduationCap, Handshake } from 'lucide-react';
 import { GlobalStatsDashboard } from '@/components/GlobalStatsDashboard';
+import { CompaniesABM } from '@/components/CompaniesABM';
+import { FoundationABM } from '@/components/FoundationABM';
+import { EndorsersABM } from '@/components/EndorsersABM';
 import { AccessRequestsPanel } from '@/components/AccessRequestsPanel';
 import { SimulationCalendar } from '@/components/SimulationCalendar';
 import { TeacherGroupsABM } from '@/components/TeacherGroupsABM';
@@ -125,6 +128,8 @@ interface CourseForm {
   crisis_events: Array<{ trigger_minutes: number; event_text: string; severity: string }>;
   is_active: boolean;
   tech_sheet_id: number | null;  // ← Ficha técnica opcional
+  categories: string[];         // ← Multi-categoría
+  simulated_company_id: number | null; // ← Empresa simulada
 }
 
 const emptyForm: CourseForm = {
@@ -143,6 +148,8 @@ const emptyForm: CourseForm = {
   crisis_events: [],
   is_active: true,
   tech_sheet_id: null,
+  categories: [],
+  simulated_company_id: null,
 };
 
 const AdminPanel = () => {
@@ -150,6 +157,7 @@ const AdminPanel = () => {
   const navigate = useNavigate();
   const [courses, setCourses] = useState<any[]>([]);
   const [techSheets, setTechSheets] = useState<Array<{ id: number; name: string; processed: boolean }>>([]);
+  const [simCompanies, setSimCompanies] = useState<Array<{ id: number; name: string; short_name?: string }>>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<CourseForm>({ ...emptyForm });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -157,7 +165,7 @@ const AdminPanel = () => {
   const [newCriterion, setNewCriterion] = useState('');
   const [newTrait, setNewTrait] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
-  const [currentTab, setCurrentTab] = useState<'courses' | 'categories' | 'documents' | 'techsheets' | 'assignments' | 'reports' | 'scenarios' | 'templates' | 'sessions' | 'users' | 'roles' | 'stats' | 'requests' | 'groups' | 'calendar'>('courses');
+  const [currentTab, setCurrentTab] = useState<'courses' | 'categories' | 'documents' | 'techsheets' | 'assignments' | 'reports' | 'scenarios' | 'templates' | 'sessions' | 'users' | 'roles' | 'stats' | 'requests' | 'groups' | 'calendar' | 'companies' | 'foundation' | 'endorsers'>('courses');
 
   useEffect(() => {
     if (!loading && (!user || !hasRole('admin'))) navigate('/dashboard');
@@ -180,6 +188,10 @@ const AdminPanel = () => {
         .then(r => r.json())
         .then(d => setTechSheets(Array.isArray(d) ? d.map((s: any) => ({ id: s.id, name: s.name, processed: s.processed })) : []))
         .catch(() => {});
+      fetch('http://localhost:5000/api/simulated-companies')
+        .then(r => r.json())
+        .then(d => setSimCompanies(Array.isArray(d) ? d.map((c: any) => ({ id: c.id, name: c.name, short_name: c.short_name })) : []))
+        .catch(() => {});
     }
   }, [user]);
 
@@ -193,13 +205,15 @@ const AdminPanel = () => {
       course_id: form.course_id,
       title: form.title,
       description: form.description,
-      category: form.category,
+      category: form.categories[0] || form.category || 'general',
+      categories: form.categories,
       modules: form.modules as any,
       ai_config: form.ai_config as any,
       eval_criteria: form.eval_criteria as any,
       crisis_events: form.crisis_events as any,
       is_active: form.is_active,
       tech_sheet_id: form.tech_sheet_id || null,
+      simulated_company_id: form.simulated_company_id || null,
       created_by: user!.id,
     };
 
@@ -225,12 +239,15 @@ const AdminPanel = () => {
       course_id: course.course_id,
       title: course.title,
       description: course.description || '',
-      category: course.category,
+      category: course.category || 'general',
+      categories: Array.isArray(course.categories) ? course.categories : (course.category ? [course.category] : ['general']),
       modules: course.modules || [],
       ai_config: course.ai_config || emptyForm.ai_config,
       eval_criteria: course.eval_criteria || [],
       crisis_events: course.crisis_events || [],
       is_active: course.is_active,
+      tech_sheet_id: course.tech_sheet_id || null,
+      simulated_company_id: course.simulated_company_id || null,
     });
     setEditingId(course.id);
     setDialogOpen(true);
@@ -253,11 +270,14 @@ const AdminPanel = () => {
       title: course.title + ' (Copia)',
       description: course.description || '',
       category: course.category,
+      categories: Array.isArray(course.categories) ? course.categories : (course.category ? [course.category] : []),
       modules: course.modules || [],
       ai_config: course.ai_config || emptyForm.ai_config,
       eval_criteria: course.eval_criteria || [],
       crisis_events: course.crisis_events || [],
       is_active: false,
+      tech_sheet_id: course.tech_sheet_id || null,
+      simulated_company_id: course.simulated_company_id || null,
       created_by: user!.id,
     };
     try {
@@ -426,6 +446,33 @@ const AdminPanel = () => {
               <CalendarDays className="w-4 h-4 mr-2" />
               Calendario
             </Button>
+            <Button
+              variant={currentTab === 'companies' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentTab('companies')}
+              className="rounded-b-none"
+            >
+              <Building2 className="w-4 h-4 mr-2" />
+              Empresas
+            </Button>
+            <Button
+              variant={currentTab === 'foundation' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentTab('foundation')}
+              className="rounded-b-none"
+            >
+              <GraduationCap className="w-4 h-4 mr-2" />
+              Fundación
+            </Button>
+            <Button
+              variant={currentTab === 'endorsers' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentTab('endorsers')}
+              className="rounded-b-none"
+            >
+              <Handshake className="w-4 h-4 mr-2" />
+              Avaladores
+            </Button>
           </div>
         </div>
       </header>
@@ -456,13 +503,25 @@ const AdminPanel = () => {
                         <Input value={form.course_id} onChange={e => setForm(p => ({ ...p, course_id: e.target.value }))} placeholder="SEGUROS_01" />
                       </div>
                       <div className="space-y-2">
-                        <Label>Categoría</Label>
-                        <Select value={form.category} onValueChange={v => setForm(p => ({ ...p, category: v }))}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        <Label className="text-sm font-semibold">Categorías <span className="text-gray-400 font-normal">(una o varias)</span></Label>
+                        <div className="border rounded-lg p-2 bg-white max-h-36 overflow-y-auto">
+                          <label className="flex items-center gap-2 p-1 cursor-pointer border-b mb-1">
+                            <input type="checkbox"
+                              checked={form.categories.length === CATEGORIES.length}
+                              onChange={() => setForm(p => ({ ...p, categories: p.categories.length === CATEGORIES.length ? [] : [...CATEGORIES] }))}
+                              className="rounded" />
+                            <span className="text-xs font-semibold text-gray-700">Todas</span>
+                          </label>
+                          {CATEGORIES.map(cat => (
+                            <label key={cat} className={`flex items-center gap-2 p-1 rounded cursor-pointer ${form.categories.includes(cat) ? 'bg-blue-50' : ''}`}>
+                              <input type="checkbox"
+                                checked={form.categories.includes(cat)}
+                                onChange={() => setForm(p => ({ ...p, categories: p.categories.includes(cat) ? p.categories.filter(c => c !== cat) : [...p.categories, cat] }))}
+                                className="rounded" />
+                              <span className="text-xs capitalize">{cat}</span>
+                            </label>
+                          ))}
+                        </div>
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -593,6 +652,29 @@ const AdminPanel = () => {
                       <div className="flex flex-wrap gap-1">{form.eval_criteria.map((c, i) => <Badge key={i} variant="outline" className="cursor-pointer" onClick={() => setForm(p => ({ ...p, eval_criteria: p.eval_criteria.filter((_, j) => j !== i) }))}>{c} ×</Badge>)}</div>
                     </div>
 
+                    {/* Empresa Simulada */}
+                    {simCompanies.length > 0 && (
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold">🏢 Empresa Simulada <span className="text-gray-400 font-normal">(opcional)</span></Label>
+                        <Select
+                          value={form.simulated_company_id?.toString() || 'none'}
+                          onValueChange={v => setForm(p => ({ ...p, simulated_company_id: v === 'none' ? null : parseInt(v) }))}
+                        >
+                          <SelectTrigger className="text-sm">
+                            <SelectValue placeholder="Sin empresa simulada" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Sin empresa simulada</SelectItem>
+                            {simCompanies.map(c => (
+                              <SelectItem key={c.id} value={c.id.toString()}>
+                                {c.short_name ? `${c.short_name} — ` : ''}{c.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
                     {/* Active toggle */}
                     <div className="flex items-center justify-between">
                       <Label>Curso Activo</Label>
@@ -614,7 +696,10 @@ const AdminPanel = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold">{course.title}</h3>
-                        <Badge variant="secondary" className="text-xs">{course.category}</Badge>
+                        {Array.isArray(course.categories) && course.categories.length > 0
+                          ? course.categories.map((cat: string) => <Badge key={cat} variant="secondary" className="text-xs capitalize">{cat}</Badge>)
+                          : <Badge variant="secondary" className="text-xs">{course.category}</Badge>
+                        }
                         {course.is_active ? <span className="w-2 h-2 rounded-full bg-success" /> : <span className="w-2 h-2 rounded-full bg-muted-foreground" />}
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">{course.course_id} — {(course.modules as string[])?.join(', ')}</p>
@@ -684,6 +769,15 @@ const AdminPanel = () => {
 
         {/* Calendar Tab */}
         {currentTab === 'calendar' && <SimulationCalendar />}
+
+        {/* Companies Tab */}
+        {currentTab === 'companies' && <CompaniesABM />}
+
+        {/* Foundation Tab */}
+        {currentTab === 'foundation' && <FoundationABM />}
+
+        {/* Endorsers Tab */}
+        {currentTab === 'endorsers' && <EndorsersABM />}
       </main>
     </div>
   );

@@ -1338,5 +1338,146 @@ router.get('/student-assignments/:student_id', async (req: Request, res: Respons
   }
 });
 
+// ========== SIMULATED COMPANIES ==========
+router.get('/simulated-companies', async (req: Request, res: Response) => {
+  try {
+    const rows = await AppDataSource.query('SELECT * FROM simulated_companies ORDER BY name ASC');
+    res.json(rows);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/simulated-companies', async (req: Request, res: Response) => {
+  try {
+    const { name, short_name, description, industry, logo_url, is_fictional, city, country, website } = req.body;
+    if (!name) return res.status(400).json({ error: 'name requerido' });
+    const result = await AppDataSource.query(
+      'INSERT INTO simulated_companies (name, short_name, description, industry, logo_url, is_fictional, city, country, website) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, short_name || null, description || null, industry || null, logo_url || null, is_fictional ? 1 : 0, city || null, country || 'Argentina', website || null]
+    );
+    const rows = await AppDataSource.query('SELECT * FROM simulated_companies WHERE id = ?', [result.insertId]);
+    res.status(201).json(rows[0]);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.put('/simulated-companies/:id', async (req: Request, res: Response) => {
+  try {
+    const { name, short_name, description, industry, logo_url, is_fictional, city, country, website } = req.body;
+    await AppDataSource.query(
+      'UPDATE simulated_companies SET name=?, short_name=?, description=?, industry=?, logo_url=?, is_fictional=?, city=?, country=?, website=?, updated_at=NOW() WHERE id=?',
+      [name, short_name || null, description || null, industry || null, logo_url || null, is_fictional ? 1 : 0, city || null, country || 'Argentina', website || null, req.params.id]
+    );
+    const rows = await AppDataSource.query('SELECT * FROM simulated_companies WHERE id = ?', [req.params.id]);
+    res.json(rows[0]);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/simulated-companies/:id', async (req: Request, res: Response) => {
+  try {
+    await AppDataSource.query('DELETE FROM simulated_companies WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Empresa eliminada' });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// ========== FOUNDATION CONFIG ==========
+router.get('/foundation-config', async (req: Request, res: Response) => {
+  try {
+    const rows = await AppDataSource.query('SELECT * FROM foundation_config ORDER BY id ASC');
+    res.json(rows);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/foundation-config', async (req: Request, res: Response) => {
+  try {
+    const { name, short_name, logo_url, address, city, province, country, phone, email, website, ministry_aval } = req.body;
+    if (!name) return res.status(400).json({ error: 'name requerido' });
+    const result = await AppDataSource.query(
+      'INSERT INTO foundation_config (name, short_name, logo_url, address, city, province, country, phone, email, website, ministry_aval) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, short_name || null, logo_url || null, address || null, city || 'Rosario', province || 'Santa Fe', country || 'Argentina', phone || null, email || null, website || null, ministry_aval || null]
+    );
+    const rows = await AppDataSource.query('SELECT * FROM foundation_config WHERE id = ?', [result.insertId]);
+    res.status(201).json(rows[0]);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.put('/foundation-config/:id', async (req: Request, res: Response) => {
+  try {
+    const { name, short_name, logo_url, address, city, province, country, phone, email, website, ministry_aval, is_active } = req.body;
+    await AppDataSource.query(
+      'UPDATE foundation_config SET name=?, short_name=?, logo_url=?, address=?, city=?, province=?, country=?, phone=?, email=?, website=?, ministry_aval=?, is_active=?, updated_at=NOW() WHERE id=?',
+      [name, short_name || null, logo_url || null, address || null, city || 'Rosario', province || 'Santa Fe', country || 'Argentina', phone || null, email || null, website || null, ministry_aval || null, is_active !== undefined ? (is_active ? 1 : 0) : 1, req.params.id]
+    );
+    const rows = await AppDataSource.query('SELECT * FROM foundation_config WHERE id = ?', [req.params.id]);
+    res.json(rows[0]);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// ========== ENDORSERS (AVALADORES) ==========
+router.get('/endorsers', async (req: Request, res: Response) => {
+  try {
+    const rows = await AppDataSource.query('SELECT * FROM endorsers WHERE is_active = 1 ORDER BY name ASC');
+    res.json(rows);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/endorsers', async (req: Request, res: Response) => {
+  try {
+    const { name, short_name, logo_url, description, endorsement_type, website } = req.body;
+    if (!name) return res.status(400).json({ error: 'name requerido' });
+    const result = await AppDataSource.query(
+      'INSERT INTO endorsers (name, short_name, logo_url, description, endorsement_type, website) VALUES (?, ?, ?, ?, ?, ?)',
+      [name, short_name || null, logo_url || null, description || null, endorsement_type || 'institution', website || null]
+    );
+    const rows = await AppDataSource.query('SELECT * FROM endorsers WHERE id = ?', [result.insertId]);
+    res.status(201).json(rows[0]);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.put('/endorsers/:id', async (req: Request, res: Response) => {
+  try {
+    const { name, short_name, logo_url, description, endorsement_type, website, is_active } = req.body;
+    await AppDataSource.query(
+      'UPDATE endorsers SET name=?, short_name=?, logo_url=?, description=?, endorsement_type=?, website=?, is_active=?, updated_at=NOW() WHERE id=?',
+      [name, short_name || null, logo_url || null, description || null, endorsement_type || 'institution', website || null, is_active !== undefined ? (is_active ? 1 : 0) : 1, req.params.id]
+    );
+    const rows = await AppDataSource.query('SELECT * FROM endorsers WHERE id = ?', [req.params.id]);
+    res.json(rows[0]);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/endorsers/:id', async (req: Request, res: Response) => {
+  try {
+    await AppDataSource.query('UPDATE endorsers SET is_active = 0 WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Avalador desactivado' });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// ========== COURSE ENDORSERS (vincular avaladores a cursos) ==========
+router.get('/course-endorsers/:course_id', async (req: Request, res: Response) => {
+  try {
+    const rows = await AppDataSource.query(
+      'SELECT ce.*, e.name, e.short_name, e.logo_url, e.endorsement_type, e.website FROM course_endorsers ce JOIN endorsers e ON e.id = ce.endorser_id WHERE ce.course_id = ?',
+      [req.params.course_id]
+    );
+    res.json(rows);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/course-endorsers', async (req: Request, res: Response) => {
+  try {
+    const { course_id, endorser_id } = req.body;
+    if (!course_id || !endorser_id) return res.status(400).json({ error: 'course_id y endorser_id requeridos' });
+    await AppDataSource.query('INSERT IGNORE INTO course_endorsers (course_id, endorser_id) VALUES (?, ?)', [course_id, endorser_id]);
+    res.status(201).json({ message: 'Avalador vinculado' });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/course-endorsers', async (req: Request, res: Response) => {
+  try {
+    const { course_id, endorser_id } = req.body;
+    await AppDataSource.query('DELETE FROM course_endorsers WHERE course_id = ? AND endorser_id = ?', [course_id, endorser_id]);
+    res.json({ message: 'Vínculo eliminado' });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
 export default router;
 

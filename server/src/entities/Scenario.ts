@@ -29,6 +29,9 @@ export class Scenario {
   @Column({ type: 'varchar', length: 100, nullable: true })
   scenario_type?: string; // 'practice' | 'evaluation'
 
+  @Column({ type: 'json', nullable: true })
+  categories?: string[] | null;
+
   @Column({ 
     type: 'enum',
     enum: ['easy', 'medium', 'hard'],
