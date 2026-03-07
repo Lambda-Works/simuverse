@@ -124,6 +124,7 @@ interface CourseForm {
   eval_criteria: string[];
   crisis_events: Array<{ trigger_minutes: number; event_text: string; severity: string }>;
   is_active: boolean;
+  tech_sheet_id: number | null;  // ← Ficha técnica opcional
 }
 
 const emptyForm: CourseForm = {
@@ -141,12 +142,14 @@ const emptyForm: CourseForm = {
   eval_criteria: [],
   crisis_events: [],
   is_active: true,
+  tech_sheet_id: null,
 };
 
 const AdminPanel = () => {
   const { user, hasRole, loading } = useAuth();
   const navigate = useNavigate();
   const [courses, setCourses] = useState<any[]>([]);
+  const [techSheets, setTechSheets] = useState<Array<{ id: number; name: string; processed: boolean }>>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<CourseForm>({ ...emptyForm });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -170,7 +173,15 @@ const AdminPanel = () => {
     }
   };
 
-  useEffect(() => { if (user) fetchCourses(); }, [user]);
+  useEffect(() => {
+    if (user) {
+      fetchCourses();
+      fetch('http://localhost:5000/api/tech-sheets')
+        .then(r => r.json())
+        .then(d => setTechSheets(Array.isArray(d) ? d.map((s: any) => ({ id: s.id, name: s.name, processed: s.processed })) : []))
+        .catch(() => {});
+    }
+  }, [user]);
 
   const handleSave = async () => {
     if (!form.title || !form.course_id) {
@@ -188,6 +199,7 @@ const AdminPanel = () => {
       eval_criteria: form.eval_criteria as any,
       crisis_events: form.crisis_events as any,
       is_active: form.is_active,
+      tech_sheet_id: form.tech_sheet_id || null,
       created_by: user!.id,
     };
 
@@ -545,6 +557,35 @@ const AdminPanel = () => {
                     {/* Eval criteria */}
                     <div className="space-y-2">
                       <Label className="text-base font-semibold">📊 Criterios de Evaluación (KPIs)</Label>
+
+                      {/* Selector de Ficha Técnica (opcional) */}
+                      {techSheets.length > 0 && (
+                        <div className="p-3 rounded-lg border border-dashed border-purple-300 bg-purple-50 space-y-1.5">
+                          <Label className="text-xs font-semibold text-purple-800">
+                            📋 Vincular Ficha Técnica Ministerial (opcional)
+                          </Label>
+                          <p className="text-xs text-purple-600">
+                            Al vincular una ficha, sus KPIs analizados aparecen automáticamente en los reportes y certificados.
+                          </p>
+                          <Select
+                            value={form.tech_sheet_id?.toString() || 'none'}
+                            onValueChange={v => setForm(p => ({ ...p, tech_sheet_id: v !== 'none' ? parseInt(v) : null }))}
+                          >
+                            <SelectTrigger className="bg-white text-sm">
+                              <SelectValue placeholder="Sin ficha técnica" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Sin ficha técnica</SelectItem>
+                              {techSheets.map(s => (
+                                <SelectItem key={s.id} value={s.id.toString()}>
+                                  {s.processed ? '✅' : '⏳'} {s.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+
                       <div className="flex gap-2">
                         <Input value={newCriterion} onChange={e => setNewCriterion(e.target.value)} placeholder="empatía, resolución, conocimiento técnico..." onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (newCriterion.trim()) { setForm(p => ({ ...p, eval_criteria: [...p.eval_criteria, newCriterion.trim()] })); setNewCriterion(''); } } }} />
                         <Button type="button" variant="outline" size="sm" onClick={() => { if (newCriterion.trim()) { setForm(p => ({ ...p, eval_criteria: [...p.eval_criteria, newCriterion.trim()] })); setNewCriterion(''); } }}>+</Button>

@@ -55,12 +55,13 @@ function KpiBar({ label, value }: { label: string; value: number }) {
   );
 }
 
-function ScoreBadge({ score }: { score: number }) {
-  const cls = score >= 85 ? 'bg-green-100 text-green-800 border-green-300' :
-    score >= 70 ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+function ScoreBadge({ score }: { score: number | string | null }) {
+  const n = Number(score ?? 0);
+  const cls = n >= 85 ? 'bg-green-100 text-green-800 border-green-300' :
+    n >= 70 ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
     'bg-red-100 text-red-800 border-red-300';
-  const label = score >= 85 ? '✅ Aprobado' : score >= 70 ? '⚠️ Regular' : '❌ Desaprobado';
-  return <span className={`text-xs font-semibold px-2 py-1 rounded border ${cls}`}>{score.toFixed(1)} — {label}</span>;
+  const label = n >= 85 ? '✅ Aprobado' : n >= 70 ? '⚠️ Regular' : '❌ Desaprobado';
+  return <span className={`text-xs font-semibold px-2 py-1 rounded border ${cls}`}>{n.toFixed(1)} — {label}</span>;
 }
 
 function StudentHistoryDialog({ studentId, studentName, onClose }: {

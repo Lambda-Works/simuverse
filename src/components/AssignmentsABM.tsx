@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Trash2, Plus, Send } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Trash2, Plus, Send, CheckSquare, Square } from 'lucide-react';
+import { toast } from 'sonner';
 
+const API = 'http://localhost:5000/api';
 interface Assignment {
   id: number;
   simulation_id: string;
@@ -44,27 +47,37 @@ export function AssignmentsABM() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddingNew, setIsAddingNew] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const [formData, setFormData] = useState({
-    simulation_id: '',   // stores the scenario_id selected
-    student_id: '',
-    course_id: '',
-    max_attempts: 1,
-    start_date: '',
-    end_date: '',
-  });
+  // Formulario con multi-selección de escenarios y alumnos
+  const [selectedCourse, setSelectedCourse] = useState('');
+  const [selectedScenarios, setSelectedScenarios] = useState<string[]>([]);  // ← MÚLTIPLES
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);    // ← MÚLTIPLES
+  const [maxAttempts, setMaxAttempts] = useState(1);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const toggleScenario = (id: string) =>
+    setSelectedScenarios(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
+  const toggleStudent = (id: string) =>
+    setSelectedStudents(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
+  const toggleAllStudents = () =>
+    setSelectedStudents(prev => prev.length === users.length ? [] : users.map(u => u.id));
+  const toggleAllScenarios = () =>
+    setSelectedScenarios(prev => prev.length === scenarios.length ? [] : scenarios.map(s => s.id));
 
   // Load scenarios when course changes
   useEffect(() => {
-    if (formData.course_id) {
-      fetch(`http://localhost:5000/api/scenarios?course_id=${formData.course_id}`)
+    setSelectedScenarios([]);
+    if (selectedCourse) {
+      fetch(`${API}/scenarios?course_id=${selectedCourse}`)
         .then(r => r.json())
         .then(d => setScenarios(Array.isArray(d) ? d : []))
         .catch(() => setScenarios([]));
     } else {
       setScenarios([]);
     }
-  }, [formData.course_id]);
+  }, [selectedCourse]);
 
   // Fetch data
   useEffect(() => {
@@ -77,7 +90,7 @@ export function AssignmentsABM() {
 
   const fetchAssignments = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/assignments');
+      const response = await fetch(`${API}/assignments`);
       const data = await response.json();
       setAssignments(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -88,7 +101,7 @@ export function AssignmentsABM() {
 
   const fetchCourses = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/courses');
+      const response = await fetch(`${API}/courses`);
       const data = await response.json();
       setCourses(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -99,7 +112,7 @@ export function AssignmentsABM() {
 
   const fetchStudents = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/users?role=student');
+      const response = await fetch(`${API}/users?role=student`);
       const data = await response.json();
       setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -111,77 +124,83 @@ export function AssignmentsABM() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.simulation_id || !formData.student_id || !formData.course_id) {
-      alert('Simulación, estudiante y curso son obligatorios');
+    if (!selectedCourse || selectedScenarios.length === 0 || selectedStudents.length === 0) {
+      toast.error('Seleccioná un curso, al menos un escenario y al menos un alumno');
       return;
     }
 
-    try {
-      const payload = {
-        ...formData,
-        assigned_by: localStorage.getItem('userId') || 'system',
-      };
+    setSaving(true);
+    let created = 0;
+    let errors = 0;
 
-      await fetch('http://localhost:5000/api/assignments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+    // Crear N × M asignaciones (un escenario × un alumno)
+    const pairs = selectedScenarios.flatMap(scenId =>
+      selectedStudents.map(studId => ({ simulation_id: scenId, student_id: studId }))
+    );
 
-      // Reset form
-      setFormData({
-        simulation_id: '',
-        student_id: '',
-        course_id: '',
-        max_attempts: 1,
-        start_date: '',
-        end_date: '',
-      });
-      setIsAddingNew(false);
-
-      // Refresh list
-      await fetchAssignments();
-      alert('✅ Asignación creada. El estudiante recibirá una notificación.');
-    } catch (error) {
-      console.error('Error saving assignment:', error);
-      alert('Error al crear la asignación');
+    for (const pair of pairs) {
+      try {
+        const res = await fetch(`${API}/assignments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            simulation_id: pair.simulation_id,
+            student_id: pair.student_id,
+            course_id: selectedCourse,
+            max_attempts: maxAttempts,
+            start_date: startDate || null,
+            end_date: endDate || null,
+            assigned_by: localStorage.getItem('userId') || 'system',
+          }),
+        });
+        if (res.ok) created++;
+        else errors++;
+      } catch { errors++; }
     }
-  };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Estás seguro de eliminar esta asignación?')) return;
+    setSaving(false);
+    await fetchAssignments();
 
-    try {
-      await fetch(`http://localhost:5000/api/assignments/${id}`, {
-        method: 'DELETE',
-      });
-      await fetchAssignments();
-    } catch (error) {
-      console.error('Error deleting assignment:', error);
-      alert('Error al eliminar la asignación');
+    if (errors === 0) {
+      toast.success(`✅ ${created} asignación${created !== 1 ? 'es' : ''} creada${created !== 1 ? 's' : ''} correctamente`);
+    } else {
+      toast.warning(`${created} creadas, ${errors} con error (pueden ser duplicados)`);
     }
-  };
 
-  const handleCancel = () => {
-    setFormData({
-      simulation_id: '',
-      student_id: '',
-      course_id: '',
-      max_attempts: 1,
-      start_date: '',
-      end_date: '',
-    });
+    // Reset
+    setSelectedCourse('');
+    setSelectedScenarios([]);
+    setSelectedStudents([]);
+    setMaxAttempts(1);
+    setStartDate('');
+    setEndDate('');
     setIsAddingNew(false);
   };
 
-  const getCourseName = (courseId: string) => {
-    const course = courses.find((c) => c.id === courseId);
-    return course ? course.title : courseId;
+  const handleCancel = () => {
+    setSelectedCourse('');
+    setSelectedScenarios([]);
+    setSelectedStudents([]);
+    setMaxAttempts(1);
+    setStartDate('');
+    setEndDate('');
+    setIsAddingNew(false);
   };
 
-  const getStudentName = (studentId: string) => {
-    const user = users.find((u) => u.id === studentId);
-    return user ? user.name : studentId;
+  const getCourseName = (courseId: string) => courses.find(c => c.id === courseId)?.title || courseId;
+  const getStudentName = (studentId: string) => users.find(u => u.id === studentId)?.name || studentId;
+  const getScenarioTitle = (simId: string) => {
+    // simId puede ser el escenario id o el simulation_id de la asignación
+    return simId?.substring(0, 8) + '...';
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('¿Eliminar esta asignación?')) return;
+    try {
+      await fetch(`${API}/assignments/${id}`, { method: 'DELETE' });
+      await fetchAssignments();
+      toast.success('Asignación eliminada');
+    } catch { toast.error('Error al eliminar'); }
   };
 
   const getStatusColor = (status: string) => {
@@ -220,110 +239,128 @@ export function AssignmentsABM() {
       {isAddingNew && (
         <Card className="p-6 border border-blue-200 bg-blue-50">
           <h3 className="text-lg font-semibold mb-4">Nueva Asignación</h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Curso</label>
-                <select
-                  value={formData.course_id}
-                  onChange={(e) => setFormData({ ...formData, course_id: e.target.value })}
-                  className="w-full p-2 border rounded-md"
-                  required
-                >
-                  <option value="">-- Selecciona un curso --</option>
-                  {courses.map((course) => (
-                    <option key={course.id} value={course.id}>
-                      {course.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          <form onSubmit={handleSubmit} className="space-y-5">
 
-              <div>
-                <label className="block text-sm font-medium mb-2">Escenario a asignar</label>
-                <select
-                  value={formData.simulation_id}
-                  onChange={(e) => setFormData({ ...formData, simulation_id: e.target.value })}
-                  className="w-full p-2 border rounded-md"
-                  required
-                  disabled={!formData.course_id}
-                >
-                  <option value="">{formData.course_id ? '-- Selecciona un escenario --' : '-- Primero elegí un curso --'}</option>
-                  {scenarios.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.scenario_type === 'evaluation' ? '🎯 [EVALUACIÓN]' : '📚 [PRÁCTICA]'} {s.title} ({s.difficulty})
-                    </option>
-                  ))}
-                </select>
-                {formData.course_id && scenarios.length === 0 && (
-                  <p className="text-xs text-orange-600 mt-1">⚠️ Este curso no tiene escenarios. Creá uno en la tab "Escenarios".</p>
+            {/* Curso */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Curso</label>
+              <select
+                value={selectedCourse}
+                onChange={e => setSelectedCourse(e.target.value)}
+                className="w-full p-2 border rounded-md bg-white"
+                required
+              >
+                <option value="">-- Selecciona un curso --</option>
+                {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+              </select>
+            </div>
+
+            {/* Escenarios (MULTI-SELECT con checkboxes) */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium">
+                  Escenarios a asignar
+                  {selectedScenarios.length > 0 && (
+                    <Badge className="ml-2 bg-blue-600 text-white text-xs">{selectedScenarios.length} seleccionados</Badge>
+                  )}
+                </label>
+                {scenarios.length > 0 && (
+                  <button type="button" onClick={toggleAllScenarios} className="text-xs text-blue-600 underline">
+                    {selectedScenarios.length === scenarios.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                  </button>
                 )}
               </div>
+              {!selectedCourse ? (
+                <p className="text-xs text-gray-500 italic">Primero seleccioná un curso</p>
+              ) : scenarios.length === 0 ? (
+                <p className="text-xs text-orange-600">⚠️ Este curso no tiene escenarios. Creá uno en la tab "Escenarios".</p>
+              ) : (
+                <div className="space-y-1 max-h-52 overflow-y-auto border rounded-md p-3 bg-white">
+                  {scenarios.map(s => {
+                    const checked = selectedScenarios.includes(s.id);
+                    const isEval = s.scenario_type === 'evaluation';
+                    return (
+                      <label key={s.id} className={`flex items-start gap-2 p-2 rounded cursor-pointer transition-colors ${checked ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50'}`}>
+                        <input type="checkbox" checked={checked} onChange={() => toggleScenario(s.id)} className="mt-0.5 w-4 h-4" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{s.title}</span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded ${isEval ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                              {isEval ? '🎯 EVALUACIÓN' : '📚 PRÁCTICA'}
+                            </span>
+                            <span className="text-xs text-gray-400">{s.difficulty}</span>
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
+            {/* Alumnos (MULTI-SELECT con checkboxes) */}
             <div>
-              <label className="block text-sm font-medium mb-2">Estudiantes (Selecciona uno o varios)</label>
-              <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3 bg-white">
-                {users.map((user) => (
-                  <label key={user.id} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.student_id === user.id}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setFormData({ ...formData, student_id: user.id });
-                        }
-                      }}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm">{user.name} ({user.email})</span>
-                  </label>
-                ))}
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium">
+                  Estudiantes
+                  {selectedStudents.length > 0 && (
+                    <Badge className="ml-2 bg-green-600 text-white text-xs">{selectedStudents.length} seleccionados</Badge>
+                  )}
+                </label>
+                <button type="button" onClick={toggleAllStudents} className="text-xs text-blue-600 underline">
+                  {selectedStudents.length === users.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                </button>
+              </div>
+              <div className="space-y-1 max-h-48 overflow-y-auto border rounded-md p-3 bg-white">
+                {users.map(u => {
+                  const checked = selectedStudents.includes(u.id);
+                  return (
+                    <label key={u.id} className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${checked ? 'bg-green-50 border border-green-200' : 'hover:bg-gray-50'}`}>
+                      <input type="checkbox" checked={checked} onChange={() => toggleStudent(u.id)} className="w-4 h-4" />
+                      <span className="text-sm">{u.name}</span>
+                      <span className="text-xs text-gray-400">{u.email}</span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
 
+            {/* Configuración de la asignación */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Intentos Máximos</label>
                 <input
                   type="number"
-                  value={formData.max_attempts}
-                  onChange={(e) => setFormData({ ...formData, max_attempts: parseInt(e.target.value) })}
-                  min="1"
-                  max="10"
-                  className="w-full p-2 border rounded-md"
+                  value={maxAttempts}
+                  onChange={e => setMaxAttempts(parseInt(e.target.value))}
+                  min="1" max="10"
+                  className="w-full p-2 border rounded-md bg-white"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium mb-2">Fecha de Inicio</label>
-                <input
-                  type="date"
-                  value={formData.start_date}
-                  onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                  className="w-full p-2 border rounded-md"
-                />
+                <label className="block text-sm font-medium mb-2">Fecha de Inicio (opcional)</label>
+                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-2 border rounded-md bg-white" />
               </div>
-
               <div>
-                <label className="block text-sm font-medium mb-2">Fecha de Vencimiento</label>
-                <input
-                  type="date"
-                  value={formData.end_date}
-                  onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                  className="w-full p-2 border rounded-md"
-                />
+                <label className="block text-sm font-medium mb-2">Fecha de Vencimiento (opcional)</label>
+                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-2 border rounded-md bg-white" />
               </div>
             </div>
 
+            {/* Resumen */}
+            {selectedScenarios.length > 0 && selectedStudents.length > 0 && (
+              <div className="bg-blue-100 border border-blue-300 rounded-lg p-3 text-sm text-blue-800">
+                📋 Se crearán <strong>{selectedScenarios.length * selectedStudents.length}</strong> asignaciones:
+                {' '}<strong>{selectedScenarios.length}</strong> escenario{selectedScenarios.length !== 1 ? 's' : ''} &times; <strong>{selectedStudents.length}</strong> alumno{selectedStudents.length !== 1 ? 's' : ''}
+              </div>
+            )}
+
             <div className="flex gap-3">
-              <Button type="submit" className="bg-green-600 hover:bg-green-700">
+              <Button type="submit" disabled={saving || selectedScenarios.length === 0 || selectedStudents.length === 0} className="bg-green-600 hover:bg-green-700">
                 <Send className="w-4 h-4 mr-2" />
-                Asignar Simulación
+                {saving ? 'Asignando...' : 'Asignar Simulaciones'}
               </Button>
-              <Button type="button" onClick={handleCancel} variant="outline">
-                Cancelar
-              </Button>
+              <Button type="button" onClick={handleCancel} variant="outline">Cancelar</Button>
             </div>
           </form>
         </Card>
