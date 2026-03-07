@@ -3,6 +3,7 @@ import { simulationService, telemetryService } from '../services/SimulationServi
 import { courseService } from '../services/CourseService.js';
 import { authMiddleware } from '../middleware/AuthMiddleware.js';
 import { aiService } from '../services/AIService.js';
+import { AppDataSource } from '../database/connection';
 
 const router = Router();
 
@@ -217,6 +218,118 @@ router.get('/:simulation_id/logs', async (req: Request, res: Response) => {
   try {
     const logs = await telemetryService.getSimulationLogs(req.params.simulation_id);
     res.json(logs);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─── Helper: get scenario content for a simulation ───────────────────────────
+async function getScenarioContentForSim(simulation_id: string): Promise<any | null> {
+  // Get the simulation to find its course_id
+  const [simRows]: any = await AppDataSource.query(
+    'SELECT id, course_id FROM simulations WHERE id = ? LIMIT 1',
+    [simulation_id]
+  );
+  if (!simRows) return null;
+
+  const course_id = simRows.course_id;
+
+  // Try to find a scenario for this course via simulation_assignments
+  // Note: in simulation_assignments, simulation_id stores the scenario UUID
+  const [assignRow]: any = await AppDataSource.query(
+    `SELECT sa.simulation_id as scenario_id
+     FROM simulation_assignments sa
+     WHERE sa.course_id = ?
+     LIMIT 1`,
+    [course_id]
+  );
+
+  let scenarioContent = null;
+
+  if (assignRow?.scenario_id) {
+    const [scRow]: any = await AppDataSource.query(
+      'SELECT content FROM scenarios WHERE id = ? LIMIT 1',
+      [assignRow.scenario_id]
+    );
+    if (scRow?.content) {
+      scenarioContent = typeof scRow.content === 'string'
+        ? JSON.parse(scRow.content)
+        : scRow.content;
+    }
+  }
+
+  // Fallback: first scenario for the course
+  if (!scenarioContent) {
+    const [scRow]: any = await AppDataSource.query(
+      'SELECT content FROM scenarios WHERE course_id = ? ORDER BY created_at ASC LIMIT 1',
+      [course_id]
+    );
+    if (scRow?.content) {
+      scenarioContent = typeof scRow.content === 'string'
+        ? JSON.parse(scRow.content)
+        : scRow.content;
+    }
+  }
+
+  return scenarioContent;
+}
+
+/**
+ * GET /api/simulations/:simulation_id/emails
+ * Devuelve los emails pre-cargados del escenario asignado a la simulación
+ */
+router.get('/:simulation_id/emails', async (req: Request, res: Response) => {
+  try {
+    const content = await getScenarioContentForSim(req.params.simulation_id);
+    const initialEmails: any[] = content?.initial_emails || [];
+
+    // Normalizar a la forma que espera el frontend
+    const emails = initialEmails.map((e: any, i: number) => ({
+      id: `email-${i + 1}`,
+      from: e.from || 'Sistema',
+      subject: e.subject || '(Sin asunto)',
+      body: e.body || '',
+      timestamp: new Date(Date.now() - (initialEmails.length - i) * 3600000),
+      unread: true,
+    }));
+
+    res.json(emails);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/simulations/:simulation_id/documents
+ * Devuelve los documentos pre-cargados del escenario asignado a la simulación
+ */
+router.get('/:simulation_id/documents', async (req: Request, res: Response) => {
+  try {
+    const content = await getScenarioContentForSim(req.params.simulation_id);
+    const docs: any[] = content?.documents || [];
+
+    const documents = docs.map((d: any, i: number) => ({
+      id: `doc-${i + 1}`,
+      name: d.name || `Documento ${i + 1}`,
+      type: d.type || 'texto',
+      content: d.content || '',
+    }));
+
+    res.json(documents);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/simulations/:simulation_id/spreadsheet
+ * Devuelve la hoja de cálculo pre-cargada del escenario (si existe)
+ */
+router.get('/:simulation_id/spreadsheet', async (req: Request, res: Response) => {
+  try {
+    const content = await getScenarioContentForSim(req.params.simulation_id);
+    const spreadsheet = content?.spreadsheet || null;
+    res.json(spreadsheet);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
