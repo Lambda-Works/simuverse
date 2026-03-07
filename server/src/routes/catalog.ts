@@ -1093,4 +1093,209 @@ router.post('/request-access', async (req: Request, res: Response) => {
   }
 });
 
+// ========== GLOBAL STATS (Dashboard estadístico) ==========
+router.get('/global-stats', async (req: Request, res: Response) => {
+  try {
+    const [usersRow, simStats, weekStats, courseStats, pendingReqs, topStudents] = await Promise.all([
+      AppDataSource.query(`SELECT role, COUNT(*) as count FROM users GROUP BY role`),
+      AppDataSource.query(`SELECT COUNT(*) as total, AVG(overall_score) as avg_score, AVG(time_spent_seconds/60) as avg_min, SUM(CASE WHEN overall_score >= 70 THEN 1 ELSE 0 END) as approved FROM simulation_evaluations`),
+      AppDataSource.query(`SELECT COUNT(*) as cnt FROM simulation_evaluations WHERE evaluated_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)`),
+      AppDataSource.query(`SELECT c.title, COUNT(*) as uses, ROUND(AVG(se.overall_score),1) as avg_score FROM simulation_evaluations se LEFT JOIN simulation_assignments sa ON sa.id = se.assignment_id LEFT JOIN courses c ON c.id = sa.course_id WHERE c.title IS NOT NULL GROUP BY c.id, c.title ORDER BY uses DESC LIMIT 5`),
+      AppDataSource.query(`SELECT COUNT(*) as cnt FROM access_requests WHERE status = 'pending'`),
+      AppDataSource.query(`SELECT u.name, ROUND(AVG(se.overall_score),1) as avg_score, COUNT(*) as sims FROM simulation_evaluations se JOIN users u ON u.id = se.student_id GROUP BY se.student_id, u.name ORDER BY avg_score DESC LIMIT 5`),
+    ]);
+    const ev = simStats[0];
+    res.json({
+      users: usersRow,
+      total_evaluations: Number(ev.total || 0),
+      avg_score: Number(ev.avg_score || 0).toFixed(1),
+      avg_minutes: Math.round(Number(ev.avg_min || 0)),
+      approval_rate: ev.total > 0 ? Math.round((ev.approved / ev.total) * 100) : 0,
+      completed_this_week: Number(weekStats[0].cnt || 0),
+      top_courses: courseStats,
+      pending_access_requests: Number(pendingReqs[0].cnt || 0),
+      top_students: topStudents,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========== ACCESS REQUESTS MANAGEMENT ==========
+router.get('/access-requests', async (req: Request, res: Response) => {
+  try {
+    const status = (req.query.status as string) || 'all';
+    const query = status !== 'all'
+      ? `SELECT * FROM access_requests WHERE status = ? ORDER BY created_at DESC`
+      : `SELECT * FROM access_requests ORDER BY created_at DESC`;
+    const rows = await AppDataSource.query(query, status !== 'all' ? [status] : []);
+    res.json(rows);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/access-requests/:id', async (req: Request, res: Response) => {
+  try {
+    const { action, admin_notes } = req.body;
+    const rows = await AppDataSource.query('SELECT * FROM access_requests WHERE id = ?', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Solicitud no encontrada' });
+    const r = rows[0];
+    const newStatus = action === 'approve' ? 'processed' : 'rejected';
+    await AppDataSource.query('UPDATE access_requests SET status=?, admin_notes=?, processed_at=NOW() WHERE id=?', [newStatus, admin_notes || null, req.params.id]);
+    const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user: process.env.MAIL_FROM || '', pass: process.env.MAIL_PASS || '' } });
+    const approved = action === 'approve';
+    let emailSent = false;
+    try {
+      await transporter.sendMail({
+        from: `"SimuVerse" <${process.env.MAIL_FROM || 'notificaciones.simuverse@gmail.com'}>`,
+        to: r.email,
+        subject: approved ? '✅ Tu solicitud de acceso fue aprobada - SimuVerse' : 'Actualización de tu solicitud - SimuVerse',
+        html: approved
+          ? `<div style="font-family:Arial,sans-serif;max-width:600px;padding:24px;background:#f0fdf4;border-radius:12px;"><div style="background:#16a34a;color:white;padding:20px;border-radius:8px;margin-bottom:16px;"><h2 style="margin:0">✅ ¡Acceso Aprobado!</h2></div><p>Hola <strong>${r.nombre}</strong>, tu solicitud fue aprobada. Ya podés ingresar al simulador.</p>${admin_notes ? `<p><em>${admin_notes}</em></p>` : ''}</div>`
+          : `<div style="font-family:Arial,sans-serif;max-width:600px;padding:24px;background:#fff7f7;border-radius:12px;"><div style="background:#dc2626;color:white;padding:20px;border-radius:8px;margin-bottom:16px;"><h2 style="margin:0">Solicitud revisada</h2></div><p>Hola <strong>${r.nombre}</strong>, tu solicitud fue revisada. Contactá a centrosadoskyregistracion@gmail.com para más información.</p>${admin_notes ? `<p><em>${admin_notes}</em></p>` : ''}</div>`,
+      });
+      emailSent = true;
+    } catch (e: any) { console.warn('Email no enviado:', e.message); }
+    res.json({ message: `Solicitud ${approved ? 'aprobada' : 'rechazada'}`, email_sent: emailSent });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========== CERTIFICATES ==========
+router.get('/certificates/:instance_id', async (req: Request, res: Response) => {
+  try {
+    const { instance_id } = req.params;
+    const rows = await AppDataSource.query(`
+      SELECT si.*, u.name as student_name, u.email as student_email,
+        sc.title as scenario_title, sc.eval_criteria,
+        c.title as course_title, c.category as course_category
+      FROM simulation_instances si
+      LEFT JOIN users u ON u.id = si.student_id
+      LEFT JOIN scenarios sc ON sc.id = si.scenario_id
+      LEFT JOIN simulation_assignments sa ON sa.student_id = si.student_id AND sa.simulation_id = si.scenario_id
+      LEFT JOIN courses c ON c.id = sa.course_id
+      WHERE si.id = ?
+    `, [instance_id]);
+    if (!rows.length) return res.status(404).json({ error: 'Sesión no encontrada' });
+    const inst = rows[0];
+    const evals = await AppDataSource.query(`
+      SELECT se.* FROM simulation_evaluations se
+      LEFT JOIN simulation_assignments sa ON sa.id = se.assignment_id
+      WHERE sa.student_id = ? AND sa.simulation_id = ?
+      ORDER BY se.evaluated_at DESC LIMIT 1
+    `, [inst.student_id, inst.scenario_id]);
+    const evaluation = evals[0] || null;
+    if (!evaluation || Number(evaluation.overall_score) < 70) {
+      return res.status(403).json({ error: 'El alumno no ha aprobado esta simulación (puntaje mínimo: 70)' });
+    }
+    let kpiResults: Record<string, number> = {};
+    try { kpiResults = typeof evaluation.kpi_results === 'string' ? JSON.parse(evaluation.kpi_results) : (evaluation.kpi_results || {}); } catch {}
+    let evalCriteria: string[] = [];
+    try { evalCriteria = typeof inst.eval_criteria === 'string' ? JSON.parse(inst.eval_criteria) : (inst.eval_criteria || []); } catch {}
+    res.json({
+      certificate_id: `CERT-${instance_id.substring(0, 8).toUpperCase()}`,
+      student_name: inst.student_name,
+      student_email: inst.student_email,
+      course_title: inst.course_title || inst.scenario_title || 'Simulación',
+      scenario_title: inst.scenario_title,
+      course_category: inst.course_category,
+      overall_score: Number(evaluation.overall_score),
+      kpi_results: kpiResults,
+      eval_criteria: evalCriteria,
+      completed_at: inst.completed_at || evaluation.evaluated_at,
+      time_spent_minutes: Math.round((inst.time_spent_seconds || 0) / 60),
+      instance_id,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========== TEACHER GROUPS ==========
+router.get('/teacher-groups', async (req: Request, res: Response) => {
+  try {
+    const { teacher_id } = req.query;
+    const query = teacher_id
+      ? `SELECT tg.*, t.name as teacher_name, t.email as teacher_email, s.name as student_name, s.email as student_email FROM teacher_groups tg LEFT JOIN users t ON t.id = tg.teacher_id LEFT JOIN users s ON s.id = tg.student_id WHERE tg.teacher_id = ? ORDER BY s.name`
+      : `SELECT tg.*, t.name as teacher_name, t.email as teacher_email, s.name as student_name, s.email as student_email FROM teacher_groups tg LEFT JOIN users t ON t.id = tg.teacher_id LEFT JOIN users s ON s.id = tg.student_id ORDER BY t.name, s.name`;
+    const rows = await AppDataSource.query(query, teacher_id ? [teacher_id] : []);
+    res.json(rows);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/teacher-groups', async (req: Request, res: Response) => {
+  try {
+    const { teacher_id, student_id } = req.body;
+    if (!teacher_id || !student_id) return res.status(400).json({ error: 'teacher_id y student_id requeridos' });
+    await AppDataSource.query('INSERT IGNORE INTO teacher_groups (teacher_id, student_id) VALUES (?, ?)', [teacher_id, student_id]);
+    res.json({ message: 'Alumno agregado al grupo del docente' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/teacher-groups/:id', async (req: Request, res: Response) => {
+  try {
+    await AppDataSource.query('DELETE FROM teacher_groups WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Eliminado del grupo' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========== STUDENT REVIEW (auto-revisión del alumno) ==========
+router.get('/student-review/:instance_id', async (req: Request, res: Response) => {
+  try {
+    const { instance_id } = req.params;
+    const { student_id } = req.query;
+    const inst = await AppDataSource.query('SELECT * FROM simulation_instances WHERE id = ?', [instance_id]);
+    if (!inst.length) return res.status(404).json({ error: 'Sesión no encontrada' });
+    if (student_id && inst[0].student_id !== student_id) return res.status(403).json({ error: 'Sin acceso' });
+    const [logs, evals, scenario] = await Promise.all([
+      AppDataSource.query('SELECT * FROM simulation_chat_logs WHERE simulation_instance_id = ? ORDER BY turn_number ASC', [instance_id]),
+      AppDataSource.query(`SELECT se.* FROM simulation_evaluations se JOIN simulation_assignments sa ON sa.id = se.assignment_id WHERE sa.student_id = ? AND sa.simulation_id = ? ORDER BY se.evaluated_at DESC LIMIT 1`, [inst[0].student_id, inst[0].scenario_id]),
+      AppDataSource.query('SELECT title, eval_criteria FROM scenarios WHERE id = ?', [inst[0].scenario_id]),
+    ]);
+    res.json({ instance: inst[0], logs, evaluation: evals[0] || null, scenario: scenario[0] || null });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========== STUDENT ASSIGNMENTS (enriquecido con intentos y fechas) ==========
+router.get('/student-assignments/:student_id', async (req: Request, res: Response) => {
+  try {
+    const rows = await AppDataSource.query(`
+      SELECT sa.id, sa.simulation_id, sa.student_id, sa.course_id,
+        sa.start_date, sa.end_date, sa.max_attempts, sa.attempts_used,
+        sa.status, sa.created_at,
+        (sa.max_attempts - sa.attempts_used) as attempts_remaining,
+        c.title as course_title, c.description as course_description,
+        c.category as course_category, c.modules as course_modules,
+        se.overall_score, se.evaluated_at, se.kpi_results, se.assignment_id as eval_assignment_id,
+        CASE
+          WHEN sa.end_date IS NOT NULL AND sa.end_date < NOW() AND sa.status != 'completed' THEN 'expired'
+          WHEN sa.start_date IS NOT NULL AND sa.start_date > NOW() THEN 'upcoming'
+          WHEN sa.status = 'completed' THEN 'completed'
+          ELSE 'active'
+        END as calendar_status,
+        si.id as instance_id
+      FROM simulation_assignments sa
+      LEFT JOIN courses c ON c.id = sa.course_id
+      LEFT JOIN simulation_evaluations se ON se.student_id = sa.student_id AND se.assignment_id = sa.id
+      LEFT JOIN simulation_instances si ON si.student_id = sa.student_id AND si.scenario_id = sa.simulation_id
+      WHERE sa.student_id = ?
+      ORDER BY FIELD(sa.status,'in_progress','active','pending','completed'), sa.end_date ASC
+    `, [req.params.student_id]);
+    res.json(rows);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
+
