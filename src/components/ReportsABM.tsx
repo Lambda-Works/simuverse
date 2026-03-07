@@ -7,7 +7,9 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart3, Download, Filter, GraduationCap, Clock, Calendar } from 'lucide-react';
+import { BarChart3, Download, Filter, GraduationCap, Clock, Calendar, CheckCircle2, XCircle, Target, Timer, Trophy, TrendingUp } from 'lucide-react';
+
+const API = 'http://localhost:5000/api';
 
 interface Evaluation {
   id: number; student_id: string; simulation_id: string; assignment_id: number;
@@ -64,13 +66,18 @@ function StudentHistoryDialog({ studentId, studentName, onClose }: {
   studentId: string; studentName: string; onClose: () => void;
 }) {
   const [history, setHistory] = useState<StudentHistory | null>(null);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/students/${studentId}/history`);
-        setHistory(await res.json());
+        const [histRes, statsRes] = await Promise.all([
+          fetch(`${API}/students/${studentId}/history`),
+          fetch(`${API}/students/${studentId}/stats`),
+        ]);
+        setHistory(await histRes.json());
+        setStats(await statsRes.json());
       } catch { setHistory(null); }
       finally { setLoading(false); }
     })();
@@ -92,10 +99,104 @@ function StudentHistoryDialog({ studentId, studentName, onClose }: {
           <div className="py-8 text-center text-gray-500">No se pudo cargar el historial.</div>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-3 mt-2">
-              <Card className="p-3 text-center bg-blue-50"><p className="text-2xl font-bold text-blue-700">{history.evaluations.length}</p><p className="text-xs text-blue-600">Evaluaciones</p></Card>
-              <Card className="p-3 text-center bg-green-50"><p className="text-2xl font-bold text-green-700">{avgScore.toFixed(1)}</p><p className="text-xs text-green-600">Promedio</p></Card>
-              <Card className="p-3 text-center bg-purple-50"><p className="text-2xl font-bold text-purple-700">{Math.round(totalMin)}</p><p className="text-xs text-purple-600">Minutos total</p></Card>
+            {/* Stats expandidas usando el endpoint /students/:id/stats */}
+            {stats && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+                <Card className="p-3 text-center bg-blue-50">
+                  <p className="text-2xl font-bold text-blue-700">{stats.total_sessions}</p>
+                  <p className="text-xs text-blue-600">Simulaciones</p>
+                </Card>
+                <Card className="p-3 text-center bg-green-50">
+                  <p className="text-2xl font-bold text-green-700">{stats.avg_score?.toFixed(1) ?? '—'}</p>
+                  <p className="text-xs text-green-600">Promedio</p>
+                </Card>
+                <Card className="p-3 text-center bg-purple-50">
+                  <p className="text-2xl font-bold text-purple-700">{stats.total_time_minutes}</p>
+                  <p className="text-xs text-purple-600">Min total</p>
+                </Card>
+                <Card className={`p-3 text-center ${stats.final_exam?.overall_score >= 70 ? 'bg-green-50' : stats.final_exam ? 'bg-red-50' : 'bg-gray-50'}`}>
+                  <p className={`text-2xl font-bold ${stats.final_exam?.overall_score >= 70 ? 'text-green-700' : stats.final_exam ? 'text-red-700' : 'text-gray-400'}`}>
+                    {stats.final_exam ? (stats.final_exam.overall_score >= 70 ? '✅' : '❌') : '—'}
+                  </p>
+                  <p className="text-xs text-gray-600">Examen Final</p>
+                </Card>
+              </div>
+            )}
+
+            {/* Aciertos / Desaciertos / KPI rate */}
+            {stats && (
+              <div className="grid grid-cols-3 gap-3">
+                <Card className="p-3 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <CheckCircle2 className="w-4 h-4 text-green-600" />
+                    <p className="text-xl font-bold text-green-700">{stats.correct_answers}</p>
+                  </div>
+                  <p className="text-xs text-gray-500">Aciertos</p>
+                  {stats.accuracy_rate != null && (
+                    <p className="text-xs text-green-600 font-semibold">{stats.accuracy_rate}%</p>
+                  )}
+                </Card>
+                <Card className="p-3 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <XCircle className="w-4 h-4 text-red-500" />
+                    <p className="text-xl font-bold text-red-700">{stats.incorrect_answers}</p>
+                  </div>
+                  <p className="text-xs text-gray-500">Desaciertos</p>
+                </Card>
+                <Card className="p-3 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <Target className="w-4 h-4 text-indigo-500" />
+                    <p className="text-xl font-bold text-indigo-700">
+                      {stats.kpi_approval_rate != null ? `${stats.kpi_approval_rate}%` : '—'}
+                    </p>
+                  </div>
+                  <p className="text-xs text-gray-500">KPIs aprobados</p>
+                </Card>
+              </div>
+            )}
+
+            {/* Examen final si existe */}
+            {stats?.final_exam && (
+              <Card className={`p-3 flex items-center gap-3 ${stats.final_exam.overall_score >= 70 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                <Trophy className={`w-5 h-5 ${stats.final_exam.overall_score >= 70 ? 'text-green-600' : 'text-red-600'}`} />
+                <div>
+                  <p className="text-sm font-semibold">
+                    Simulación Final: {stats.final_exam.overall_score >= 70 ? '✅ APROBADO' : '❌ DESAPROBADO'}
+                    {' — '}<span className="font-bold">{parseFloat(stats.final_exam.overall_score).toFixed(1)} pts</span>
+                  </p>
+                  <p className="text-xs text-gray-600">{stats.final_exam.scenario_title} · {stats.final_exam.course_title}</p>
+                  <p className="text-xs text-gray-400">{stats.final_exam.evaluated_at ? new Date(stats.final_exam.evaluated_at).toLocaleDateString('es-AR') : ''}</p>
+                </div>
+              </Card>
+            )}
+
+            {/* Stats por curso */}
+            {stats?.by_course?.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                  <TrendingUp className="w-4 h-4" /> Rendimiento por curso
+                </h4>
+                <div className="grid gap-2">
+                  {stats.by_course.map((c: any, i: number) => (
+                    <Card key={i} className="p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="font-medium text-sm">{c.course_title || '(Sin curso)'}</p>
+                        <ScoreBadge score={parseFloat(c.avg_score) || 0} />
+                      </div>
+                      <div className="flex gap-3 text-xs text-gray-500">
+                        <span>📚 {c.sessions} sesiones</span>
+                        <span>📊 {c.evaluations} evaluaciones</span>
+                        <span className={c.approved_evals > 0 ? 'text-green-600' : 'text-red-500'}>
+                          {c.approved_evals > 0 ? `✅ ${c.approved_evals} aprobadas` : '❌ sin aprobar'}
+                        </span>
+                        <span><Timer className="w-3 h-3 inline" /> {Math.round((c.total_time_seconds || 0) / 60)} min</span>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
             </div>
             <Tabs defaultValue="evaluations" className="mt-4">
               <TabsList className="grid grid-cols-3 w-full">
@@ -203,8 +304,8 @@ export function ReportsABM() {
 
   useEffect(() => {
     Promise.all([
-      fetch('http://localhost:5000/api/evaluations/student/all').then(r => r.json()).then(d => setEvaluations(Array.isArray(d) ? d : [])).catch(() => {}),
-      fetch('http://localhost:5000/api/courses').then(r => r.json()).then(d => setCourses(Array.isArray(d) ? d : [])).catch(() => {}),
+      fetch(`${API}/evaluations/student/all`).then(r => r.json()).then(d => setEvaluations(Array.isArray(d) ? d : [])).catch(() => {}),
+      fetch(`${API}/courses`).then(r => r.json()).then(d => setCourses(Array.isArray(d) ? d : [])).catch(() => {}),
     ]).then(() => setLoading(false));
   }, []);
 

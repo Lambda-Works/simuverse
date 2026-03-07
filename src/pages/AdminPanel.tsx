@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield, FolderOpen, FileUp, UserCheck, BarChart3, ClipboardList, Wand2, Copy } from 'lucide-react';
+import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield, FolderOpen, FileUp, UserCheck, BarChart3, ClipboardList, Wand2, Copy, MessageSquare } from 'lucide-react';
 import { CategoriesABM } from '@/components/CategoriesABM';
 import { DocumentsABM } from '@/components/DocumentsABM';
 import { TechSheetsABM } from '@/components/TechSheetsABM';
@@ -20,6 +20,9 @@ import { AssignmentsABM } from '@/components/AssignmentsABM';
 import { ReportsABM } from '@/components/ReportsABM';
 import { ScenariosABM } from '@/components/ScenariosABM';
 import { TemplatesABM } from '@/components/TemplatesABM';
+import { SimulationSessionViewer } from '@/components/SimulationSessionViewer';
+import { UsersABM } from '@/components/UsersABM';
+import { RolesABM } from '@/components/RolesABM';
 
 const AVAILABLE_MODULES = [
   { id: 'chat_ia', label: 'Chat IA (Simulación Conversacional)' },
@@ -147,7 +150,7 @@ const AdminPanel = () => {
   const [newCriterion, setNewCriterion] = useState('');
   const [newTrait, setNewTrait] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
-  const [currentTab, setCurrentTab] = useState<'courses' | 'categories' | 'documents' | 'techsheets' | 'assignments' | 'reports' | 'scenarios' | 'templates'>('courses');
+  const [currentTab, setCurrentTab] = useState<'courses' | 'categories' | 'documents' | 'techsheets' | 'assignments' | 'reports' | 'scenarios' | 'templates' | 'sessions' | 'users' | 'roles'>('courses');
 
   useEffect(() => {
     if (!loading && (!user || !hasRole('admin'))) navigate('/dashboard');
@@ -343,6 +346,33 @@ const AdminPanel = () => {
             >
               <Wand2 className="w-4 h-4 mr-2" />
               Plantillas
+            </Button>
+            <Button
+              variant={currentTab === 'sessions' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentTab('sessions')}
+              className="rounded-b-none"
+            >
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Sesiones
+            </Button>
+            <Button
+              variant={currentTab === 'users' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentTab('users')}
+              className="rounded-b-none"
+            >
+              <Users className="w-4 h-4 mr-2" />
+              Usuarios
+            </Button>
+            <Button
+              variant={currentTab === 'roles' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentTab('roles')}
+              className="rounded-b-none"
+            >
+              <Shield className="w-4 h-4 mr-2" />
+              Roles y Permisos
             </Button>
           </div>
         </div>
@@ -552,6 +582,15 @@ const AdminPanel = () => {
 
         {/* Templates Tab */}
         {currentTab === 'templates' && <TemplatesABM />}
+
+        {/* Sessions Tab - Solo admin/teacher */}
+        {currentTab === 'sessions' && <SimulationSessionViewer />}
+
+        {/* Users Tab */}
+        {currentTab === 'users' && <UsersABM />}
+
+        {/* Roles & Permissions Tab */}
+        {currentTab === 'roles' && <RolesABM />}
       </main>
     </div>
   );

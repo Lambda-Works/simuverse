@@ -552,4 +552,470 @@ router.get('/students/:id/history', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/students/:id/stats
+ * Estadísticas detalladas de un alumno: aciertos, desaciertos, aprobación, KPIs, tiempo
+ */
+router.get('/students/:id/stats', async (req: Request, res: Response) => {
+  try {
+    const studentId = req.params.id;
+    const [student] = await AppDataSource.query(
+      `SELECT id, name, email, role FROM users WHERE id = ?`, [studentId]
+    );
+    if (!student) return res.status(404).json({ error: 'Alumno no encontrado' });
+
+    // Total instancias
+    const [{ total_sessions }] = await AppDataSource.query(
+      `SELECT COUNT(*) AS total_sessions FROM simulation_instances WHERE student_id = ?`, [studentId]
+    );
+    const [{ completed_sessions }] = await AppDataSource.query(
+      `SELECT COUNT(*) AS completed_sessions FROM simulation_instances WHERE student_id = ? AND status = 'completed'`, [studentId]
+    );
+    // Total evaluaciones
+    const evaluations = await AppDataSource.query(
+      `SELECT se.overall_score, se.kpi_results, se.time_spent_seconds, se.evaluated_at,
+              c.title AS course_title, sa.course_id
+       FROM simulation_evaluations se
+       LEFT JOIN simulation_assignments sa ON sa.id = se.assignment_id
+       LEFT JOIN courses c ON c.id = sa.course_id
+       WHERE se.student_id = ?
+       ORDER BY se.evaluated_at DESC`, [studentId]
+    );
+    // Chat logs: aciertos/desaciertos
+    const chatStats = await AppDataSource.query(
+      `SELECT
+         COUNT(*) AS total_challenges,
+         SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) AS correct,
+         SUM(CASE WHEN is_correct = 0 THEN 1 ELSE 0 END) AS incorrect
+       FROM simulation_chat_logs scl
+       JOIN simulation_instances si ON si.id = scl.simulation_instance_id
+       WHERE si.student_id = ? AND scl.is_correct IS NOT NULL`, [studentId]
+    );
+    const { total_challenges, correct, incorrect } = chatStats[0] || { total_challenges: 0, correct: 0, incorrect: 0 };
+
+    // Stats por curso
+    const byCourse = await AppDataSource.query(
+      `SELECT c.title AS course_title, c.id AS course_id,
+         COUNT(DISTINCT si.id) AS sessions,
+         COUNT(se.id) AS evaluations,
+         AVG(se.overall_score) AS avg_score,
+         MAX(se.overall_score) AS best_score,
+         SUM(si.time_spent_seconds) AS total_time_seconds,
+         SUM(CASE WHEN se.overall_score >= 70 THEN 1 ELSE 0 END) AS approved_evals
+       FROM simulation_assignments sa
+       LEFT JOIN courses c ON c.id = sa.course_id
+       LEFT JOIN simulation_instances si ON si.student_id = sa.student_id AND si.scenario_id = sa.simulation_id
+       LEFT JOIN simulation_evaluations se ON se.student_id = sa.student_id AND se.assignment_id = sa.id
+       WHERE sa.student_id = ?
+       GROUP BY c.id, c.title`, [studentId]
+    );
+
+    // Final exam: evaluation con type 'evaluation' scenario
+    const finalExam = await AppDataSource.query(
+      `SELECT se.overall_score, se.evaluated_at, sc.title AS scenario_title, sc.scenario_type, c.title AS course_title
+       FROM simulation_evaluations se
+       LEFT JOIN simulation_assignments sa ON sa.id = se.assignment_id
+       LEFT JOIN scenarios sc ON sc.id = sa.simulation_id
+       LEFT JOIN courses c ON c.id = sa.course_id
+       WHERE se.student_id = ? AND sc.scenario_type = 'evaluation'
+       ORDER BY se.evaluated_at DESC LIMIT 1`, [studentId]
+    );
+
+    // KPI approval rate
+    let totalKpis = 0, approvedKpis = 0;
+    for (const ev of evaluations) {
+      const kpis = typeof ev.kpi_results === 'string' ? JSON.parse(ev.kpi_results || '{}') : (ev.kpi_results || {});
+      for (const v of Object.values(kpis)) {
+        totalKpis++;
+        if ((v as number) >= 70) approvedKpis++;
+      }
+    }
+    const kpiApprovalRate = totalKpis > 0 ? Math.round((approvedKpis / totalKpis) * 100) : null;
+
+    const avgScore = evaluations.length
+      ? evaluations.reduce((s: number, e: any) => s + (e.overall_score || 0), 0) / evaluations.length : 0;
+    const totalTime = evaluations.reduce((s: number, e: any) => s + (e.time_spent_seconds || 0), 0);
+
+    res.json({
+      student,
+      total_sessions: Number(total_sessions),
+      completed_sessions: Number(completed_sessions),
+      total_evaluations: evaluations.length,
+      avg_score: Math.round(avgScore * 10) / 10,
+      total_time_minutes: Math.round(totalTime / 60),
+      correct_answers: Number(correct),
+      incorrect_answers: Number(incorrect),
+      total_challenges: Number(total_challenges),
+      accuracy_rate: total_challenges > 0 ? Math.round((Number(correct) / Number(total_challenges)) * 100) : null,
+      kpi_approval_rate: kpiApprovalRate,
+      approved_evaluations: evaluations.filter((e: any) => e.overall_score >= 70).length,
+      final_exam: finalExam[0] || null,
+      by_course: byCourse,
+      evaluations,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al obtener estadísticas', details: error.message });
+  }
+});
+
+/**
+ * GET /api/students/stats/course/:course_id
+ * Estadísticas de todos los alumnos de un curso
+ */
+router.get('/students/stats/course/:course_id', async (req: Request, res: Response) => {
+  try {
+    const { course_id } = req.params;
+    const stats = await AppDataSource.query(`
+      SELECT
+        u.id AS student_id, u.name, u.email,
+        COUNT(DISTINCT si.id) AS total_sessions,
+        COUNT(se.id) AS total_evaluations,
+        AVG(se.overall_score) AS avg_score,
+        MAX(se.overall_score) AS best_score,
+        SUM(si.time_spent_seconds) AS total_time_seconds,
+        SUM(CASE WHEN se.overall_score >= 70 THEN 1 ELSE 0 END) AS approved_evals,
+        MAX(CASE WHEN sc.scenario_type = 'evaluation' THEN se.overall_score END) AS final_exam_score
+      FROM simulation_assignments sa
+      JOIN users u ON u.id = sa.student_id
+      LEFT JOIN simulation_instances si ON si.student_id = sa.student_id AND si.scenario_id = sa.simulation_id
+      LEFT JOIN simulation_evaluations se ON se.student_id = sa.student_id AND se.assignment_id = sa.id
+      LEFT JOIN scenarios sc ON sc.id = sa.simulation_id
+      WHERE sa.course_id = ?
+      GROUP BY u.id, u.name, u.email
+      ORDER BY avg_score DESC
+    `, [course_id]);
+    res.json(stats);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al obtener estadísticas del curso', details: error.message });
+  }
+});
+
+// ============================================================
+// VISOR DE SESIONES DE SIMULACIÓN (simulation_chat_logs)
+// Solo accesible por admin/teacher/ministerio
+// ============================================================
+
+/**
+ * GET /api/simulation-sessions/:instance_id
+ * Devuelve el log completo de una sesión con metadata
+ */
+router.get('/simulation-sessions/:instance_id', async (req: Request, res: Response) => {
+  try {
+    const { instance_id } = req.params;
+    const [instance] = await AppDataSource.query(`
+      SELECT si.*, u.name AS student_name, u.email AS student_email,
+             sc.title AS scenario_title, sc.scenario_type, sc.difficulty,
+             c.title AS course_title
+      FROM simulation_instances si
+      LEFT JOIN users u ON u.id = si.student_id
+      LEFT JOIN scenarios sc ON sc.id = si.scenario_id
+      LEFT JOIN simulation_assignments sa ON sa.student_id = si.student_id AND sa.simulation_id = si.scenario_id
+      LEFT JOIN courses c ON c.id = sa.course_id
+      WHERE si.id = ?
+      LIMIT 1
+    `, [instance_id]);
+    if (!instance) return res.status(404).json({ error: 'Sesión no encontrada' });
+
+    const logs = await AppDataSource.query(
+      `SELECT * FROM simulation_chat_logs WHERE simulation_instance_id = ? ORDER BY turn_number ASC`,
+      [instance_id]
+    );
+
+    const [eval_data] = await AppDataSource.query(
+      `SELECT * FROM simulation_evaluations WHERE simulation_id = ? ORDER BY evaluated_at DESC LIMIT 1`,
+      [instance_id]
+    );
+
+    const summary = {
+      total_turns: logs.length,
+      student_turns: logs.filter((l: any) => l.speaker === 'student').length,
+      evaluated_turns: logs.filter((l: any) => l.is_correct !== null).length,
+      correct_turns: logs.filter((l: any) => l.is_correct == 1).length,
+      incorrect_turns: logs.filter((l: any) => l.is_correct == 0).length,
+    };
+
+    res.json({ instance, logs, evaluation: eval_data || null, summary });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al obtener sesión', details: error.message });
+  }
+});
+
+/**
+ * GET /api/simulation-sessions/ref/:ref_number
+ * Buscar log por número de referencia (para auditoría)
+ */
+router.get('/simulation-sessions/ref/:ref_number', async (req: Request, res: Response) => {
+  try {
+    const [log] = await AppDataSource.query(
+      `SELECT scl.*, si.student_id, si.scenario_id,
+              u.name AS student_name, sc.title AS scenario_title
+       FROM simulation_chat_logs scl
+       JOIN simulation_instances si ON si.id = scl.simulation_instance_id
+       LEFT JOIN users u ON u.id = si.student_id
+       LEFT JOIN scenarios sc ON sc.id = si.scenario_id
+       WHERE scl.ref_number = ?`,
+      [req.params.ref_number]
+    );
+    if (!log) return res.status(404).json({ error: 'Referencia no encontrada' });
+    res.json(log);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al buscar referencia', details: error.message });
+  }
+});
+
+/**
+ * GET /api/simulation-sessions?student_id=&course_id=
+ * Lista todas las sesiones con filtros (para el admin/profesor)
+ */
+router.get('/simulation-sessions', async (req: Request, res: Response) => {
+  try {
+    const { student_id, course_id } = req.query;
+    const conditions: string[] = [];
+    const params: any[] = [];
+    if (student_id) { conditions.push('si.student_id = ?'); params.push(student_id); }
+    if (course_id) { conditions.push('sa.course_id = ?'); params.push(course_id); }
+    const whereClause = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+    const sessions = await AppDataSource.query(`
+      SELECT si.id, si.status, si.score, si.started_at, si.completed_at, si.time_spent_seconds, si.progress_percentage,
+             u.name AS student_name, u.email AS student_email, u.id AS student_id,
+             sc.title AS scenario_title, sc.scenario_type, sc.difficulty,
+             c.title AS course_title, c.id AS course_id,
+             (SELECT COUNT(*) FROM simulation_chat_logs scl WHERE scl.simulation_instance_id = si.id) AS total_turns,
+             (SELECT COUNT(*) FROM simulation_chat_logs scl WHERE scl.simulation_instance_id = si.id AND scl.is_correct = 0) AS incorrect_turns
+      FROM simulation_instances si
+      LEFT JOIN users u ON u.id = si.student_id
+      LEFT JOIN scenarios sc ON sc.id = si.scenario_id
+      LEFT JOIN simulation_assignments sa ON sa.student_id = si.student_id AND sa.simulation_id = si.scenario_id
+      LEFT JOIN courses c ON c.id = sa.course_id
+      ${whereClause}
+      ORDER BY si.started_at DESC
+    `, params);
+    res.json(sessions);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al listar sesiones', details: error.message });
+  }
+});
+
+// ============================================================
+// GESTIÓN DE USUARIOS (CRUD completo para admin)
+// ============================================================
+import bcrypt from 'bcrypt';
+
+/**
+ * GET /api/users/all
+ * Lista todos los usuarios con datos completos (solo admin)
+ */
+router.get('/users/all', async (req: Request, res: Response) => {
+  try {
+    const users = await AppDataSource.query(
+      `SELECT id, name, email, role, created_at, updated_at FROM users ORDER BY name ASC`
+    );
+    res.json(users);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al obtener usuarios', details: error.message });
+  }
+});
+
+/**
+ * POST /api/users/create
+ * Crear nuevo usuario
+ */
+router.post('/users/create', async (req: Request, res: Response) => {
+  try {
+    const { name, email, password, role } = req.body;
+    if (!name || !email || !password) return res.status(400).json({ error: 'name, email y password son obligatorios' });
+    const hashed = await bcrypt.hash(password, 10);
+    const id = require('crypto').randomUUID();
+    await AppDataSource.query(
+      `INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)`,
+      [id, name, email, hashed, role || 'student']
+    );
+    res.status(201).json({ id, name, email, role: role || 'student' });
+  } catch (error: any) {
+    if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'El email ya está registrado' });
+    res.status(500).json({ error: 'Error al crear usuario', details: error.message });
+  }
+});
+
+/**
+ * PUT /api/users/:id
+ * Actualizar usuario (name, email, role, password opcional)
+ */
+router.put('/users/:id', async (req: Request, res: Response) => {
+  try {
+    const { name, email, role, password } = req.body;
+    const fields: string[] = [];
+    const params: any[] = [];
+    if (name) { fields.push('name = ?'); params.push(name); }
+    if (email) { fields.push('email = ?'); params.push(email); }
+    if (role) { fields.push('role = ?'); params.push(role); }
+    if (password) {
+      const hashed = await bcrypt.hash(password, 10);
+      fields.push('password = ?'); params.push(hashed);
+    }
+    if (fields.length === 0) return res.status(400).json({ error: 'No hay campos para actualizar' });
+    params.push(req.params.id);
+    await AppDataSource.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, params);
+    res.json({ message: 'Usuario actualizado' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al actualizar usuario', details: error.message });
+  }
+});
+
+/**
+ * DELETE /api/users/:id
+ * Eliminar usuario
+ */
+router.delete('/users/:id', async (req: Request, res: Response) => {
+  try {
+    const result = await AppDataSource.query(`DELETE FROM users WHERE id = ?`, [req.params.id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json({ message: 'Usuario eliminado' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al eliminar usuario', details: error.message });
+  }
+});
+
+// ============================================================
+// GESTIÓN DE ROLES
+// ============================================================
+
+router.get('/roles', async (req: Request, res: Response) => {
+  try {
+    const roles = await AppDataSource.query(`SELECT * FROM roles ORDER BY name ASC`);
+    res.json(roles);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/roles', async (req: Request, res: Response) => {
+  try {
+    const { name, description, color } = req.body;
+    if (!name) return res.status(400).json({ error: 'name es obligatorio' });
+    await AppDataSource.query(`INSERT INTO roles (name, description, color) VALUES (?, ?, ?)`, [name, description || '', color || '#6366f1']);
+    res.status(201).json({ message: 'Rol creado' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/roles/:id', async (req: Request, res: Response) => {
+  try {
+    const { name, description, color, is_active } = req.body;
+    await AppDataSource.query(
+      `UPDATE roles SET name = COALESCE(?, name), description = COALESCE(?, description), color = COALESCE(?, color), is_active = COALESCE(?, is_active) WHERE id = ?`,
+      [name || null, description || null, color || null, is_active !== undefined ? is_active : null, req.params.id]
+    );
+    res.json({ message: 'Rol actualizado' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/roles/:id', async (req: Request, res: Response) => {
+  try {
+    await AppDataSource.query(`DELETE FROM roles WHERE id = ?`, [req.params.id]);
+    res.json({ message: 'Rol eliminado' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================
+// GESTIÓN DE FUNCIONALIDADES DEL SISTEMA
+// ============================================================
+
+router.get('/functionalities', async (req: Request, res: Response) => {
+  try {
+    const funcs = await AppDataSource.query(`SELECT * FROM system_functionalities ORDER BY module ASC, name ASC`);
+    res.json(funcs);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/functionalities', async (req: Request, res: Response) => {
+  try {
+    const { name, description, module, icon, route } = req.body;
+    if (!name) return res.status(400).json({ error: 'name es obligatorio' });
+    const result = await AppDataSource.query(
+      `INSERT INTO system_functionalities (name, description, module, icon, route) VALUES (?, ?, ?, ?, ?)`,
+      [name, description || '', module || 'other', icon || '', route || '']
+    );
+    res.status(201).json({ id: result.insertId, name });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/functionalities/:id', async (req: Request, res: Response) => {
+  try {
+    const { name, description, module, icon, route, is_active } = req.body;
+    await AppDataSource.query(
+      `UPDATE system_functionalities SET name = COALESCE(?, name), description = COALESCE(?, description), module = COALESCE(?, module), icon = COALESCE(?, icon), route = COALESCE(?, route), is_active = COALESCE(?, is_active) WHERE id = ?`,
+      [name || null, description || null, module || null, icon || null, route || null, is_active !== undefined ? is_active : null, req.params.id]
+    );
+    res.json({ message: 'Funcionalidad actualizada' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/functionalities/:id', async (req: Request, res: Response) => {
+  try {
+    await AppDataSource.query(`DELETE FROM system_functionalities WHERE id = ?`, [req.params.id]);
+    res.json({ message: 'Funcionalidad eliminada' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================
+// PERMISOS POR ROL
+// ============================================================
+
+/**
+ * GET /api/role-permissions?role_name=X
+ * Obtiene todos los permisos de un rol (funcionalidades + habilitado/no)
+ */
+router.get('/role-permissions', async (req: Request, res: Response) => {
+  try {
+    const { role_name } = req.query;
+    if (!role_name) return res.status(400).json({ error: 'role_name es requerido' });
+    const perms = await AppDataSource.query(`
+      SELECT sf.id AS functionality_id, sf.name, sf.description, sf.module, sf.icon,
+             COALESCE(rp.enabled, 0) AS enabled
+      FROM system_functionalities sf
+      LEFT JOIN role_permissions rp ON rp.functionality_id = sf.id AND rp.role_name = ?
+      WHERE sf.is_active = 1
+      ORDER BY sf.module ASC, sf.name ASC
+    `, [role_name]);
+    res.json(perms);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * PUT /api/role-permissions
+ * Actualiza permisos de un rol en batch
+ * Body: { role_name, permissions: [{ functionality_id, enabled }] }
+ */
+router.put('/role-permissions', async (req: Request, res: Response) => {
+  try {
+    const { role_name, permissions } = req.body;
+    if (!role_name || !Array.isArray(permissions)) return res.status(400).json({ error: 'role_name y permissions[] son requeridos' });
+    for (const p of permissions) {
+      await AppDataSource.query(
+        `INSERT INTO role_permissions (role_name, functionality_id, enabled) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE enabled = ?`,
+        [role_name, p.functionality_id, p.enabled ? 1 : 0, p.enabled ? 1 : 0]
+      );
+    }
+    res.json({ message: `Permisos de rol '${role_name}' actualizados (${permissions.length} items)` });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

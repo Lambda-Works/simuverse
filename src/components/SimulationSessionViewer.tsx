@@ -1,0 +1,648 @@
+/**
+ * SimulationSessionViewer.tsx
+ * Visor de sesiones de simulación para Profesor / Admin / Ministerio.
+ * Muestra: diálogo completo IA↔Alumno, solución propuesta por IA, número de referencia,
+ * resumen de aciertos/desaciertos y evaluación final.
+ */
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Search, MessageSquare, Bot, User, CheckCircle2, XCircle,
+  Clock, Calendar, BookOpen, GraduationCap, Hash, Download,
+  Info, ChevronDown, ChevronUp, Filter
+} from 'lucide-react';
+
+const API = 'http://localhost:5000/api';
+
+interface ChatLog {
+  id: number;
+  simulation_instance_id: string;
+  ref_number: string;
+  turn_number: number;
+  speaker: 'student' | 'ai' | 'system';
+  message_text: string;
+  challenge_description: string | null;
+  is_correct: 0 | 1 | null;
+  correct_answer: string | null;
+  ai_solution: string | null;
+  score_impact: number;
+  created_at: string;
+}
+
+interface SessionDetail {
+  instance: {
+    id: string; status: string; score: number; started_at: string; completed_at: string;
+    time_spent_seconds: number; progress_percentage: number;
+    student_name: string; student_email: string; student_id: string;
+    scenario_title: string; scenario_type: string; difficulty: string; course_title: string;
+  };
+  logs: ChatLog[];
+  evaluation: {
+    overall_score: number; overall_feedback: string; kpi_results: any;
+    completion_percentage: number; time_spent_seconds: number; evaluated_at: string;
+  } | null;
+  summary: {
+    total_turns: number; student_turns: number; evaluated_turns: number;
+    correct_turns: number; incorrect_turns: number;
+  };
+}
+
+interface SessionRow {
+  id: string; status: string; score: number; started_at: string; completed_at: string;
+  time_spent_seconds: number; progress_percentage: number;
+  student_name: string; student_email: string; student_id: string;
+  scenario_title: string; scenario_type: string; difficulty: string;
+  course_title: string; course_id: string;
+  total_turns: number; incorrect_turns: number;
+}
+
+// ─── Sub-componente: burbuja de chat ─────────────────────────────────────────
+function ChatBubble({ log, showSolution }: { log: ChatLog; showSolution: boolean }) {
+  const isAI = log.speaker === 'ai';
+  const isSystem = log.speaker === 'system';
+  const [expanded, setExpanded] = useState(false);
+
+  if (isSystem) {
+    return (
+      <div className="flex justify-center my-2">
+        <span className="text-xs text-gray-400 bg-gray-100 px-3 py-1 rounded-full border">
+          {log.message_text}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex gap-3 ${isAI ? 'flex-row' : 'flex-row-reverse'}`}>
+      {/* Avatar */}
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-1
+        ${isAI ? 'bg-purple-100' : 'bg-blue-100'}`}>
+        {isAI
+          ? <Bot className="w-4 h-4 text-purple-600" />
+          : <User className="w-4 h-4 text-blue-600" />
+        }
+      </div>
+
+      {/* Bubble */}
+      <div className={`max-w-[75%] space-y-1`}>
+        {/* Label + ref */}
+        <div className={`flex items-center gap-2 ${isAI ? '' : 'flex-row-reverse'}`}>
+          <span className="text-xs font-semibold text-gray-500">
+            {isAI ? '🤖 IA' : '🎓 Alumno'} · Turno #{log.turn_number}
+          </span>
+          <span className="text-xs text-gray-400 font-mono">[{log.ref_number}]</span>
+          {log.is_correct === 1 && (
+            <span className="flex items-center gap-1 text-xs text-green-700 bg-green-100 px-1.5 py-0.5 rounded">
+              <CheckCircle2 className="w-3 h-3" /> Correcto +{log.score_impact}
+            </span>
+          )}
+          {log.is_correct === 0 && (
+            <span className="flex items-center gap-1 text-xs text-red-700 bg-red-100 px-1.5 py-0.5 rounded">
+              <XCircle className="w-3 h-3" /> Incorrecto {log.score_impact}
+            </span>
+          )}
+        </div>
+
+        {/* Message */}
+        <div className={`rounded-2xl px-4 py-3 text-sm
+          ${isAI
+            ? 'bg-purple-50 border border-purple-200 text-purple-900 rounded-tl-none'
+            : 'bg-blue-50 border border-blue-200 text-blue-900 rounded-tr-none'
+          }`}>
+          {log.message_text}
+        </div>
+
+        {/* Challenge description (what was asked) */}
+        {log.challenge_description && (
+          <div className="text-xs text-gray-500 italic px-1">
+            📋 <span className="font-medium">Desafío:</span> {log.challenge_description}
+          </div>
+        )}
+
+        {/* Correct answer / AI solution (only for incorrect student turns) */}
+        {!isAI && log.is_correct === 0 && showSolution && (
+          <div className="mt-2 space-y-2">
+            {log.correct_answer && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs">
+                <p className="font-semibold text-amber-800 flex items-center gap-1 mb-1">
+                  <Info className="w-3 h-3" /> Respuesta esperada:
+                </p>
+                <p className="text-amber-700">{log.correct_answer}</p>
+              </div>
+            )}
+            {log.ai_solution && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-xs">
+                <p className="font-semibold text-green-800 flex items-center gap-1 mb-1">
+                  <Bot className="w-3 h-3" /> 💡 Solución propuesta por IA:
+                </p>
+                <p className="text-green-700">{log.ai_solution}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Dialog con el detalle de una sesión ─────────────────────────────────────
+function SessionDetailDialog({
+  instanceId, onClose
+}: {
+  instanceId: string; onClose: () => void;
+}) {
+  const [data, setData] = useState<SessionDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showSolutions, setShowSolutions] = useState(true);
+  const [filterSpeaker, setFilterSpeaker] = useState<'all' | 'student' | 'ai'>('all');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API}/simulation-sessions/${instanceId}`);
+        setData(await res.json());
+      } catch { setData(null); }
+      finally { setLoading(false); }
+    })();
+  }, [instanceId]);
+
+  const filteredLogs = data?.logs.filter(l =>
+    filterSpeaker === 'all' || l.speaker === filterSpeaker
+  ) ?? [];
+
+  const handleExport = () => {
+    if (!data) return;
+    const lines = [
+      `=== SESIÓN ${instanceId} ===`,
+      `Alumno: ${data.instance.student_name} (${data.instance.student_email})`,
+      `Curso: ${data.instance.course_title} | Escenario: ${data.instance.scenario_title}`,
+      `Inicio: ${new Date(data.instance.started_at).toLocaleString('es-AR')}`,
+      `Score: ${data.instance.score} | Tiempo: ${Math.round(data.instance.time_spent_seconds / 60)} min`,
+      '',
+      `--- DIÁLOGO (${data.summary.total_turns} turnos) ---`,
+      ...data.logs.map(l =>
+        `[${l.ref_number}] T${l.turn_number} ${l.speaker.toUpperCase()}: ${l.message_text}` +
+        (l.is_correct === 0 ? `\n  ❌ INCORRECTO | IA: ${l.ai_solution || '—'}` : '')
+      ),
+      '',
+      `--- EVALUACIÓN ---`,
+      `Score final: ${data.evaluation?.overall_score ?? 'N/A'}`,
+      `Feedback: ${data.evaluation?.overall_feedback ?? 'N/A'}`,
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(blob),
+      download: `sesion_${instanceId}.txt`
+    });
+    a.click();
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <MessageSquare className="w-5 h-5 text-purple-600" />
+            Visor de Sesión
+          </DialogTitle>
+        </DialogHeader>
+
+        {loading ? (
+          <div className="py-12 text-center text-gray-500">Cargando sesión...</div>
+        ) : !data ? (
+          <div className="py-8 text-center text-red-500">No se pudo cargar la sesión.</div>
+        ) : (
+          <>
+            {/* Metadata header */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+              <Card className="p-3 bg-blue-50">
+                <p className="text-xs text-blue-600">Alumno</p>
+                <p className="font-semibold text-sm">{data.instance.student_name}</p>
+                <p className="text-xs text-gray-500">{data.instance.student_email}</p>
+              </Card>
+              <Card className="p-3 bg-purple-50">
+                <p className="text-xs text-purple-600">Escenario</p>
+                <p className="font-semibold text-sm">{data.instance.scenario_title}</p>
+                <Badge variant="outline" className="text-xs mt-1">{data.instance.difficulty}</Badge>
+              </Card>
+              <Card className="p-3 bg-green-50">
+                <p className="text-xs text-green-600">Score Final</p>
+                <p className="text-2xl font-bold text-green-700">{data.instance.score ?? '—'}</p>
+                <p className="text-xs text-gray-500">{data.summary.correct_turns}✅ {data.summary.incorrect_turns}❌</p>
+              </Card>
+              <Card className="p-3 bg-orange-50">
+                <p className="text-xs text-orange-600">Duración</p>
+                <p className="text-2xl font-bold text-orange-700">{Math.round(data.instance.time_spent_seconds / 60)} min</p>
+                <p className="text-xs text-gray-500">{data.summary.total_turns} turnos</p>
+              </Card>
+            </div>
+
+            <Tabs defaultValue="dialogue" className="mt-4">
+              <TabsList className="grid grid-cols-3 w-full">
+                <TabsTrigger value="dialogue">💬 Diálogo Completo</TabsTrigger>
+                <TabsTrigger value="analysis">📊 Análisis</TabsTrigger>
+                <TabsTrigger value="evaluation">🎓 Evaluación</TabsTrigger>
+              </TabsList>
+
+              {/* ─── DIÁLOGO ─────────────────── */}
+              <TabsContent value="dialogue" className="mt-4">
+                <div className="flex items-center gap-3 mb-4 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-gray-400" />
+                    <select
+                      value={filterSpeaker}
+                      onChange={e => setFilterSpeaker(e.target.value as any)}
+                      className="text-sm border rounded-md px-2 py-1"
+                    >
+                      <option value="all">Todos los mensajes</option>
+                      <option value="student">Solo alumno</option>
+                      <option value="ai">Solo IA</option>
+                    </select>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showSolutions}
+                      onChange={e => setShowSolutions(e.target.checked)}
+                      className="rounded"
+                    />
+                    Mostrar solución IA en errores
+                  </label>
+                  <Button size="sm" variant="outline" onClick={handleExport}>
+                    <Download className="w-4 h-4 mr-1" /> Exportar
+                  </Button>
+                </div>
+
+                <div className="space-y-4 bg-gray-50 rounded-xl p-4 border max-h-[55vh] overflow-y-auto">
+                  {filteredLogs.length === 0 ? (
+                    <p className="text-center text-gray-400 py-8">Sin mensajes para este filtro.</p>
+                  ) : filteredLogs.map(log => (
+                    <ChatBubble key={log.id} log={log} showSolution={showSolutions} />
+                  ))}
+                </div>
+              </TabsContent>
+
+              {/* ─── ANÁLISIS ─────────────────── */}
+              <TabsContent value="analysis" className="mt-4 space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <Card className="p-4 text-center">
+                    <p className="text-3xl font-bold text-blue-700">{data.summary.student_turns}</p>
+                    <p className="text-sm text-gray-500">Respuestas del alumno</p>
+                  </Card>
+                  <Card className="p-4 text-center">
+                    <p className="text-3xl font-bold text-green-700">{data.summary.correct_turns}</p>
+                    <p className="text-sm text-gray-500">Respuestas correctas</p>
+                  </Card>
+                  <Card className="p-4 text-center">
+                    <p className="text-3xl font-bold text-red-700">{data.summary.incorrect_turns}</p>
+                    <p className="text-sm text-gray-500">Respuestas incorrectas</p>
+                  </Card>
+                </div>
+
+                {/* Accuracy bar */}
+                {data.summary.evaluated_turns > 0 && (
+                  <Card className="p-4">
+                    <p className="text-sm font-semibold mb-2">Tasa de aciertos</p>
+                    <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-green-500 rounded-full"
+                        style={{ width: `${Math.round(data.summary.correct_turns / data.summary.evaluated_turns * 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {Math.round(data.summary.correct_turns / data.summary.evaluated_turns * 100)}%
+                      ({data.summary.correct_turns} de {data.summary.evaluated_turns} evaluados)
+                    </p>
+                  </Card>
+                )}
+
+                {/* Incorrect turns with AI solution */}
+                {data.logs.filter(l => l.is_correct === 0).length > 0 && (
+                  <div>
+                    <h4 className="font-semibold text-sm mb-3 text-red-700">
+                      ❌ Respuestas incorrectas del alumno y solución IA:
+                    </h4>
+                    <div className="space-y-3">
+                      {data.logs.filter(l => l.is_correct === 0).map(log => (
+                        <Card key={log.id} className="p-4 border-l-4 border-l-red-400 bg-red-50">
+                          <div className="flex items-start justify-between mb-2">
+                            <span className="font-mono text-xs text-gray-500 bg-white px-2 py-0.5 rounded border">
+                              <Hash className="w-3 h-3 inline mr-1" />{log.ref_number}
+                            </span>
+                            <span className="text-xs text-red-600">Turno #{log.turn_number}</span>
+                          </div>
+                          {log.challenge_description && (
+                            <p className="text-xs text-gray-600 italic mb-2">
+                              📋 {log.challenge_description}
+                            </p>
+                          )}
+                          <div className="bg-white rounded p-2 text-sm text-red-800 border border-red-200 mb-2">
+                            <span className="text-xs font-semibold text-red-500">Respuesta del alumno:</span>
+                            <p className="mt-1">{log.message_text}</p>
+                          </div>
+                          {log.correct_answer && (
+                            <div className="bg-amber-50 rounded p-2 text-sm text-amber-800 border border-amber-200 mb-2">
+                              <span className="text-xs font-semibold text-amber-600">✏️ Respuesta correcta:</span>
+                              <p className="mt-1">{log.correct_answer}</p>
+                            </div>
+                          )}
+                          {log.ai_solution && (
+                            <div className="bg-green-50 rounded p-2 text-sm text-green-800 border border-green-200">
+                              <span className="text-xs font-semibold text-green-600">💡 Solución propuesta por IA:</span>
+                              <p className="mt-1">{log.ai_solution}</p>
+                            </div>
+                          )}
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* ─── EVALUACIÓN ─────────────────── */}
+              <TabsContent value="evaluation" className="mt-4">
+                {!data.evaluation ? (
+                  <div className="py-8 text-center text-gray-400">
+                    <GraduationCap className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                    <p>Esta sesión no tiene evaluación registrada.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`text-4xl font-bold px-5 py-3 rounded-xl
+                        ${data.evaluation.overall_score >= 85 ? 'bg-green-100 text-green-700' :
+                          data.evaluation.overall_score >= 70 ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700'}`}>
+                        {data.evaluation.overall_score.toFixed(1)}
+                      </div>
+                      <div>
+                        <p className="font-semibold">
+                          {data.evaluation.overall_score >= 85 ? '✅ Aprobado con distinción' :
+                           data.evaluation.overall_score >= 70 ? '⚠️ Aprobado (regular)' :
+                           '❌ No aprobado'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Completitud: {data.evaluation.completion_percentage}%
+                          · {Math.round(data.evaluation.time_spent_seconds / 60)} min
+                          · {new Date(data.evaluation.evaluated_at).toLocaleString('es-AR')}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* KPIs */}
+                    {data.evaluation.kpi_results && (() => {
+                      const kpis = typeof data.evaluation!.kpi_results === 'string'
+                        ? JSON.parse(data.evaluation!.kpi_results || '{}')
+                        : (data.evaluation!.kpi_results || {});
+                      return Object.keys(kpis).length > 0 ? (
+                        <Card className="p-4">
+                          <h4 className="font-semibold text-sm mb-3">KPIs evaluados:</h4>
+                          {Object.entries(kpis).map(([k, v]) => {
+                            const pct = Math.min(100, Number(v));
+                            const color = pct >= 85 ? 'bg-green-500' : pct >= 70 ? 'bg-yellow-500' : 'bg-red-500';
+                            return (
+                              <div key={k} className="mb-2">
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className="font-medium">{k}</span>
+                                  <span className={pct >= 85 ? 'text-green-700' : pct >= 70 ? 'text-yellow-700' : 'text-red-700'}>{pct}%</span>
+                                </div>
+                                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                  <div className={`h-full ${color} rounded-full`} style={{ width: `${pct}%` }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </Card>
+                      ) : null;
+                    })()}
+
+                    {/* Feedback */}
+                    {data.evaluation.overall_feedback && (
+                      <Card className="p-4 bg-blue-50 border-blue-200">
+                        <h4 className="font-semibold text-sm text-blue-800 mb-2">💬 Feedback del evaluador IA:</h4>
+                        <p className="text-sm text-blue-900">{data.evaluation.overall_feedback}</p>
+                      </Card>
+                    )}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Componente Principal: SimulationSessionViewer ───────────────────────────
+export function SimulationSessionViewer() {
+  const [sessions, setSessions] = useState<SessionRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filterStudent, setFilterStudent] = useState('');
+  const [filterCourse, setFilterCourse] = useState('all');
+  const [filterType, setFilterType] = useState<'all' | 'evaluation' | 'practice'>('all');
+  const [selectedSession, setSelectedSession] = useState<string | null>(null);
+  const [refSearch, setRefSearch] = useState('');
+  const [refResult, setRefResult] = useState<any>(null);
+  const [refLoading, setRefLoading] = useState(false);
+  const [refError, setRefError] = useState('');
+
+  const fetchSessions = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/simulation-sessions`);
+      const data = await res.json();
+      setSessions(Array.isArray(data) ? data : []);
+    } catch { setSessions([]); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchSessions(); }, []);
+
+  const handleRefSearch = async () => {
+    if (!refSearch.trim()) return;
+    setRefLoading(true);
+    setRefError('');
+    setRefResult(null);
+    try {
+      const res = await fetch(`${API}/simulation-sessions/ref/${encodeURIComponent(refSearch.trim())}`);
+      if (!res.ok) { setRefError('Referencia no encontrada'); }
+      else { setRefResult(await res.json()); }
+    } catch { setRefError('Error al buscar la referencia'); }
+    finally { setRefLoading(false); }
+  };
+
+  const uniqueCourses = [...new Set(sessions.map(s => s.course_title).filter(Boolean))];
+
+  const filtered = sessions.filter(s =>
+    (filterStudent === '' || s.student_name.toLowerCase().includes(filterStudent.toLowerCase()) ||
+     s.student_email.toLowerCase().includes(filterStudent.toLowerCase())) &&
+    (filterCourse === 'all' || s.course_title === filterCourse) &&
+    (filterType === 'all' || s.scenario_type === filterType)
+  );
+
+  const scoreBadge = (score: number) => {
+    if (score == null) return <span className="text-xs text-gray-400">—</span>;
+    const cls = score >= 85 ? 'bg-green-100 text-green-800 border-green-300' :
+      score >= 70 ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+      'bg-red-100 text-red-800 border-red-300';
+    return <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${cls}`}>{score.toFixed(1)}</span>;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold flex items-center gap-2">
+          <MessageSquare className="w-6 h-6 text-purple-600" />
+          Visor de Sesiones de Simulación
+        </h2>
+        <p className="text-gray-600 mt-1">
+          Vista exclusiva para Profesores, Administradores y Ministerio.
+          Consultá el diálogo completo, los aciertos/errores y la solución propuesta por la IA.
+        </p>
+      </div>
+
+      {/* ─── Búsqueda por nro de referencia ─── */}
+      <Card className="p-4 bg-amber-50 border-amber-200">
+        <h3 className="font-semibold text-sm text-amber-800 mb-3 flex items-center gap-2">
+          <Hash className="w-4 h-4" /> Búsqueda por Número de Referencia (Auditoría)
+        </h3>
+        <div className="flex gap-2">
+          <input
+            value={refSearch}
+            onChange={e => setRefSearch(e.target.value)}
+            placeholder="REF-2026-P01-T02"
+            className="flex-1 px-3 py-2 border rounded-md text-sm font-mono"
+            onKeyDown={e => e.key === 'Enter' && handleRefSearch()}
+          />
+          <Button onClick={handleRefSearch} disabled={refLoading} className="bg-amber-600 hover:bg-amber-700">
+            <Search className="w-4 h-4 mr-1" /> {refLoading ? 'Buscando...' : 'Buscar'}
+          </Button>
+        </div>
+        {refError && <p className="text-red-600 text-xs mt-2">{refError}</p>}
+        {refResult && (
+          <div className="mt-3 bg-white border rounded-lg p-3 text-sm space-y-1">
+            <p><span className="font-semibold">Referencia:</span> <span className="font-mono text-amber-700">{refResult.ref_number}</span></p>
+            <p><span className="font-semibold">Alumno:</span> {refResult.student_name}</p>
+            <p><span className="font-semibold">Escenario:</span> {refResult.scenario_title}</p>
+            <p><span className="font-semibold">Turno #:</span> {refResult.turn_number} | <span className="font-semibold">Speaker:</span> {refResult.speaker}</p>
+            <p><span className="font-semibold">Mensaje:</span> "{refResult.message_text}"</p>
+            {refResult.is_correct !== null && (
+              <p>
+                <span className="font-semibold">Evaluación:</span>{' '}
+                {refResult.is_correct == 1 ? <span className="text-green-700">✅ Correcto</span> : <span className="text-red-700">❌ Incorrecto</span>}
+              </p>
+            )}
+            <Button size="sm" variant="outline" className="mt-2"
+              onClick={() => setSelectedSession(refResult.simulation_instance_id)}>
+              Ver sesión completa
+            </Button>
+          </div>
+        )}
+      </Card>
+
+      {/* ─── Filtros ─── */}
+      <Card className="p-4 bg-gray-50">
+        <div className="flex items-center gap-4 flex-wrap">
+          <Filter className="w-4 h-4 text-gray-500" />
+          <input
+            value={filterStudent}
+            onChange={e => setFilterStudent(e.target.value)}
+            placeholder="Buscar alumno..."
+            className="flex-1 min-w-40 px-3 py-1.5 border rounded-md text-sm"
+          />
+          <select value={filterCourse} onChange={e => setFilterCourse(e.target.value)}
+            className="px-3 py-1.5 border rounded-md text-sm min-w-44">
+            <option value="all">Todos los cursos</option>
+            {uniqueCourses.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select value={filterType} onChange={e => setFilterType(e.target.value as any)}
+            className="px-3 py-1.5 border rounded-md text-sm">
+            <option value="all">Todos los tipos</option>
+            <option value="practice">Prácticas</option>
+            <option value="evaluation">Evaluaciones</option>
+          </select>
+        </div>
+      </Card>
+
+      {/* ─── Tabla de sesiones ─── */}
+      {loading ? (
+        <div className="py-12 text-center text-gray-400">Cargando sesiones...</div>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border shadow-sm">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-100 border-b">
+              <tr>
+                <th className="px-4 py-3 text-left">Alumno</th>
+                <th className="px-4 py-3 text-left">Curso / Escenario</th>
+                <th className="px-4 py-3 text-center">Tipo</th>
+                <th className="px-4 py-3 text-center">Score</th>
+                <th className="px-4 py-3 text-center">Aciertos</th>
+                <th className="px-4 py-3 text-center">Tiempo</th>
+                <th className="px-4 py-3 text-left">Fecha</th>
+                <th className="px-4 py-3 text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400">Sin sesiones para los filtros aplicados.</td></tr>
+              ) : filtered.map(s => (
+                <tr key={s.id} className="border-b hover:bg-gray-50">
+                  <td className="px-4 py-3">
+                    <p className="font-semibold">{s.student_name}</p>
+                    <p className="text-xs text-gray-400">{s.student_email}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-gray-800">{s.course_title || '—'}</p>
+                    <p className="text-xs text-gray-500">{s.scenario_title}</p>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <Badge variant="outline" className={`text-xs ${s.scenario_type === 'evaluation' ? 'border-purple-300 text-purple-700' : 'border-blue-300 text-blue-700'}`}>
+                      {s.scenario_type === 'evaluation' ? '📊 Eval' : '📚 Práctica'}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-center">{scoreBadge(s.score)}</td>
+                  <td className="px-4 py-3 text-center">
+                    {s.total_turns > 0 ? (
+                      <div className="flex items-center justify-center gap-1 text-xs">
+                        <span className="text-red-600 font-medium">
+                          {s.incorrect_turns > 0 ? `❌ ${s.incorrect_turns}` : ''}
+                        </span>
+                        <span className="text-green-600 font-medium">
+                          {(s.total_turns - s.incorrect_turns) > 0 ? `✅ ${s.total_turns - s.incorrect_turns}` : ''}
+                        </span>
+                      </div>
+                    ) : <span className="text-gray-400 text-xs">sin logs</span>}
+                  </td>
+                  <td className="px-4 py-3 text-center text-xs text-gray-600">
+                    {Math.round((s.time_spent_seconds || 0) / 60)} min
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500">
+                    {s.started_at ? new Date(s.started_at).toLocaleDateString('es-AR') : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <Button size="sm" variant="outline" onClick={() => setSelectedSession(s.id)}
+                      className="text-purple-700 border-purple-300 hover:bg-purple-50">
+                      <MessageSquare className="w-4 h-4 mr-1" /> Ver
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {selectedSession && (
+        <SessionDetailDialog
+          instanceId={selectedSession}
+          onClose={() => setSelectedSession(null)}
+        />
+      )}
+    </div>
+  );
+}
