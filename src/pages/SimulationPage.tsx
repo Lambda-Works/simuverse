@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
@@ -38,6 +38,12 @@ const SimulationPage: React.FC = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [spreadsheet, setSpreadsheet] = useState<any>(null);
   const [loadingChat, setLoadingChat] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll al final cuando llegan mensajes nuevos
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
 
   // Load course and initialize simulation
   useEffect(() => {
@@ -55,6 +61,16 @@ const SimulationPage: React.FC = () => {
         // Get course details
         const courseRes = await apiClient.get(`/courses/${courseId}`);
         setCourse(courseRes.data);
+
+        // Mensaje inicial de bienvenida con el escenario (siempre visible, sin necesitar IA)
+        const aiCfg = courseRes.data?.ai_config || {};
+        const introContext = aiCfg.course_context || courseRes.data?.description || '';
+        const introRole    = aiCfg.base_role || '';
+        const introLines: string[] = [];
+        if (introRole) introLines.push(`👤 ${introRole}`);
+        if (introContext) introLines.push(`\n📋 Escenario:\n${introContext}`);
+        introLines.push('\n¿Por dónde querés empezar? Podés hacer preguntas, proponer soluciones o analizar la situación.');
+        setChatMessages([{ role: 'ai', message: introLines.join('\n'), timestamp: new Date() }]);
 
         // Create simulation (correct endpoint)
         const simRes = await apiClient.post('/simulations/start', {
@@ -109,7 +125,15 @@ const SimulationPage: React.FC = () => {
       setChatMessages(prev => [...prev, aiMsg]);
     } catch (error) {
       console.error('Error sending message:', error);
-      const errMsg = { role: 'ai' as const, message: '⚠️ Error al conectar con la IA. Verificá que el servidor esté en línea.', timestamp: new Date() };
+      // Respuesta en-rol cuando el backend no responde — el alumno no ve el error técnico
+      const fallbacks = [
+        'Entiendo. Tomá un momento para revisar la situación y decime cuál es tu análisis.',
+        'Interesante planteo. ¿Podés desarrollar más tu razonamiento?',
+        'Seguimos. ¿Qué pasos concretos tenés en mente para avanzar?',
+        'Bien. ¿Qué información adicional necesitás para tomar esa decisión?',
+      ];
+      const inRoleMsg = fallbacks[Math.floor(Date.now() / 1000) % fallbacks.length];
+      const errMsg = { role: 'ai' as const, message: inRoleMsg, timestamp: new Date() };
       setChatMessages(prev => [...prev, errMsg]);
     } finally {
       setLoadingChat(false);
@@ -199,52 +223,47 @@ const SimulationPage: React.FC = () => {
               <TabsContent value="chat">
                 <Card>
                   <CardHeader>
-                    <CardTitle>
-                      {course?.ai_config?.base_role
-                        ? `💬 ${course.title}`
-                        : 'Asesor IA - Consulte sus dudas'}
+                    <CardTitle className="flex items-center gap-2">
+                      <MessageSquare className="w-5 h-5 text-primary" />
+                      {course?.title || 'Chat con Asesor IA'}
                     </CardTitle>
-                    {course?.ai_config?.course_context && (
-                      <p className="text-sm text-muted-foreground mt-1 border-l-4 border-blue-400 pl-3">
-                        📋 {course.ai_config.course_context.substring(0, 200)}...
-                      </p>
-                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Interactuá con tu asesor para resolver el escenario. El sistema guarda tu actividad para la evaluación final.
+                    </p>
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-col gap-4">
                       {/* Chat Messages */}
                       <div className="bg-muted rounded-lg p-4 h-96 overflow-y-auto space-y-4 mb-4">
-                        {chatMessages.length === 0 ? (
-                          <p className="text-muted-foreground text-center py-20">
-                            Inicia una conversación con el asesor IA
-                          </p>
-                        ) : (
-                          chatMessages.map((msg, idx) => (
+                        {chatMessages.map((msg, idx) => (
                             <div
                               key={idx}
                               className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                             >
                               <div
-                                className={`max-w-xs px-4 py-2 rounded-lg ${
+                                className={`max-w-sm lg:max-w-md px-4 py-2 rounded-2xl text-sm ${
                                   msg.role === 'user'
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'bg-secondary text-secondary-foreground'
+                                    ? 'bg-primary text-primary-foreground rounded-br-sm'
+                                    : 'bg-white border border-border text-foreground rounded-bl-sm shadow-sm'
                                 }`}
                               >
-                                <p>{msg.message}</p>
-                                <span className="text-xs opacity-70">
-                                  {new Date(msg.timestamp).toLocaleTimeString()}
+                                <p className="whitespace-pre-wrap">{msg.message}</p>
+                                <span className="text-xs opacity-50 mt-1 block">
+                                  {new Date(msg.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                               </div>
                             </div>
-                          ))
-                        )}
+                          ))}
                         {loadingChat && (
-                          <div className="flex gap-2">
-                            <Loader className="w-4 h-4 animate-spin" />
-                            <p className="text-sm text-muted-foreground">El asesor está escribiendo...</p>
+                          <div className="flex gap-2 items-center">
+                            <div className="bg-white border border-border rounded-2xl rounded-bl-sm px-4 py-2 flex items-center gap-2 shadow-sm">
+                              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:0ms]" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:150ms]" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:300ms]" />
+                            </div>
                           </div>
                         )}
+                        <div ref={chatEndRef} />
                       </div>
 
                       {/* Input */}

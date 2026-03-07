@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BookOpen, Play, Settings, BarChart3, LogOut, Shield, GraduationCap, Mail, Clock, CheckCircle2, User, Phone, CreditCard, Award, CalendarDays, Eye } from 'lucide-react';
+import { BookOpen, Play, Settings, BarChart3, LogOut, Shield, GraduationCap, Mail, Clock, CheckCircle2, User, Phone, CreditCard, Award, CalendarDays, Eye, HelpCircle, Sparkles, MessageSquare } from 'lucide-react';
 import { StudentReviewModal } from '@/components/StudentReviewModal';
 import { SimulationCalendar } from '@/components/SimulationCalendar';
 
@@ -354,12 +354,44 @@ const Dashboard = () => {
                   : 'Panel de Control'}
               </h1>
               <p className="text-muted-foreground mt-1">
-                {isStudentOnly ? 'Seleccione un curso para iniciar la simulación' : 'Gestione cursos y simulaciones'}
+                {isStudentOnly
+                  ? courses.length > 0
+                    ? `Tenés ${courses.length} simulación${courses.length !== 1 ? 'es' : ''} asignada${courses.length !== 1 ? 's' : ''}. Hacé click en "Iniciar" para comenzar.`
+                    : 'Aquí verás tus simulaciones asignadas.'
+                  : 'Gestione cursos y simulaciones'}
               </p>
             </div>
 
-            {courses.length === 0 ? (
-              <Card className="glass-card">
+            {/* ── Guía paso a paso para alumnos ───────────────────────────────── */}
+            {isStudentOnly && courses.length > 0 && (
+              <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50/60 dark:bg-blue-950/20 p-4">
+                <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-3 flex items-center gap-2 text-sm">
+                  <HelpCircle className="w-4 h-4" /> ¿Cómo usar el simulador?
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { icon: BookOpen, title: 'Elegí tu simulación', desc: 'Hacé click en una tarjeta para ver los detalles del escenario asignado.' },
+                    { icon: Play, title: 'Iniciá', desc: 'Presioná "Iniciar". El sistema te presentará el contexto del caso a resolver.' },
+                    { icon: MessageSquare, title: 'Interactuá', desc: 'Usá el chat con tu asesor, revisá emails y documentos del escenario.' },
+                    { icon: Award, title: 'Finalizá', desc: 'Al terminar, el sistema evalúa tu desempeño y genera tu puntaje y certificado.' },
+                  ].map(({ icon: Icon, title, desc }, i) => (
+                    <div key={i} className="flex items-start gap-2.5">
+                      <div className="bg-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                        {i + 1}
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-blue-900 dark:text-blue-200 flex items-center gap-1">
+                          <Icon className="w-3 h-3" /> {title}
+                        </p>
+                        <p className="text-xs text-blue-700 dark:text-blue-400 mt-0.5 leading-snug">{desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {courses.length === 0 ? (              <Card className="glass-card">
                 <CardContent className="flex flex-col items-center justify-center py-16">
                   <BookOpen className="w-12 h-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold">No hay cursos disponibles</h3>

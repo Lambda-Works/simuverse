@@ -6,7 +6,7 @@ import { Assessment } from './Assessment';
 
 export enum SimulationStatus {
   NOT_STARTED = 'not_started',
-  IN_PROGRESS = 'in_progress',
+  IN_PROGRESS = 'active',
   PAUSED = 'paused',
   COMPLETED = 'completed',
   ABANDONED = 'abandoned'
@@ -21,7 +21,7 @@ export class Simulation {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'uuid' })
+  @Column({ name: 'student_id', type: 'varchar', length: 36 })
   user_id!: string;
 
   @Column({ type: 'uuid' })
@@ -30,7 +30,7 @@ export class Simulation {
   @Column({
     type: 'enum',
     enum: SimulationStatus,
-    default: SimulationStatus.NOT_STARTED
+    default: SimulationStatus.IN_PROGRESS
   })
   status!: SimulationStatus;
 
@@ -59,7 +59,7 @@ export class Simulation {
 
   // Relations
   @ManyToOne(() => User, user => user.simulations, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'user_id' })
+  @JoinColumn({ name: 'student_id' })
   user!: User;
 
   @ManyToOne(() => Course, course => course.simulations, { onDelete: 'CASCADE' })

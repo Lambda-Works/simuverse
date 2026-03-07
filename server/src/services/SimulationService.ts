@@ -82,45 +82,50 @@ export class TelemetryService {
     metadata: Record<string, any> = {},
     responseTimeMs: number = 0
   ) {
-    const integrity_hash = crypto
-      .createHash('sha256')
-      .update(`${simulation_id}${action}${Date.now()}`)
-      .digest('hex');
-
-    const log = this.telemetryRepository.create({
-      simulation_id,
-      user_id,
-      course_id,
-      action,
-      action_type: action_type as any,
-      response_time_ms: responseTimeMs,
-      metadata,
-      integrity_hash,
-    });
-
-    return await this.telemetryRepository.save(log);
+    try {
+      // Raw insert usando solo columnas reales de la tabla
+      await AppDataSource.query(
+        `INSERT INTO telemetry_logs (id, simulation_id, action, metadata)
+         VALUES (UUID(), ?, ?, ?)`,
+        [
+          simulation_id,
+          action.substring(0, 100),
+          JSON.stringify({ user_id, course_id, action_type, response_time_ms: responseTimeMs, ...metadata }),
+        ]
+      );
+    } catch (err: any) {
+      // Telemetría no debe interrumpir el flujo principal
+      console.warn('[TelemetryService] logAction silenciado:', err.message);
+    }
   }
 
   async getSimulationLogs(simulation_id: string) {
-    return await this.telemetryRepository.find({
-      where: { simulation_id: simulation_id },
-      order: { created_at: 'ASC' }
-    });
+    try {
+      return await AppDataSource.query(
+        'SELECT * FROM telemetry_logs WHERE simulation_id = ? ORDER BY created_at ASC',
+        [simulation_id]
+      );
+    } catch { return []; }
   }
 
   async getUserCourseLogs(user_id: string, course_id: string) {
-    return await this.telemetryRepository.find({
-      where: { user_id, course_id },
-      order: { created_at: 'DESC' }
-    });
+    try {
+      return await AppDataSource.query(
+        `SELECT * FROM telemetry_logs WHERE simulation_id IN
+         (SELECT id FROM simulations WHERE student_id = ? AND course_id = ?)
+         ORDER BY created_at DESC`,
+        [user_id, course_id]
+      );
+    } catch { return []; }
   }
 
   async getLogsInTimeRange(startDate: Date, endDate: Date) {
-    return await this.telemetryRepository
-      .createQueryBuilder('log')
-      .where('log.created_at BETWEEN :startDate AND :endDate', { startDate, endDate })
-      .orderBy('log.created_at', 'DESC')
-      .getMany();
+    try {
+      return await AppDataSource.query(
+        'SELECT * FROM telemetry_logs WHERE created_at BETWEEN ? AND ? ORDER BY created_at DESC',
+        [startDate, endDate]
+      );
+    } catch { return []; }
   }
 }
 

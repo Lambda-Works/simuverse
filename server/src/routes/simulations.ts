@@ -111,31 +111,51 @@ router.post('/:simulation_id/message', async (req: Request, res: Response) => {
     const { user_id, course_id, message, conversationHistory } = req.body;
     const startTime = Date.now();
 
-    const simulation = await simulationService.getSimulation(req.params.simulation_id);
-    if (!simulation) {
+    // Usar raw SQL para evitar el mismatch entre entity (user_id) y DB (student_id)
+    const [simRow]: any = await AppDataSource.query(
+      'SELECT id, course_id FROM simulations WHERE id = ? LIMIT 1',
+      [req.params.simulation_id]
+    );
+    if (!simRow) {
       return res.status(404).json({ error: 'Simulación no encontrada' });
     }
 
-    const course = await courseService.getCourseById(course_id);
+    const effectiveCourseId = course_id || simRow.course_id;
+    const course = await courseService.getCourseById(effectiveCourseId);
     if (!course) {
       return res.status(404).json({ error: 'Curso no encontrado' });
     }
 
     // Obtener contenido del escenario para el fallback offline
     const scenarioContent = await getScenarioContentForSim(req.params.simulation_id);
+
+    // Parseo seguro de ai_config: puede ser null, un objeto, o un JSON string
+    let aiCfg: any = {};
+    try {
+      const raw = (course as any).ai_config;
+      aiCfg = typeof raw === 'string' ? JSON.parse(raw) : (raw || {});
+    } catch { aiCfg = {}; }
+
+    // Valores por defecto cuando el curso no tiene ai_config completo
+    const courseTitle    = (course as any).title || 'Simulación';
+    const courseCategory = (course as any).category || 'gestión empresarial';
+    const courseDesc     = (course as any).description || '';
+    const defaultRole    = `Sos un experto tutor en ${courseCategory}. El alumno está resolviendo la simulación "${courseTitle}". Mantené el roleplay en todo momento, respondé en español y con criterio profesional.`;
+    const defaultContext = courseDesc || `Simulación de ${courseCategory}. El alumno debe analizar la situación y tomar decisiones estratégicas.`;
+
     const fallbackCtx: FallbackContext = {
-      scenarioContext: scenarioContent?.context,
+      scenarioContext: scenarioContent?.context || courseDesc,
       constraints: scenarioContent?.constraints,
-      base_role: (course.ai_config as any)?.base_role,
-      course_context: (course.ai_config as any)?.course_context,
+      base_role: aiCfg.base_role || defaultRole,
+      course_context: aiCfg.course_context || defaultContext,
     };
 
-    // Construir System Prompt dinámico
+    // Construir System Prompt dinámico (siempre con defaults si faltan campos)
     const systemPrompt = aiService.buildSystemPrompt({
-      base_role: (course.ai_config as any).base_role,
-      course_context: (course.ai_config as any).course_context,
-      knowledge_base: (course.ai_config as any).knowledge_base || '',
-      personality_traits: (course.ai_config as any).personality_traits || [],
+      base_role: aiCfg.base_role || defaultRole,
+      course_context: aiCfg.course_context || defaultContext,
+      knowledge_base: aiCfg.knowledge_base || '',
+      personality_traits: aiCfg.personality_traits || [],
       student_history: [],
     });
 
@@ -410,10 +430,13 @@ router.get('/:simulation_id/spreadsheet', async (req: Request, res: Response) =>
  */
 router.get('/:simulation_id/crisis', async (req: Request, res: Response) => {
   try {
-    const sim = await simulationService.getSimulation(req.params.simulation_id);
-    if (!sim) return res.status(404).json({ error: 'Simulación no encontrada' });
+    const [simRow]: any = await AppDataSource.query(
+      'SELECT id, course_id FROM simulations WHERE id = ? LIMIT 1',
+      [req.params.simulation_id]
+    );
+    if (!simRow) return res.status(404).json({ error: 'Simulación no encontrada' });
 
-    const course = await courseService.getCourseById((sim as any).course_id);
+    const course = await courseService.getCourseById(simRow.course_id);
     const family = (course as any)?.category || (course as any)?.family || 'default';
     const customEvents = (course as any)?.crisis_events;
     const parsedCustomEvents = typeof customEvents === 'string' ? JSON.parse(customEvents) : (Array.isArray(customEvents) ? customEvents : null);
@@ -506,7 +529,7 @@ router.post('/:simulation_id/evaluate', authMiddleware, async (req: Request, res
     );
 
     // Aplicar Rules Engine sobre logs de acciones
-    const actionLogs = logs.filter(l => (l.action_type as string) === 'click' || (l.action_type as string) === 'action');
+    const actionLogs = logs.filter((l: any) => (l.action_type as string) === 'click' || (l.action_type as string) === 'action');
     let rulesScore = 0;
     let rulesCount = 0;
     for (const log of actionLogs) {
@@ -524,7 +547,7 @@ router.post('/:simulation_id/evaluate', authMiddleware, async (req: Request, res
       : aiScore;
 
     // Crisis penalty/bonus
-    const crisisLog = logs.find(l => (l.action_type as string) === 'crisis_resolved');
+    const crisisLog = logs.find((l: any) => (l.action_type as string) === 'crisis_resolved');
     const crisisScore = (crisisLog?.metadata as any)?.score ?? null;
     const crisisAdjust = crisisScore !== null ? Math.round((crisisScore - 50) * 0.1) : 0;
     const adjustedScore = Math.max(0, Math.min(100, finalScore + crisisAdjust));
