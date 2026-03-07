@@ -27,8 +27,8 @@ interface TokenPayload {
 export class AuthService {
   private userRepository: Repository<User>;
   private readonly JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-  private readonly JWT_EXPIRY = '15m';
-  private readonly REFRESH_TOKEN_EXPIRY = '7d';
+  private readonly JWT_EXPIRY = '8h';
+  private readonly REFRESH_TOKEN_EXPIRY = '30d';
   private readonly BCRYPT_ROUNDS = 10;
 
   constructor() {

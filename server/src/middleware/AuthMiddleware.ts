@@ -27,8 +27,9 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
 
     const decoded = jwt.verify(token, JWT_SECRET) as any;
 
+    // AuthService signs tokens with snake_case field: user_id
     req.user = {
-      userId: decoded.userId,
+      userId: decoded.user_id || decoded.userId,
       email: decoded.email,
       role: decoded.role
     };
@@ -50,7 +51,7 @@ export const optionalAuthMiddleware = (req: Request, res: Response, next: NextFu
       const decoded = jwt.verify(token, JWT_SECRET) as any;
 
       req.user = {
-        userId: decoded.userId,
+        userId: decoded.user_id || decoded.userId,
         email: decoded.email,
         role: decoded.role
       };

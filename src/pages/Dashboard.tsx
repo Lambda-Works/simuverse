@@ -157,30 +157,34 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card/80 backdrop-blur-xl sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="container mx-auto px-3 sm:px-4 py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <Shield className="w-4 h-4 text-primary-foreground" />
             </div>
             <span className="font-bold text-lg">MSM</span>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium">{user?.name}</span>
-            <Badge variant="secondary" className={`${roleLabels[user?.role as keyof typeof roleLabels]?.color} text-xs gap-1`}>
+          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+            {/* Nombre del usuario: visible solo en pantallas medianas+ */}
+            <span className="hidden md:block text-sm font-medium truncate max-w-32">{user?.name}</span>
+            {/* Badge de rol: icono siempre visible, texto solo en sm+ */}
+            <Badge variant="secondary" className={`${roleLabels[user?.role as keyof typeof roleLabels]?.color} text-xs gap-1 shrink-0`}>
               {roleLabels[user?.role as keyof typeof roleLabels]?.icon}
-              {roleLabels[user?.role as keyof typeof roleLabels]?.label}
+              <span className="hidden sm:inline">{roleLabels[user?.role as keyof typeof roleLabels]?.label}</span>
             </Badge>
             {hasRole('admin') && (
-              <Button variant="outline" size="sm" onClick={() => navigate('/admin')}>
-                <Settings className="w-4 h-4 mr-1" /> Admin
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin')} className="shrink-0">
+                <Settings className="w-4 h-4 sm:mr-1" />
+                <span className="hidden sm:inline">Admin</span>
               </Button>
             )}
             {(hasRole('teacher') || hasRole('admin')) && (
-              <Button variant="outline" size="sm" onClick={() => navigate('/evaluations')}>
-                <BarChart3 className="w-4 h-4 mr-1" /> Evaluaciones
+              <Button variant="outline" size="sm" onClick={() => navigate('/evaluations')} className="shrink-0">
+                <BarChart3 className="w-4 h-4 sm:mr-1" />
+                <span className="hidden sm:inline">Evaluaciones</span>
               </Button>
             )}
-            <Button variant="ghost" size="sm" onClick={signOut}>
+            <Button variant="ghost" size="sm" onClick={signOut} className="shrink-0" title="Cerrar sesión">
               <LogOut className="w-4 h-4" />
             </Button>
           </div>
@@ -365,8 +369,8 @@ const Dashboard = () => {
         ) : (
           /* ── CASO NORMAL: mostrar cursos ──────────────────────────────────── */
           <>
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold">
+            <div className="mb-6 sm:mb-8">
+              <h1 className="text-2xl sm:text-3xl font-bold">
                 {isStudentOnly
                   ? `Bienvenido, ${user?.name || 'Estudiante'}`
                   : 'Panel de Control'}

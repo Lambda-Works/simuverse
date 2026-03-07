@@ -135,20 +135,21 @@ const SimulationPage: React.FC = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="border-b bg-card sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
           <Button
             variant="ghost"
+            size="sm"
             onClick={() => navigate('/dashboard')}
-            className="gap-2"
+            className="gap-1 shrink-0"
           >
             <ArrowLeft className="w-4 h-4" />
-            Volver
+            <span className="hidden sm:inline">Volver</span>
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold">{course?.title || 'Simulación'}</h1>
-            <p className="text-sm text-muted-foreground">{course?.description}</p>
+          <div className="text-center min-w-0 flex-1">
+            <h1 className="text-base sm:text-xl md:text-2xl font-bold truncate">{course?.title || 'Simulación'}</h1>
+            <p className="hidden sm:block text-xs sm:text-sm text-muted-foreground truncate">{course?.description}</p>
           </div>
-          <div className="w-32" />
+          <div className="w-10 sm:w-24 shrink-0" />
         </div>
       </div>
 

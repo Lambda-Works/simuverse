@@ -11,8 +11,8 @@ export class UserService {
 
   async getUserById(user_id: string): Promise<User> {
     const user = await this.userRepository.findOne({
-      where: { id: user_id },
-      relations: ['simulations', 'assessments']
+      where: { id: user_id }
+      // No cargamos relaciones pesadas aquí para evitar problemas de join
     });
 
     if (!user) {

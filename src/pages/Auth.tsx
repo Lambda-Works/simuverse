@@ -22,13 +22,14 @@ const Auth = () => {
     setLoading(true);
     try {
       const response = await apiClient.post('/auth/login', { email, password });
-      const { token, user } = response.data;
+      const { token, user, refreshToken } = response.data;
       
       console.log('✅ Login Response:', { token, user });
       
-      // Guardar token y usuario en localStorage
+      // Guardar token, refreshToken y usuario en localStorage
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
+      if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
       
       console.log('✅ localStorage saved:', {
         token: localStorage.getItem('token'),
@@ -63,11 +64,12 @@ const Auth = () => {
         password,
         name: fullName,
       });
-      const { token, user } = response.data;
+      const { token, user, refreshToken } = response.data;
       
-      // Guardar token y usuario en localStorage
+      // Guardar token, refreshToken y usuario en localStorage
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
+      if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
       
       // Disparar evento custom para notificar al AuthProvider
       authChangeEvent.dispatchEvent(new Event('authChange'));

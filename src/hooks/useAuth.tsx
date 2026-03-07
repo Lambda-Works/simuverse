@@ -91,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('refreshToken');
     // Redirigir a login
     window.location.href = '/auth';
   };
