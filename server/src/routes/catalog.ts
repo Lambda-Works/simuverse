@@ -7,6 +7,7 @@ import { SimulationAssignment } from '../entities/SimulationAssignment';
 import { User } from '../entities/User';
 import { Scenario } from '../entities/Scenario';
 import { v4 as uuidv4 } from 'uuid';
+import * as nodemailer from 'nodemailer';
 
 const router = Router();
 
@@ -1013,6 +1014,80 @@ router.put('/role-permissions', async (req: Request, res: Response) => {
       );
     }
     res.json({ message: `Permisos de rol '${role_name}' actualizados (${permissions.length} items)` });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========== SOLICITUD DE ACCESO (nuevos alumnos sin asignaciones) ==========
+
+/**
+ * POST /api/request-access
+ * Un alumno recién registrado sin cursos asignados solicita acceso al simulador.
+ * Envía un email a centrosadoskyregistracion@gmail.com con los datos del usuario.
+ */
+router.post('/request-access', async (req: Request, res: Response) => {
+  try {
+    const { nombre, apellido, dni, celular, email, user_id } = req.body;
+    if (!nombre || !apellido || !dni || !celular || !email) {
+      return res.status(400).json({ error: 'Todos los campos son obligatorios: nombre, apellido, dni, celular, email' });
+    }
+
+    // Registrar la solicitud en la BD
+    await AppDataSource.query(
+      `INSERT IGNORE INTO access_requests (user_id, nombre, apellido, dni, celular, email, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW())`,
+      [user_id || null, nombre, apellido, dni, celular, email]
+    );
+
+    // Configurar transporte SMTP (usa Gmail con contraseña de aplicación)
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.MAIL_FROM || 'notificaciones.simuverse@gmail.com',
+        pass: process.env.MAIL_PASS || '',
+      },
+    });
+
+    const mailOptions = {
+      from: `"SimuVerse - Solicitudes" <${process.env.MAIL_FROM || 'notificaciones.simuverse@gmail.com'}>`,
+      to: 'centrosadoskyregistracion@gmail.com',
+      subject: `📋 Nueva solicitud de acceso al Simulador - ${nombre} ${apellido}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f9fafb; padding: 24px; border-radius: 12px;">
+          <div style="background: #1e40af; color: white; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+            <h2 style="margin: 0;">📋 Nueva Solicitud de Acceso</h2>
+            <p style="margin: 4px 0 0; opacity: 0.85;">SimuVerse - Sistema de Simulaciones Educativas</p>
+          </div>
+          <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb;">
+            <h3 style="color: #374151; margin-top: 0;">Datos del Solicitante</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr><td style="padding: 8px; font-weight: bold; color: #6b7280; width: 140px;">Nombre:</td><td style="padding: 8px; color: #111827;">${nombre}</td></tr>
+              <tr style="background: #f9fafb;"><td style="padding: 8px; font-weight: bold; color: #6b7280;">Apellido:</td><td style="padding: 8px; color: #111827;">${apellido}</td></tr>
+              <tr><td style="padding: 8px; font-weight: bold; color: #6b7280;">DNI:</td><td style="padding: 8px; color: #111827;">${dni}</td></tr>
+              <tr style="background: #f9fafb;"><td style="padding: 8px; font-weight: bold; color: #6b7280;">Celular:</td><td style="padding: 8px; color: #111827;">${celular}</td></tr>
+              <tr><td style="padding: 8px; font-weight: bold; color: #6b7280;">Email:</td><td style="padding: 8px; color: #111827;"><a href="mailto:${email}">${email}</a></td></tr>
+              <tr style="background: #f9fafb;"><td style="padding: 8px; font-weight: bold; color: #6b7280;">Fecha:</td><td style="padding: 8px; color: #111827;">${new Date().toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td></tr>
+            </table>
+          </div>
+          <p style="color: #6b7280; font-size: 13px; margin-top: 16px; text-align: center;">Este mensaje fue generado automáticamente por SimuVerse 3.0</p>
+        </div>
+      `,
+    };
+
+    let emailSent = false;
+    try {
+      await transporter.sendMail(mailOptions);
+      emailSent = true;
+    } catch (mailErr: any) {
+      console.warn('⚠️  Email no pudo enviarse (configurar MAIL_FROM y MAIL_PASS en .env):', mailErr.message);
+    }
+
+    res.json({
+      message: 'Solicitud registrada correctamente.',
+      email_sent: emailSent,
+      note: emailSent ? 'Se envió una notificación al equipo de administración.' : 'Solicitud guardada. El equipo la revisará a la brevedad.',
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
