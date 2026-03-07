@@ -83,10 +83,6 @@ function StudentHistoryDialog({ studentId, studentName, onClose }: {
     })();
   }, [studentId]);
 
-  const avgScore = history?.evaluations?.length
-    ? history.evaluations.reduce((s, e) => s + (e.overall_score || 0), 0) / history.evaluations.length : 0;
-  const totalMin = history?.instances?.reduce((s, i) => s + (i.time_spent_seconds || 0) / 60, 0) ?? 0;
-
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto">
@@ -197,7 +193,6 @@ function StudentHistoryDialog({ studentId, studentName, onClose }: {
               </div>
             )}
 
-            </div>
             <Tabs defaultValue="evaluations" className="mt-4">
               <TabsList className="grid grid-cols-3 w-full">
                 <TabsTrigger value="evaluations">📊 Evaluaciones</TabsTrigger>
