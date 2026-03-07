@@ -9,7 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   ArrowLeft, BarChart3, Clock, MessageCircle, Users, AlertTriangle,
-  CheckCircle, Loader2, Brain, Zap, Trophy,
+  CheckCircle, Loader2, Brain, Zap, Trophy, FileText,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -174,7 +174,14 @@ const EvaluationsPage = () => {
                     >
                       <div className="flex items-center gap-2 flex-wrap">
                         <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                        <span className="font-medium">{sim.user_name || sim.user_id?.slice(0, 8) || 'Alumno'}</span>
+                        <button
+                          className="font-medium hover:text-primary hover:underline flex items-center gap-1 transition-colors"
+                          onClick={e => { e.stopPropagation(); navigate(`/student-ledger/${sim.user_id}`); }}
+                          title="Ver legajo del alumno"
+                        >
+                          {sim.user_name || sim.user_id?.slice(0, 8) || 'Alumno'}
+                          <FileText className="w-3 h-3 opacity-60" />
+                        </button>
                         <Badge variant="secondary" className={`text-xs ${st.color} gap-1`}>{st.icon}{st.label}</Badge>
                         {existingScore !== null && (
                           <Badge variant="outline" className={`text-xs font-bold ${scoreColor(existingScore)}`}>

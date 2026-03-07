@@ -441,18 +441,21 @@ router.post('/:simulation_id/evaluate', authMiddleware, async (req: Request, res
     // Obtener logs de telemetría
     const logs = await telemetryService.getSimulationLogs(simId);
 
-    // Criterios de evaluación según familia
-    const family: string = (course as any).family || 'default';
+    // Criterios de evaluación según categoría del curso
+    const family: string = (course as any).category || (course as any).family || 'default';
     const criteriaMap: Record<string, string[]> = {
       administracion: ['precisión_cálculo', 'cumplimiento_normativo', 'gestión_tiempo', 'documentación'],
       rrhh: ['comunicación', 'empatía', 'resolución_conflictos', 'liderazgo'],
       informatica: ['calidad_código', 'resolución_problemas', 'seguridad', 'documentación_técnica'],
       emprendimiento: ['visión_estratégica', 'gestión_riesgo', 'comunicación_cliente', 'adaptabilidad'],
+      ventas: ['negociación', 'atención_cliente', 'gestión_objeciones', 'cierre_ventas'],
+      legal: ['precisión_normativa', 'redacción_jurídica', 'análisis_riesgo', 'ética_profesional'],
+      contable: ['precisión_cálculo', 'cumplimiento_impositivo', 'análisis_financiero', 'documentación'],
+      general: ['desempeño_general', 'participación', 'precisión', 'comunicación'],
     };
     const evalCriteria = criteriaMap[family] || ['desempeño_general', 'participación', 'precisión'];
 
     // Análisis de IA (con fallback heurístico si no hay clave)
-    const scenarioContent = await getScenarioContentForSim(simId);
     const aiAnalysis = await aiService.analyzStudentPerformance(
       (sim as any).course_id,
       logs,
@@ -471,53 +474,102 @@ router.post('/:simulation_id/evaluate', authMiddleware, async (req: Request, res
     }
     const rulesAvg = rulesCount > 0 ? Math.round(rulesScore / rulesCount) : null;
 
-    // Puntaje final combinado
+    // Puntaje base combinado (IA + reglas)
     const aiScore = aiAnalysis.overall_score ?? 70;
     const finalScore = rulesAvg !== null
       ? Math.round(aiScore * 0.7 + rulesAvg * 0.3)
       : aiScore;
 
     // Crisis penalty/bonus
-    const crisisLog = logs.find(l => l.action_type === ('crisis_resolved' as any));
+    const crisisLog = logs.find(l => (l.action_type as string) === 'crisis_resolved');
     const crisisScore = (crisisLog?.metadata as any)?.score ?? null;
     const crisisAdjust = crisisScore !== null ? Math.round((crisisScore - 50) * 0.1) : 0;
     const adjustedScore = Math.max(0, Math.min(100, finalScore + crisisAdjust));
-
-    // Guardar en assessments
     const passed = adjustedScore >= 70;
+
+    // Metodología de cálculo completa — se guarda en criteria_met para el legajo
+    const kpiScores: Record<string, number> = {
+      ...aiAnalysis.hard_skills,
+      ...(aiAnalysis.soft_skills || {}),
+      ...(crisisScore !== null ? { crisis_management: crisisScore } : {}),
+    };
+    const criteriaMetPayload = {
+      kpis: kpiScores,
+      scoring_methodology: {
+        formula: rulesAvg !== null
+          ? 'puntaje = (base_ia × 0.7) + (motor_reglas × 0.3) + ajuste_crisis'
+          : 'puntaje = base_ia + ajuste_crisis',
+        components: {
+          base_ia: {
+            value: aiScore,
+            weight: rulesAvg !== null ? 0.7 : 1.0,
+            source: aiAnalysis.ai_mode === 'live' ? 'Gemini AI (en vivo)' : 'Evaluación heurística (offline)',
+            description: 'Análisis de participación, precisión de respuestas e interacción con el escenario',
+          },
+          ...(rulesAvg !== null ? {
+            motor_reglas: {
+              value: rulesAvg,
+              weight: 0.3,
+              source: 'RulesEngine offline',
+              description: `Validaciones de negocio para familia "${family}" (${rulesCount} acciones evaluadas)`,
+            },
+          } : {}),
+          ...(crisisScore !== null ? {
+            crisis_engine: {
+              value: crisisScore,
+              adjustment: crisisAdjust,
+              source: 'Crisis Engine',
+              description: `Decisión en evento de crisis (puntaje de opción elegida: ${crisisScore}/100). Ajuste: ${crisisAdjust > 0 ? '+' : ''}${crisisAdjust} pts`,
+            },
+          } : {}),
+        },
+        puntaje_base_ia: aiScore,
+        puntaje_motor_reglas: rulesAvg,
+        puntaje_crisis: crisisScore,
+        ajuste_crisis: crisisAdjust,
+        puntaje_final: adjustedScore,
+        aprobado: passed,
+        umbral_aprobacion: 70,
+        criterios_evaluados: evalCriteria,
+        ai_mode: aiAnalysis.ai_mode ?? 'scripted',
+        total_eventos: logs.length,
+        evaluado_por: requester?.userId ?? 'sistema',
+        evaluado_en: new Date().toISOString(),
+      },
+      analysis_detail: {
+        strengths: aiAnalysis.strengths ?? [],
+        areas_to_improve: aiAnalysis.areas_to_improve ?? [],
+        recommendations: aiAnalysis.recommendations ?? [],
+      },
+    };
+
+    const commentsText = [
+      `Evaluación generada el ${new Date().toLocaleString('es-AR')}`,
+      `Modo IA: ${aiAnalysis.ai_mode === 'live' ? 'Gemini en vivo' : 'Heurístico offline'}`,
+      `Fórmula: ${criteriaMetPayload.scoring_methodology.formula}`,
+      aiAnalysis.recommendations?.[0] ? `Recomendación: ${aiAnalysis.recommendations[0]}` : '',
+    ].filter(Boolean).join(' | ');
+
+    // Guardar en assessments (usando las columnas reales de la tabla)
     await AppDataSource.query(
-      `INSERT INTO assessments
-         (id, simulation_id, user_id, score, passed, kpis, ai_evaluation, recommendation, feedback, created_at, updated_at)
-       VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-       ON DUPLICATE KEY UPDATE
-         score = VALUES(score), passed = VALUES(passed), kpis = VALUES(kpis),
-         ai_evaluation = VALUES(ai_evaluation), recommendation = VALUES(recommendation),
-         feedback = VALUES(feedback), updated_at = NOW()`,
+      `DELETE FROM assessments WHERE simulation_id = ?`,
+      [simId]
+    );
+    await AppDataSource.query(
+      `INSERT INTO assessments (id, simulation_id, evaluator_id, criteria_met, comments, grade, evaluated_at)
+       VALUES (UUID(), ?, ?, ?, ?, ?, NOW())`,
       [
         simId,
-        (sim as any).user_id,
+        requester?.userId ?? null,
+        JSON.stringify(criteriaMetPayload),
+        commentsText,
         adjustedScore,
-        passed ? 1 : 0,
-        JSON.stringify({
-          ...aiAnalysis.hard_skills,
-          ...(aiAnalysis.soft_skills || {}),
-          ...(crisisScore !== null ? { crisis_management: crisisScore } : {}),
-        }),
-        JSON.stringify(aiAnalysis),
-        aiAnalysis.recommendations?.[0] ?? null,
-        JSON.stringify({
-          strengths: aiAnalysis.strengths ?? [],
-          areas_to_improve: aiAnalysis.areas_to_improve ?? [],
-          ai_mode: aiAnalysis.ai_mode ?? 'scripted',
-          rules_score: rulesAvg,
-          crisis_score: crisisScore,
-        }),
       ]
     );
 
-    // También actualizar score en la simulación
+    // Actualizar score en la simulación y marcar como completada
     await AppDataSource.query(
-      `UPDATE simulations SET progress_percentage = ? WHERE id = ?`,
+      `UPDATE simulations SET score = ?, status = 'completed', completed_at = COALESCE(completed_at, NOW()) WHERE id = ?`,
       [adjustedScore, simId]
     );
 
@@ -526,13 +578,9 @@ router.post('/:simulation_id/evaluate', authMiddleware, async (req: Request, res
       score: adjustedScore,
       passed,
       ai_mode: aiAnalysis.ai_mode ?? 'scripted',
-      kpis: {
-        ...aiAnalysis.hard_skills,
-        ...(aiAnalysis.soft_skills || {}),
-      },
+      kpis: kpiScores,
+      scoring_methodology: criteriaMetPayload.scoring_methodology,
       analysis: aiAnalysis,
-      rules_score: rulesAvg,
-      crisis_score: crisisScore,
     });
   } catch (error: any) {
     console.error('[evaluate]', error);

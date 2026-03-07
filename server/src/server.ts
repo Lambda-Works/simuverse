@@ -10,6 +10,7 @@ import adminRouter from './routes/admin.js';
 import ministryRouter from './routes/ministry.js';
 import catalogRouter from './routes/catalog.js';
 import templatesRouter from './routes/templates.js';
+import legajoRouter from './routes/legajo.js';
 
 dotenv.config();
 
@@ -60,6 +61,7 @@ app.use('/api/courses', coursesRouter);
 app.use('/api/simulations', simulationsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/ministry', ministryRouter);
+app.use('/api/legajo', legajoRouter);
 // Catalog routes: categories, tech-sheets, documents, assignments, users, evaluations
 app.use('/api', catalogRouter);
 // Templates (FlowTemplates persistidos en BD)

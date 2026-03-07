@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import AdminPanel from "./pages/AdminPanel";
 import SimulationPage from "./pages/SimulationPage";
 import EvaluationsPage from "./pages/EvaluationsPage";
+import StudentLedger from "./pages/StudentLedger";
 import CertificateView from "./pages/CertificateView";
 import NotFound from "./pages/NotFound";
 
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/simulation/:courseId" element={<SimulationPage />} />
               <Route path="/evaluations" element={<EvaluationsPage />} />
+              <Route path="/student-ledger/:userId" element={<StudentLedger />} />
               <Route path="/certificate/:instanceId" element={<CertificateView />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
