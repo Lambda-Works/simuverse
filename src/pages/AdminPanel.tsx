@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
+import { AppNavbar } from '@/components/AppNavbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield, FolderOpen, FileUp, UserCheck, BarChart3, ClipboardList, Wand2, Copy, MessageSquare, Bell, CalendarDays, Users2, Building2, GraduationCap, Handshake } from 'lucide-react';
+import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield, FolderOpen, FileUp, UserCheck, BarChart3, ClipboardList, Wand2, Copy, MessageSquare, Bell, CalendarDays, Users2, Building2, GraduationCap, Handshake, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { GlobalStatsDashboard } from '@/components/GlobalStatsDashboard';
 import { CompaniesABM } from '@/components/CompaniesABM';
 import { FoundationABM } from '@/components/FoundationABM';
@@ -112,6 +113,17 @@ const PROMPT_TEMPLATES = [
   },
 ];
 
+interface CrisisEventConfig {
+  title: string;
+  description: string;
+  severity: 'low' | 'medium' | 'high';
+  options: [
+    { text: string; score: number; feedback: string },
+    { text: string; score: number; feedback: string },
+    { text: string; score: number; feedback: string },
+  ];
+}
+
 interface CourseForm {
   course_id: string;
   title: string;
@@ -125,11 +137,11 @@ interface CourseForm {
     knowledge_base_prompt: string;
   };
   eval_criteria: string[];
-  crisis_events: Array<{ trigger_minutes: number; event_text: string; severity: string }>;
+  crisis_events: CrisisEventConfig[];
   is_active: boolean;
-  tech_sheet_id: number | null;  // ← Ficha técnica opcional
-  categories: string[];         // ← Multi-categoría
-  simulated_company_id: number | null; // ← Empresa simulada
+  tech_sheet_id: number | null;
+  categories: string[];
+  simulated_company_id: number | null;
 }
 
 const emptyForm: CourseForm = {
@@ -165,6 +177,19 @@ const AdminPanel = () => {
   const [newCriterion, setNewCriterion] = useState('');
   const [newTrait, setNewTrait] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showCrisisForm, setShowCrisisForm] = useState(false);
+  const [expandedCrisis, setExpandedCrisis] = useState<number | null>(null);
+  const emtpyCrisisEvent: CrisisEventConfig = {
+    title: '',
+    description: '',
+    severity: 'medium',
+    options: [
+      { text: '', score: 90, feedback: '' },
+      { text: '', score: 55, feedback: '' },
+      { text: '', score: 20, feedback: '' },
+    ],
+  };
+  const [newCrisis, setNewCrisis] = useState<CrisisEventConfig>({ ...emtpyCrisisEvent, options: [...emtpyCrisisEvent.options] as CrisisEventConfig['options'] });
   const [currentTab, setCurrentTab] = useState<'courses' | 'categories' | 'documents' | 'techsheets' | 'assignments' | 'reports' | 'scenarios' | 'templates' | 'sessions' | 'users' | 'roles' | 'stats' | 'requests' | 'groups' | 'calendar' | 'companies' | 'foundation' | 'endorsers'>('courses');
 
   useEffect(() => {
@@ -298,19 +323,9 @@ const AdminPanel = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card/80 backdrop-blur-xl sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
-              <ArrowLeft className="w-4 h-4 mr-1" /> Volver
-            </Button>
-            <span className="font-bold text-lg">Administración SimuVerse 3.0</span>
-          </div>
-        </div>
-
-        {/* Tab navigation */}
-        <div className="border-t bg-muted/30 px-4">
-          <div className="container mx-auto flex gap-1 overflow-x-auto">
+      <AppNavbar title="Administración SimuVerse 3.0">
+        {/* Tab navigation row */}
+        <div className="px-4 container mx-auto flex gap-1 overflow-x-auto py-1">
             <Button
               variant={currentTab === 'courses' ? 'default' : 'ghost'}
               size="sm"
@@ -474,8 +489,7 @@ const AdminPanel = () => {
               Avaladores
             </Button>
           </div>
-        </div>
-      </header>
+        </AppNavbar>
 
       <main className="container mx-auto px-4 py-8">
         {/* Courses Tab */}
@@ -651,6 +665,201 @@ const AdminPanel = () => {
                       </div>
                       <div className="flex flex-wrap gap-1">{form.eval_criteria.map((c, i) => <Badge key={i} variant="outline" className="cursor-pointer" onClick={() => setForm(p => ({ ...p, eval_criteria: p.eval_criteria.filter((_, j) => j !== i) }))}>{c} ×</Badge>)}</div>
                     </div>
+
+                    {/* ─── Crisis Engine Config ─────────────────────────────── */}
+                    {form.modules.includes('crisis_engine') && (
+                      <div className="space-y-3 p-4 rounded-lg border border-dashed border-orange-300 bg-orange-50/60 dark:bg-orange-950/20">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-base font-semibold text-orange-800 dark:text-orange-300 flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4" />
+                            🚨 Configuración del Motor de Crisis
+                          </Label>
+                          <Badge variant="outline" className="text-xs text-orange-700 border-orange-300">
+                            {form.crisis_events.length} evento{form.crisis_events.length !== 1 ? 's' : ''} personalizado{form.crisis_events.length !== 1 ? 's' : ''}
+                          </Badge>
+                        </div>
+
+                        {/* Info sobre eventos built-in */}
+                        <div className="bg-white/60 dark:bg-black/20 rounded-md px-3 py-2 text-xs text-orange-700 dark:text-orange-400 space-y-1">
+                          <p className="font-semibold">Eventos incorporados según categoría del curso:</p>
+                          <ul className="space-y-0.5 ml-2">
+                            <li>• <strong>administracion / contable:</strong> Error en liquidación de sueldos · Auditoría AFIP sorpresa</li>
+                            <li>• <strong>rrhh:</strong> Renuncia masiva · Denuncia por acoso laboral</li>
+                            <li>• <strong>informatica:</strong> Servidor de producción caído · Brecha de seguridad activa</li>
+                            <li>• <strong>emprendimiento / ventas / legal / general:</strong> Proveedor cancela contrato · Competidor lanza producto similar</li>
+                          </ul>
+                          <p className="mt-1 text-orange-600">Los eventos personalizados que agregues tendrán <strong>prioridad</strong> sobre los incorporados.</p>
+                        </div>
+
+                        {/* Lista de eventos personalizados existentes */}
+                        {form.crisis_events.length > 0 && (
+                          <div className="space-y-2">
+                            {form.crisis_events.map((evt, idx) => (
+                              <div key={idx} className="border border-orange-200 bg-white/80 dark:bg-black/20 rounded-md overflow-hidden">
+                                <button
+                                  type="button"
+                                  className="w-full text-left px-3 py-2 flex items-center justify-between hover:bg-orange-50/60 transition-colors"
+                                  onClick={() => setExpandedCrisis(expandedCrisis === idx ? null : idx)}
+                                >
+                                  <span className="text-sm font-medium truncate">{evt.title || `Evento #${idx + 1}`}</span>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <Badge variant="outline" className={`text-xs ${evt.severity === 'high' ? 'border-red-300 text-red-600' : evt.severity === 'medium' ? 'border-yellow-300 text-yellow-600' : 'border-green-300 text-green-600'}`}>
+                                      {evt.severity === 'high' ? 'Alta' : evt.severity === 'medium' ? 'Media' : 'Baja'}
+                                    </Badge>
+                                    {expandedCrisis === idx ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                  </div>
+                                </button>
+                                {expandedCrisis === idx && (
+                                  <div className="px-3 pb-3 pt-1 space-y-2 border-t border-orange-100">
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Título</Label>
+                                      <Input
+                                        value={evt.title}
+                                        onChange={e => setForm(p => { const ev = [...p.crisis_events]; ev[idx] = { ...ev[idx], title: e.target.value }; return { ...p, crisis_events: ev }; })}
+                                        className="text-sm h-8"
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Descripción de la crisis</Label>
+                                      <Textarea
+                                        value={evt.description}
+                                        onChange={e => setForm(p => { const ev = [...p.crisis_events]; ev[idx] = { ...ev[idx], description: e.target.value }; return { ...p, crisis_events: ev }; })}
+                                        rows={2}
+                                        className="text-sm"
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Severidad</Label>
+                                      <Select value={evt.severity} onValueChange={v => setForm(p => { const ev = [...p.crisis_events]; ev[idx] = { ...ev[idx], severity: v as any }; return { ...p, crisis_events: ev }; })}>
+                                        <SelectTrigger className="text-sm h-8"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="low">🟢 Baja</SelectItem>
+                                          <SelectItem value="medium">🟡 Media</SelectItem>
+                                          <SelectItem value="high">🔴 Alta</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label className="text-xs font-semibold">Opciones de respuesta (A · B · C)</Label>
+                                      {evt.options.map((opt, oi) => (
+                                        <div key={oi} className="grid grid-cols-[1fr_64px] gap-2 items-start">
+                                          <div className="space-y-1">
+                                            <Input
+                                              placeholder={`Opción ${String.fromCharCode(65 + oi)}: texto de respuesta...`}
+                                              value={opt.text}
+                                              onChange={e => setForm(p => { const ev = [...p.crisis_events]; const ops = [...ev[idx].options] as CrisisEventConfig['options']; ops[oi] = { ...ops[oi], text: e.target.value }; ev[idx] = { ...ev[idx], options: ops }; return { ...p, crisis_events: ev }; })}
+                                              className="text-xs h-7"
+                                            />
+                                            <Input
+                                              placeholder="Feedback pedagógico..."
+                                              value={opt.feedback}
+                                              onChange={e => setForm(p => { const ev = [...p.crisis_events]; const ops = [...ev[idx].options] as CrisisEventConfig['options']; ops[oi] = { ...ops[oi], feedback: e.target.value }; ev[idx] = { ...ev[idx], options: ops }; return { ...p, crisis_events: ev }; })}
+                                              className="text-xs h-7 text-muted-foreground"
+                                            />
+                                          </div>
+                                          <div className="space-y-1">
+                                            <Label className="text-xs text-center block">Puntaje</Label>
+                                            <Input
+                                              type="number"
+                                              min="0"
+                                              max="100"
+                                              value={opt.score}
+                                              onChange={e => setForm(p => { const ev = [...p.crisis_events]; const ops = [...ev[idx].options] as CrisisEventConfig['options']; ops[oi] = { ...ops[oi], score: parseInt(e.target.value) || 0 }; ev[idx] = { ...ev[idx], options: ops }; return { ...p, crisis_events: ev }; })}
+                                              className="text-xs h-7 text-center"
+                                            />
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      variant="destructive"
+                                      size="sm"
+                                      className="w-full mt-1 h-7 text-xs"
+                                      onClick={() => setForm(p => ({ ...p, crisis_events: p.crisis_events.filter((_, j) => j !== idx) }))}
+                                    >
+                                      <Trash2 className="w-3 h-3 mr-1" /> Eliminar evento
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Agregar nuevo evento */}
+                        {!showCrisisForm ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full border-orange-300 text-orange-700 hover:bg-orange-50"
+                            onClick={() => { setShowCrisisForm(true); setNewCrisis({ ...emtpyCrisisEvent, options: [...emtpyCrisisEvent.options] as CrisisEventConfig['options'] }); }}
+                          >
+                            <Plus className="w-4 h-4 mr-1" /> Agregar evento personalizado
+                          </Button>
+                        ) : (
+                          <div className="border border-orange-300 bg-white/80 dark:bg-black/20 rounded-md p-3 space-y-3">
+                            <Label className="text-sm font-semibold">Nuevo evento de crisis</Label>
+                            <Input placeholder="Título del evento" value={newCrisis.title} onChange={e => setNewCrisis(p => ({ ...p, title: e.target.value }))} className="text-sm" />
+                            <Textarea placeholder="Descripción detallada de la situación de crisis..." value={newCrisis.description} onChange={e => setNewCrisis(p => ({ ...p, description: e.target.value }))} rows={2} className="text-sm" />
+                            <Select value={newCrisis.severity} onValueChange={v => setNewCrisis(p => ({ ...p, severity: v as any }))}>
+                              <SelectTrigger className="text-sm h-8"><SelectValue placeholder="Severidad" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="low">🟢 Baja</SelectItem>
+                                <SelectItem value="medium">🟡 Media</SelectItem>
+                                <SelectItem value="high">🔴 Alta</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <div className="space-y-2">
+                              <Label className="text-xs font-semibold">3 opciones de respuesta (la A debe ser la mejor)</Label>
+                              {newCrisis.options.map((opt, oi) => (
+                                <div key={oi} className="grid grid-cols-[1fr_64px] gap-2 items-start">
+                                  <div className="space-y-1">
+                                    <Input
+                                      placeholder={`Opción ${String.fromCharCode(65 + oi)}: texto...`}
+                                      value={opt.text}
+                                      onChange={e => setNewCrisis(p => { const ops = [...p.options] as CrisisEventConfig['options']; ops[oi] = { ...ops[oi], text: e.target.value }; return { ...p, options: ops }; })}
+                                      className="text-xs h-7"
+                                    />
+                                    <Input
+                                      placeholder="Feedback..."
+                                      value={opt.feedback}
+                                      onChange={e => setNewCrisis(p => { const ops = [...p.options] as CrisisEventConfig['options']; ops[oi] = { ...ops[oi], feedback: e.target.value }; return { ...p, options: ops }; })}
+                                      className="text-xs h-7 text-muted-foreground"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs text-center block">Pts</Label>
+                                    <Input
+                                      type="number" min="0" max="100"
+                                      value={opt.score}
+                                      onChange={e => setNewCrisis(p => { const ops = [...p.options] as CrisisEventConfig['options']; ops[oi] = { ...ops[oi], score: parseInt(e.target.value) || 0 }; return { ...p, options: ops }; })}
+                                      className="text-xs h-7 text-center"
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="flex-1 bg-orange-600 hover:bg-orange-700"
+                                onClick={() => {
+                                  if (!newCrisis.title.trim()) return;
+                                  setForm(p => ({ ...p, crisis_events: [...p.crisis_events, { ...newCrisis }] }));
+                                  setShowCrisisForm(false);
+                                }}
+                              >
+                                <Plus className="w-4 h-4 mr-1" /> Agregar
+                              </Button>
+                              <Button type="button" variant="ghost" size="sm" onClick={() => setShowCrisisForm(false)}>Cancelar</Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Empresa Simulada */}
                     {simCompanies.length > 0 && (

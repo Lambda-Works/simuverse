@@ -327,26 +327,60 @@ export class CrisisEngine {
   }
 
   /**
-   * Devuelve el evento de crisis activo para una simulación.
-   * Si no existe, genera uno nuevo basado en la familia del curso.
+   * Convierte un evento custom (CrisisEventConfig del frontend) al formato interno CrisisEvent.
    */
-  getOrCreateCrisis(simulationId: string, courseFamily: string): CrisisEvent {
+  private customToEvent(raw: any, simulationId: string): CrisisEvent {
+    const options: CrisisOption[] = (Array.isArray(raw.options) ? raw.options : []).map((opt: any, i: number) => ({
+      id: String.fromCharCode(97 + i),  // 'a', 'b', 'c'
+      text: opt.text || `Opción ${i + 1}`,
+      score: Number(opt.score) || 0,
+      feedback: opt.feedback || '',
+      tags: [],
+    }));
+
+    return {
+      id: `crisis-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      simulationId,
+      courseFamily: 'custom',
+      status: 'active',
+      startedAt: new Date(),
+      title: raw.title || '🚨 Situación crítica',
+      description: raw.description || '',
+      severity: raw.severity || 'medium',
+      options,
+    };
+  }
+
+  /**
+   * Devuelve el evento de crisis activo para una simulación.
+   * Si no existe, genera uno nuevo.
+   * Si el curso tiene crisis_events personalizados (formato CrisisEventConfig[]) los usa
+   * con prioridad sobre el banco incorporado.
+   */
+  getOrCreateCrisis(simulationId: string, courseFamily: string, customEvents?: any[]): CrisisEvent {
     if (activeEvents.has(simulationId)) {
       return activeEvents.get(simulationId)!;
     }
 
-    const pool = this.getCrisisPool(courseFamily);
-    // Seleccionar aleatoriamente
-    const template = pool[Math.floor(Math.random() * pool.length)];
+    let event: CrisisEvent;
 
-    const event: CrisisEvent = {
-      id: `crisis-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      simulationId,
-      courseFamily,
-      status: 'active',
-      startedAt: new Date(),
-      ...template,
-    };
+    if (Array.isArray(customEvents) && customEvents.length > 0) {
+      // Usar eventos personalizados del curso
+      const raw = customEvents[Math.floor(Math.random() * customEvents.length)];
+      event = this.customToEvent(raw, simulationId);
+    } else {
+      // Usar banco incorporado según familia
+      const pool = this.getCrisisPool(courseFamily);
+      const template = pool[Math.floor(Math.random() * pool.length)];
+      event = {
+        id: `crisis-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        simulationId,
+        courseFamily,
+        status: 'active',
+        startedAt: new Date(),
+        ...template,
+      };
+    }
 
     activeEvents.set(simulationId, event);
     return event;

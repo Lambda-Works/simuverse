@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
+import { AppNavbar } from '@/components/AppNavbar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -155,41 +156,18 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card/80 backdrop-blur-xl sticky top-0 z-50">
-        <div className="container mx-auto px-3 sm:px-4 py-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Shield className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-lg">MSM</span>
-          </div>
-          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
-            {/* Nombre del usuario: visible solo en pantallas medianas+ */}
-            <span className="hidden md:block text-sm font-medium truncate max-w-32">{user?.name}</span>
-            {/* Badge de rol: icono siempre visible, texto solo en sm+ */}
-            <Badge variant="secondary" className={`${roleLabels[user?.role as keyof typeof roleLabels]?.color} text-xs gap-1 shrink-0`}>
-              {roleLabels[user?.role as keyof typeof roleLabels]?.icon}
-              <span className="hidden sm:inline">{roleLabels[user?.role as keyof typeof roleLabels]?.label}</span>
-            </Badge>
-            {hasRole('admin') && (
-              <Button variant="outline" size="sm" onClick={() => navigate('/admin')} className="shrink-0">
-                <Settings className="w-4 h-4 sm:mr-1" />
-                <span className="hidden sm:inline">Admin</span>
-              </Button>
-            )}
-            {(hasRole('teacher') || hasRole('admin')) && (
-              <Button variant="outline" size="sm" onClick={() => navigate('/evaluations')} className="shrink-0">
-                <BarChart3 className="w-4 h-4 sm:mr-1" />
-                <span className="hidden sm:inline">Evaluaciones</span>
-              </Button>
-            )}
-            <Button variant="ghost" size="sm" onClick={signOut} className="shrink-0" title="Cerrar sesión">
-              <LogOut className="w-4 h-4" />
+      {/* Header unificado con navegación por rol */}
+      <AppNavbar
+        title={isStudentOnly ? undefined : 'Panel de Control'}
+        rightContent={
+          hasRole('admin') ? (
+            <Button variant="outline" size="sm" onClick={() => navigate('/admin')} className="shrink-0 hidden md:flex">
+              <Settings className="w-4 h-4 sm:mr-1" />
+              <span className="hidden sm:inline">Admin</span>
             </Button>
-          </div>
-        </div>
-      </header>
+          ) : undefined
+        }
+      />
 
       {/* Main content */}
       <main className="container mx-auto px-4 py-8">

@@ -46,6 +46,47 @@ router.post('/start', authMiddleware, async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/simulations
+ * Lista todas las simulaciones con datos del alumno y curso — solo teacher/admin
+ */
+router.get('/', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const requester = (req as any).user;
+    if (!requester || (requester.role !== 'admin' && requester.role !== 'teacher')) {
+      return res.status(403).json({ error: 'Acceso denegado' });
+    }
+
+    const simulations = await AppDataSource.query(
+      `SELECT
+         s.id,
+         s.student_id       AS user_id,
+         s.student_id,
+         s.course_id,
+         s.status,
+         s.score,
+         s.started_at,
+         s.completed_at,
+         s.created_at,
+         u.name             AS user_name,
+         u.email            AS user_email,
+         c.title            AS course_title,
+         c.category         AS course_category,
+         (SELECT a.grade FROM assessments a WHERE a.simulation_id = s.id LIMIT 1) AS assessment_grade,
+         (SELECT a.evaluated_at FROM assessments a WHERE a.simulation_id = s.id LIMIT 1) AS evaluated_at
+       FROM simulations s
+       LEFT JOIN users u ON u.id = s.student_id
+       LEFT JOIN courses c ON c.id = s.course_id
+       ORDER BY s.created_at DESC
+       LIMIT 500`
+    );
+
+    res.json(simulations);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/simulations/:simulation_id
  * Obtener detalles de una simulación
  */
@@ -373,9 +414,11 @@ router.get('/:simulation_id/crisis', async (req: Request, res: Response) => {
     if (!sim) return res.status(404).json({ error: 'Simulación no encontrada' });
 
     const course = await courseService.getCourseById((sim as any).course_id);
-    const family = (course as any)?.family || 'default';
+    const family = (course as any)?.category || (course as any)?.family || 'default';
+    const customEvents = (course as any)?.crisis_events;
+    const parsedCustomEvents = typeof customEvents === 'string' ? JSON.parse(customEvents) : (Array.isArray(customEvents) ? customEvents : null);
 
-    const crisis = crisisEngine.getOrCreateCrisis(req.params.simulation_id, family);
+    const crisis = crisisEngine.getOrCreateCrisis(req.params.simulation_id, family, parsedCustomEvents || undefined);
     res.json(crisis);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

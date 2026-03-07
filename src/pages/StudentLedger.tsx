@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
+import { AppNavbar } from '@/components/AppNavbar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -273,22 +274,17 @@ const StudentLedger = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card/80 backdrop-blur-xl sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3 flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">Volver</span>
-          </Button>
-          <FileText className="w-5 h-5 text-primary" />
-          <div>
-            <span className="font-bold text-lg">Legajo del Alumno</span>
-            <span className="text-muted-foreground text-sm ml-2">· {student.name}</span>
-          </div>
-          <Badge variant="outline" className="ml-auto text-xs text-muted-foreground gap-1">
+      <AppNavbar
+        title="Legajo del Alumno"
+        subtitle={student.name}
+        backTo="/legajos"
+        backLabel="Legajos"
+        rightContent={
+          <Badge variant="outline" className="text-xs text-muted-foreground gap-1 hidden sm:flex">
             <Shield className="w-3 h-3" /> Acceso restringido
           </Badge>
-        </div>
-      </header>
+        }
+      />
 
       <main className="container mx-auto px-4 py-8 space-y-8 max-w-5xl">
 
