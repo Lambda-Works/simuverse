@@ -2,6 +2,7 @@
  * ReportsABM.tsx — Panel de Reportes con Historia del Alumno
  */
 import React, { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -327,6 +328,43 @@ export function ReportsABM() {
     a.click();
   };
 
+  const handleExportExcel = () => {
+    // Hoja 1: Evaluaciones
+    const evRows = filtered.map(e => {
+      let kpis: Record<string, number> = {};
+      try { kpis = typeof e.kpi_results === 'string' ? JSON.parse(e.kpi_results) : (e.kpi_results || {}); } catch {}
+      return {
+        'Estudiante': e.student_name || e.student_id,
+        'Email': e.student_email || '',
+        'Curso': e.course_title || '—',
+        'Calificación': Number((e.overall_score || 0).toFixed(2)),
+        'Resultado': (e.overall_score || 0) >= 70 ? 'Aprobado' : 'Desaprobado',
+        'Completitud %': e.completion_percentage || 0,
+        'Tiempo (min)': Math.floor((e.time_spent_seconds || 0) / 60),
+        'Intento #': e.attempt_number || 1,
+        'Fecha': new Date(e.evaluated_at).toLocaleDateString('es-AR'),
+        'Feedback': e.overall_feedback || '',
+        ...Object.fromEntries(Object.entries(kpis).map(([k, v]) => [`KPI: ${k}`, Number(v)])),
+      };
+    });
+    // Hoja 2: Estadísticas por curso
+    const statRows = courseStats.map(s => ({
+      'Curso': s.title,
+      'Alumnos': s.total_students,
+      'Evaluaciones': s.total_evaluations,
+      'Promedio': Number(s.avg.toFixed(2)),
+      'Tasa Aprobación %': Math.round(
+        evaluations.filter(e => e.course_title === s.title && e.overall_score >= 70).length / s.total_evaluations * 100
+      ),
+    }));
+    const wb = XLSX.utils.book_new();
+    const ws1 = XLSX.utils.json_to_sheet(evRows);
+    const ws2 = XLSX.utils.json_to_sheet(statRows);
+    XLSX.utils.book_append_sheet(wb, ws1, 'Evaluaciones');
+    XLSX.utils.book_append_sheet(wb, ws2, 'Estadísticas');
+    XLSX.writeFile(wb, `simuverse_reporte_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   if (loading) return <div className="p-8 text-center">Cargando reportes...</div>;
 
   return (
@@ -336,7 +374,10 @@ export function ReportsABM() {
           <h2 className="text-2xl font-bold">Reportes y Análisis</h2>
           <p className="text-gray-600 mt-1">Hacé click en <GraduationCap className="inline w-4 h-4 text-blue-600" /> para ver la historia completa de un alumno</p>
         </div>
-        <Button onClick={handleExportCSV} className="bg-blue-600 hover:bg-blue-700"><Download className="w-4 h-4 mr-2" /> Exportar CSV</Button>
+        <div className="flex gap-2">
+          <Button onClick={handleExportCSV} variant="outline"><Download className="w-4 h-4 mr-2" /> CSV</Button>
+          <Button onClick={handleExportExcel} className="bg-green-600 hover:bg-green-700 text-white"><Download className="w-4 h-4 mr-2" /> Exportar Excel</Button>
+        </div>
       </div>
 
       {courseStats.length > 0 && (

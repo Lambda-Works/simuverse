@@ -7,7 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BookOpen, Play, Settings, BarChart3, LogOut, Shield, GraduationCap, Mail, Clock, CheckCircle2, User, Phone, CreditCard } from 'lucide-react';
+import { BookOpen, Play, Settings, BarChart3, LogOut, Shield, GraduationCap, Mail, Clock, CheckCircle2, User, Phone, CreditCard, Award, CalendarDays, Eye } from 'lucide-react';
+import { StudentReviewModal } from '@/components/StudentReviewModal';
+import { SimulationCalendar } from '@/components/SimulationCalendar';
 
 const API = 'http://localhost:5000/api';
 
@@ -32,7 +34,9 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [enrichedAssignments, setEnrichedAssignments] = useState<any[]>([]);
   const [assignmentsLoaded, setAssignmentsLoaded] = useState(false);
+  const [reviewModal, setReviewModal] = useState<{ instanceId: string; courseTitle: string } | null>(null);
 
   // Estado del formulario de solicitud de acceso
   const [form, setForm] = useState({ nombre: '', apellido: '', dni: '', celular: '', email: '' });
@@ -79,6 +83,13 @@ const Dashboard = () => {
 
         // Pre-llenar email del formulario
         setForm(prev => ({ ...prev, email: user.email || '' }));
+
+        // Fetch enriched assignments (con intentos, fechas, score, instance_id)
+        try {
+          const enriched = await fetch(`${API}/student-assignments/${user.id}`).then(r => r.json());
+          if (Array.isArray(enriched)) setEnrichedAssignments(enriched);
+        } catch { /* silent */ }
+
         setAssignmentsLoaded(true);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -382,37 +393,126 @@ const Dashboard = () => {
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {courses.map(course => (
-                  <Card
-                    key={course.id}
-                    className="glass-card hover:shadow-xl transition-all duration-300 group cursor-pointer"
-                    onClick={() => navigate(`/simulation/${course.id}`)}
-                  >
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <Badge variant="secondary" className="text-xs">{course.category}</Badge>
-                        {course.is_active && <span className="w-2 h-2 rounded-full bg-success animate-pulse" />}
-                      </div>
-                      <CardTitle className="text-lg mt-2 group-hover:text-primary transition-colors">{course.title}</CardTitle>
-                      <CardDescription className="line-clamp-2">{course.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex flex-wrap gap-1 mb-4">
-                        {(course.modules as string[])?.slice(0, 3).map((mod: string) => (
-                          <Badge key={mod} variant="outline" className="text-xs">{mod}</Badge>
-                        ))}
-                      </div>
-                      <Button className="w-full" variant="default">
-                        <Play className="w-4 h-4 mr-2" /> Iniciar Simulación
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+                {courses.map(course => {
+                  // Buscar asignación enriquecida para esta course
+                  const enriched = enrichedAssignments.find(a => a.course_id === course.id);
+                  const attemptsLeft = enriched ? Number(enriched.attempts_remaining ?? 99) : null;
+                  const hasScore = enriched && enriched.overall_score !== null;
+                  const passed = hasScore && Number(enriched.overall_score) >= 70;
+                  const calStatus = enriched?.calendar_status;
+
+                  return (
+                    <Card
+                      key={course.id}
+                      className={`glass-card hover:shadow-xl transition-all duration-300 group cursor-pointer ${calStatus === 'expired' ? 'opacity-60' : ''}`}
+                      onClick={() => calStatus !== 'expired' && navigate(`/simulation/${course.id}`)}
+                    >
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <Badge variant="secondary" className="text-xs">{course.category}</Badge>
+                          <div className="flex items-center gap-1.5">
+                            {calStatus === 'expired' && <Badge className="text-xs bg-red-100 text-red-700 border-red-300 border">Vencido</Badge>}
+                            {calStatus === 'upcoming' && <Badge className="text-xs bg-purple-100 text-purple-700 border-purple-300 border">Próximo</Badge>}
+                            {calStatus === 'completed' && <Badge className="text-xs bg-green-100 text-green-700 border-green-300 border">Completado</Badge>}
+                            {course.is_active && !calStatus && <span className="w-2 h-2 rounded-full bg-success animate-pulse" />}
+                          </div>
+                        </div>
+                        <CardTitle className="text-lg mt-2 group-hover:text-primary transition-colors">{course.title}</CardTitle>
+                        <CardDescription className="line-clamp-2">{course.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {(course.modules as string[])?.slice(0, 3).map((mod: string) => (
+                            <Badge key={mod} variant="outline" className="text-xs">{mod}</Badge>
+                          ))}
+                        </div>
+                        {/* Info de intentos / score */}
+                        {enriched && (
+                          <div className="flex items-center justify-between text-xs text-muted-foreground mb-3 bg-muted/40 rounded-md px-2 py-1.5">
+                            {attemptsLeft !== null && (
+                              <span className={`flex items-center gap-1 ${attemptsLeft === 0 ? 'text-red-600 font-semibold' : ''}`}>
+                                <Clock className="w-3 h-3" />
+                                {attemptsLeft > 0 ? `${attemptsLeft} intento${attemptsLeft !== 1 ? 's' : ''} restante${attemptsLeft !== 1 ? 's' : ''}` : 'Sin intentos'}
+                              </span>
+                            )}
+                            {hasScore && (
+                              <span className={`flex items-center gap-1 font-semibold ${passed ? 'text-green-600' : 'text-orange-600'}`}>
+                                {passed ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                                {Number(enriched.overall_score).toFixed(0)} pts
+                              </span>
+                            )}
+                            {enriched.end_date && (
+                              <span className="flex items-center gap-1">
+                                <CalendarDays className="w-3 h-3" />
+                                Vto: {new Date(enriched.end_date).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <Button
+                            className="flex-1"
+                            variant="default"
+                            disabled={calStatus === 'expired' || (attemptsLeft !== null && attemptsLeft === 0)}
+                            onClick={e => { e.stopPropagation(); navigate(`/simulation/${course.id}`); }}
+                          >
+                            <Play className="w-4 h-4 mr-2" /> {calStatus === 'completed' ? 'Re-intentar' : 'Iniciar'}
+                          </Button>
+                          {/* Botón revisión */}
+                          {enriched?.instance_id && (
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              title="Revisar mi simulación"
+                              onClick={e => { e.stopPropagation(); setReviewModal({ instanceId: enriched.instance_id, courseTitle: course.title }); }}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {/* Botón certificado */}
+                          {enriched?.instance_id && passed && (
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              title="Ver certificado"
+                              className="text-yellow-600 border-yellow-300 hover:bg-yellow-50"
+                              onClick={e => { e.stopPropagation(); navigate(`/certificate/${enriched.instance_id}`); }}
+                            >
+                              <Award className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Mini calendario del alumno */}
+            {isStudentOnly && enrichedAssignments.length > 0 && (
+              <div className="mt-10">
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <CalendarDays className="w-5 h-5 text-primary" />
+                  Mi Calendario de Simulaciones
+                </h2>
+                <SimulationCalendar studentId={user?.id} />
               </div>
             )}
           </>
         )}
       </main>
+
+      {/* Modal de revisión de simulación */}
+      {reviewModal && user && (
+        <StudentReviewModal
+          instanceId={reviewModal.instanceId}
+          studentId={user.id}
+          courseTitle={reviewModal.courseTitle}
+          open={!!reviewModal}
+          onClose={() => setReviewModal(null)}
+        />
+      )}
     </div>
   );
 };

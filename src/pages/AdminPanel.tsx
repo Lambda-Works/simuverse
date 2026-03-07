@@ -12,7 +12,11 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield, FolderOpen, FileUp, UserCheck, BarChart3, ClipboardList, Wand2, Copy, MessageSquare } from 'lucide-react';
+import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield, FolderOpen, FileUp, UserCheck, BarChart3, ClipboardList, Wand2, Copy, MessageSquare, Bell, CalendarDays, Users2 } from 'lucide-react';
+import { GlobalStatsDashboard } from '@/components/GlobalStatsDashboard';
+import { AccessRequestsPanel } from '@/components/AccessRequestsPanel';
+import { SimulationCalendar } from '@/components/SimulationCalendar';
+import { TeacherGroupsABM } from '@/components/TeacherGroupsABM';
 import { CategoriesABM } from '@/components/CategoriesABM';
 import { DocumentsABM } from '@/components/DocumentsABM';
 import { TechSheetsABM } from '@/components/TechSheetsABM';
@@ -150,7 +154,7 @@ const AdminPanel = () => {
   const [newCriterion, setNewCriterion] = useState('');
   const [newTrait, setNewTrait] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
-  const [currentTab, setCurrentTab] = useState<'courses' | 'categories' | 'documents' | 'techsheets' | 'assignments' | 'reports' | 'scenarios' | 'templates' | 'sessions' | 'users' | 'roles'>('courses');
+  const [currentTab, setCurrentTab] = useState<'courses' | 'categories' | 'documents' | 'techsheets' | 'assignments' | 'reports' | 'scenarios' | 'templates' | 'sessions' | 'users' | 'roles' | 'stats' | 'requests' | 'groups' | 'calendar'>('courses');
 
   useEffect(() => {
     if (!loading && (!user || !hasRole('admin'))) navigate('/dashboard');
@@ -374,6 +378,42 @@ const AdminPanel = () => {
               <Shield className="w-4 h-4 mr-2" />
               Roles y Permisos
             </Button>
+            <Button
+              variant={currentTab === 'stats' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentTab('stats')}
+              className="rounded-b-none"
+            >
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Estadísticas
+            </Button>
+            <Button
+              variant={currentTab === 'requests' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentTab('requests')}
+              className="rounded-b-none"
+            >
+              <Bell className="w-4 h-4 mr-2" />
+              Solicitudes
+            </Button>
+            <Button
+              variant={currentTab === 'groups' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentTab('groups')}
+              className="rounded-b-none"
+            >
+              <Users2 className="w-4 h-4 mr-2" />
+              Grupos
+            </Button>
+            <Button
+              variant={currentTab === 'calendar' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentTab('calendar')}
+              className="rounded-b-none"
+            >
+              <CalendarDays className="w-4 h-4 mr-2" />
+              Calendario
+            </Button>
           </div>
         </div>
       </header>
@@ -591,6 +631,18 @@ const AdminPanel = () => {
 
         {/* Roles & Permissions Tab */}
         {currentTab === 'roles' && <RolesABM />}
+
+        {/* Stats Tab */}
+        {currentTab === 'stats' && <GlobalStatsDashboard />}
+
+        {/* Access Requests Tab */}
+        {currentTab === 'requests' && <AccessRequestsPanel />}
+
+        {/* Teacher Groups Tab */}
+        {currentTab === 'groups' && <TeacherGroupsABM />}
+
+        {/* Calendar Tab */}
+        {currentTab === 'calendar' && <SimulationCalendar />}
       </main>
     </div>
   );

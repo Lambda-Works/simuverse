@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import AdminPanel from "./pages/AdminPanel";
 import SimulationPage from "./pages/SimulationPage";
 import EvaluationsPage from "./pages/EvaluationsPage";
+import CertificateView from "./pages/CertificateView";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/admin" element={<AdminPanel />} />
             <Route path="/simulation/:courseId" element={<SimulationPage />} />
             <Route path="/evaluations" element={<EvaluationsPage />} />
+            <Route path="/certificate/:instanceId" element={<CertificateView />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
