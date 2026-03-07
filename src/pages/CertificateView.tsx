@@ -15,6 +15,10 @@ interface CertificateData {
   overall_score: number;
   kpi_results: Record<string, number>;
   eval_criteria: string[];
+  // Ficha Técnica Ministerial
+  ministry_sheet_name?: string;
+  ministry_code?: string;
+  ministry_kpis?: Array<{ name: string; description?: string; category?: string }>;
   completed_at: string;
   time_spent_minutes: number;
   instance_id: string;
@@ -72,6 +76,7 @@ export default function CertificateView() {
   const scoreColor = cert.overall_score >= 85 ? '#16a34a' : cert.overall_score >= 70 ? '#d97706' : '#dc2626';
   const distinction = cert.overall_score >= 85;
   const kpiEntries = Object.entries(cert.kpi_results);
+  const hasMinistryKPIs = cert.ministry_kpis && cert.ministry_kpis.length > 0;
   const completedDate = new Date(cert.completed_at).toLocaleDateString('es-AR', {
     year: 'numeric', month: 'long', day: 'numeric'
   });
@@ -164,15 +169,49 @@ export default function CertificateView() {
               </div>
             </div>
 
-            {/* KPIs evaluados */}
+            {/* ── SECCIÓN 1: KPIs ministeriales de la Ficha Técnica ── */}
+            {hasMinistryKPIs && (
+              <div className="mb-8 px-4">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <div className="h-px flex-1 bg-purple-200" />
+                  <h3 className="text-center text-sm font-bold text-purple-800 uppercase tracking-widest px-3">
+                    📋 Competencias Ministeriales Acreditadas
+                  </h3>
+                  <div className="h-px flex-1 bg-purple-200" />
+                </div>
+                {cert.ministry_sheet_name && (
+                  <p className="text-center text-[10px] text-purple-500 mb-3 italic">
+                    Ficha Técnica: <strong>{cert.ministry_sheet_name}</strong>
+                    {cert.ministry_code && <> · Código: <strong>{cert.ministry_code}</strong></>}
+                    {' '}· Ministerio de Educación de la Provincia de Santa Fe
+                  </p>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  {cert.ministry_kpis!.map((kpi, i) => (
+                    <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-purple-50 border border-purple-200">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-purple-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-semibold text-purple-900">{kpi.name}</p>
+                        {kpi.description && <p className="text-[10px] text-purple-600 mt-0.5">{kpi.description}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── SECCIÓN 2: KPIs del docente con puntaje numérico ── */}
             {kpiEntries.length > 0 && (
               <div className="mb-8 px-4">
-                <h3 className="text-center text-sm font-bold text-gray-700 uppercase tracking-widest mb-4 pb-2 border-b">
-                  Criterios de Evaluación (KPIs)
-                </h3>
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <div className="h-px flex-1 bg-gray-200" />
+                  <h3 className="text-center text-sm font-bold text-gray-700 uppercase tracking-widest px-3">
+                    📊 Indicadores de Desempeño (KPIs)
+                  </h3>
+                  <div className="h-px flex-1 bg-gray-200" />
+                </div>
                 <div className="text-xs text-center text-gray-500 mb-4 italic">
-                  Los siguientes indicadores fueron establecidos por el equipo docente para la acreditación de esta simulación.
-                  El umbral de aprobación por KPI es de <strong>70 puntos</strong>.
+                  Indicadores establecidos por el equipo docente · Umbral de aprobación: <strong>70 puntos</strong>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   {kpiEntries.map(([kpi, score]) => {
@@ -202,12 +241,16 @@ export default function CertificateView() {
               </div>
             )}
 
-            {/* Criterios de evaluación listados si no hay KPI numérico */}
+            {/* ── SECCIÓN 3: Criterios del docente (sin puntaje numérico) ── */}
             {kpiEntries.length === 0 && cert.eval_criteria.length > 0 && (
               <div className="mb-8 px-4">
-                <h3 className="text-center text-sm font-bold text-gray-700 uppercase tracking-widest mb-3 pb-2 border-b">
-                  Criterios de Evaluación
-                </h3>
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <div className="h-px flex-1 bg-gray-200" />
+                  <h3 className="text-center text-sm font-bold text-gray-700 uppercase tracking-widest px-3">
+                    Criterios de Evaluación
+                  </h3>
+                  <div className="h-px flex-1 bg-gray-200" />
+                </div>
                 <ul className="grid grid-cols-2 gap-2">
                   {cert.eval_criteria.map((c, i) => (
                     <li key={i} className="flex items-center gap-2 text-xs text-gray-700">

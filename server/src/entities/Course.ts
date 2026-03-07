@@ -41,6 +41,9 @@ export class Course {
   @Column({ type: 'json', nullable: true })
   crisis_events?: any;
 
+  @Column({ type: 'int', nullable: true })
+  tech_sheet_id?: number | null;
+
   @Column({ type: 'boolean', default: true })
   is_active!: boolean;
 

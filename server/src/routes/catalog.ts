@@ -1170,7 +1170,9 @@ router.get('/certificates/:instance_id', async (req: Request, res: Response) => 
     const rows = await AppDataSource.query(`
       SELECT si.*, u.name as student_name, u.email as student_email,
         sc.title as scenario_title, sc.eval_criteria,
-        c.title as course_title, c.category as course_category
+        c.title as course_title, c.category as course_category,
+        c.eval_criteria as course_eval_criteria,
+        c.tech_sheet_id as course_tech_sheet_id
       FROM simulation_instances si
       LEFT JOIN users u ON u.id = si.student_id
       LEFT JOIN scenarios sc ON sc.id = si.scenario_id
@@ -1192,8 +1194,43 @@ router.get('/certificates/:instance_id', async (req: Request, res: Response) => 
     }
     let kpiResults: Record<string, number> = {};
     try { kpiResults = typeof evaluation.kpi_results === 'string' ? JSON.parse(evaluation.kpi_results) : (evaluation.kpi_results || {}); } catch {}
+
+    // Criterios del docente: priorizar del curso, fallback al escenario
     let evalCriteria: string[] = [];
-    try { evalCriteria = typeof inst.eval_criteria === 'string' ? JSON.parse(inst.eval_criteria) : (inst.eval_criteria || []); } catch {}
+    try {
+      const raw = inst.course_eval_criteria || inst.eval_criteria;
+      evalCriteria = typeof raw === 'string' ? JSON.parse(raw) : (raw || []);
+    } catch {}
+
+    // KPIs ministeriales: si el curso tiene ficha técnica vinculada
+    let ministryKPIs: Array<{ name: string; description: string; category: string }> = [];
+    let ministrySheetName = '';
+    let ministryCode = '';
+    if (inst.course_tech_sheet_id) {
+      try {
+        const sheets = await AppDataSource.query(
+          'SELECT name, ministry_code, kpi_requirements, extracted_data FROM tech_sheets WHERE id = ?',
+          [inst.course_tech_sheet_id]
+        );
+        if (sheets.length) {
+          const sheet = sheets[0];
+          ministrySheetName = sheet.name || '';
+          ministryCode = sheet.ministry_code || '';
+          // kpi_requirements contiene los KPIs formales de la ficha
+          let kpis: any[] = [];
+          try { kpis = typeof sheet.kpi_requirements === 'string' ? JSON.parse(sheet.kpi_requirements) : (sheet.kpi_requirements || []); } catch {}
+          // Fallback: usar eval_criteria extraídos por IA si no hay kpi_requirements
+          if (!kpis.length && sheet.extracted_data) {
+            try {
+              const ed = typeof sheet.extracted_data === 'string' ? JSON.parse(sheet.extracted_data) : sheet.extracted_data;
+              kpis = (ed?.eval_criteria || []).map((c: string) => ({ name: c, description: '', category: 'ministerial' }));
+            } catch {}
+          }
+          ministryKPIs = kpis;
+        }
+      } catch {}
+    }
+
     res.json({
       certificate_id: `CERT-${instance_id.substring(0, 8).toUpperCase()}`,
       student_name: inst.student_name,
@@ -1204,6 +1241,10 @@ router.get('/certificates/:instance_id', async (req: Request, res: Response) => 
       overall_score: Number(evaluation.overall_score),
       kpi_results: kpiResults,
       eval_criteria: evalCriteria,
+      // Datos ministeriales (ficha técnica)
+      ministry_sheet_name: ministrySheetName,
+      ministry_code: ministryCode,
+      ministry_kpis: ministryKPIs,
       completed_at: inst.completed_at || evaluation.evaluated_at,
       time_spent_minutes: Math.round((inst.time_spent_seconds || 0) / 60),
       instance_id,
