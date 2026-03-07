@@ -17,11 +17,26 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const CORS_ORIGINS = (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:8082').split(',').map(url => url.trim());
 
+// En desarrollo aceptamos cualquier origen localhost (evita problemas de puerto)
+const corsOriginFn = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+  // Permite requests sin origen (curl, Postman, server-to-server)
+  if (!origin) return callback(null, true);
+  // En desarrollo: permite cualquier localhost independientemente del puerto
+  if (process.env.NODE_ENV !== 'production' && /^https?:\/\/localhost(:\d+)?$/.test(origin)) {
+    return callback(null, true);
+  }
+  // En producción: solo orígenes explícitamente listados
+  if (CORS_ORIGINS.includes(origin)) {
+    return callback(null, true);
+  }
+  callback(new Error(`CORS: origen no permitido: ${origin}`));
+};
+
 // Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cors({ 
-  origin: CORS_ORIGINS,
+  origin: corsOriginFn,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
