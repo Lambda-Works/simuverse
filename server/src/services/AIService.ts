@@ -9,10 +9,109 @@ export interface PromptData {
   personality_traits: string[];
 }
 
+/** Resultado de una llamada a IA */
+export interface AIResponse {
+  response: string;
+  mode: 'live' | 'scripted';
+}
+
+/** Contexto del escenario para el motor de fallback offline */
+export interface FallbackContext {
+  scenarioContext?: string;
+  constraints?: string[];
+  base_role?: string;
+  course_context?: string;
+}
+
 export class AIService {
   private geminiApiKey = env.GEMINI_API_KEY;
   private openaiApiKey = env.OPENAI_API_KEY;
   private geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+
+  // ─── Motor de fallback offline ─────────────────────────────────────────────
+
+  /** Detecta la intención del mensaje del alumno */
+  private detectIntent(msg: string): string {
+    const m = msg.toLowerCase();
+    if (/^(hola|buenos|buenas|buen\s|saludos|hi\b|hey\b)/.test(m)) return 'greeting';
+    if (/(problema|error|falla|urgente|crisis|inconveniente|rompió|caído|alerta)/.test(m)) return 'problem';
+    if (/(propongo|sugiero|creo que|deberíamos|podríamos|mi propuesta|solución|planteo)/.test(m)) return 'proposal';
+    if (/(reporte|informe|datos|estadística|cifra|número|resultado|balance|liquidación|cálculo)/.test(m)) return 'data';
+    if (/(cómo|qué|cuándo|dónde|por qué|cuál|quién|\?)/.test(m)) return 'question';
+    return 'default';
+  }
+
+  /** Toma un hint de las constraints del escenario, rotando para no repetir */
+  private getConstraintHint(constraints?: string[]): string {
+    if (!constraints || constraints.length === 0) {
+      return 'el protocolo establecido';
+    }
+    const idx = Math.floor(Date.now() / 60000) % constraints.length;
+    return constraints[idx];
+  }
+
+  /** Hash simple de cadena para selección determinista de respuesta */
+  private hashStr(s: string): number {
+    let h = 0;
+    for (const c of s) h = (Math.imul(31, h) + c.charCodeAt(0)) | 0;
+    return Math.abs(h);
+  }
+
+  /**
+   * Genera una respuesta guionada coherente cuando la IA no está disponible.
+   * Las respuestas se basan en:
+   *  - La intención detectada del mensaje del alumno
+   *  - Las constraints del escenario
+   *  - El contexto del escenario
+   * El alumno NO ve ningún mensaje de error; recibe una respuesta en rol.
+   */
+  private generateFallbackResponse(
+    userMessage: string,
+    _systemPrompt: string,
+    ctx?: FallbackContext
+  ): string {
+    const intent = this.detectIntent(userMessage);
+    const constraint = this.getConstraintHint(ctx?.constraints);
+    const ctxSnippet = ctx?.scenarioContext
+      ? `Recordá el contexto del escenario: "${ctx.scenarioContext.substring(0, 90).trimEnd()}..."`
+      : '';
+
+    const banks: Record<string, string[]> = {
+      greeting: [
+        `¡Bien que estés aquí! Hay bastante trabajo por delante. ${ctxSnippet ? ctxSnippet + ' ' : ''}¿Por dónde querés empezar?`,
+        `Hola. Tenés acceso al sistema. Lo primero que debés tener en claro: ${constraint}. ¿Listos para arrancar?`,
+        `Bienvenido. Ya era momento. Recordá siempre: ${constraint}. ¿Cuál es tu primer paso?`,
+      ],
+      problem: [
+        `Entiendo la urgencia. Antes de actuar, recordá: ${constraint}. ¿Cuál es tu diagnóstico de la situación?`,
+        `Esta clase de situaciones requieren criterio. ${ctxSnippet ? ctxSnippet + ' ' : ''}¿Qué medidas tomaste hasta ahora?`,
+        `Serio esto. Para resolverlo tenés que tener presente: ${constraint}. Describí los pasos que vas a seguir.`,
+      ],
+      proposal: [
+        `Interesante planteo. Pero antes de avanzar, ¿tuviste en cuenta que ${constraint}? Desarrollá tu razonamiento.`,
+        `Puede funcionar. ${ctxSnippet ? ctxSnippet + ' ' : ''}¿Qué datos te respaldan?`,
+        `Antes de implementarlo, verificá que se ajuste a: ${constraint}. ¿Podés confirmarlo con documentación?`,
+      ],
+      data: [
+        `Los datos son claros. Ahora, ¿cómo los interpretás considerando que ${constraint}?`,
+        `Bien, tenés la información. El siguiente paso es analizarla con criterio. ${ctxSnippet ? ctxSnippet + ' ' : ''}¿Cuál es tu conclusión?`,
+        `Esos números son la base. Para avanzar también considerá: ${constraint}. ¿Qué decidís?`,
+      ],
+      question: [
+        `Para orientarte: ${constraint}. ${ctxSnippet ? ctxSnippet + ' ' : ''}Revisá los recursos disponibles y decime qué encontrás.`,
+        `Buena pregunta. Lo que necesitás saber es: ${constraint}. ¿Eso te ayuda a avanzar?`,
+        `El sistema tiene la respuesta. Pista: ${constraint}. Buscá en la documentación y volvé con lo que hallaste.`,
+      ],
+      default: [
+        `Seguimos avanzando. Recordá que ${constraint}. ¿Cuál es tu siguiente paso?`,
+        `Entendido. ${ctxSnippet ? ctxSnippet + ' ' : ''}Para continuar correctamente: ${constraint}. ¿Estamos alineados?`,
+        `Bien. El foco tiene que estar en: ${constraint}. Contame más sobre lo que tenés en mente.`,
+      ],
+    };
+
+    const pool = banks[intent] ?? banks.default;
+    return pool[this.hashStr(userMessage) % pool.length];
+  }
 
   /**
    * System Prompt Factory: Construye dinámicamente el prompt según el curso y contexto
@@ -42,15 +141,27 @@ INSTRUCCIONES CRÍTICAS:
   }
 
   /**
-   * Envía un mensaje a Gemini con contexto dinámico
+   * Envía un mensaje a Gemini con contexto dinámico.
+   * Si la API no está disponible (sin key, sin internet, timeout, error), activa
+   * automáticamente el motor de fallback offline — transparente para el alumno.
    */
   async sendMessageToGemini(
     userMessage: string,
     systemPrompt: string,
-    conversationHistory: Array<{ role: string; content: string }> = []
-  ): Promise<string> {
-    if (!this.geminiApiKey) {
-      return 'Error: API key de Gemini no configurada. Contacte al administrador.';
+    conversationHistory: Array<{ role: string; content: string }> = [],
+    fallbackCtx?: FallbackContext
+  ): Promise<AIResponse> {
+    const isKeyMissing =
+      !this.geminiApiKey ||
+      this.geminiApiKey === 'tu_gemini_api_key_aqui' ||
+      this.geminiApiKey.trim() === '';
+
+    if (isKeyMissing) {
+      console.warn('[AIService] Gemini key no configurada → modo scripted');
+      return {
+        response: this.generateFallbackResponse(userMessage, systemPrompt, fallbackCtx),
+        mode: 'scripted',
+      };
     }
 
     try {
@@ -85,15 +196,27 @@ INSTRUCCIONES CRÍTICAS:
       );
 
       const content = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      return content || 'Error procesando respuesta de IA.';
+      if (!content) {
+        console.warn('[AIService] Gemini devolvió respuesta vacía → modo scripted');
+        return {
+          response: this.generateFallbackResponse(userMessage, systemPrompt, fallbackCtx),
+          mode: 'scripted',
+        };
+      }
+      return { response: content, mode: 'live' };
+
     } catch (error: any) {
-      console.error('Error en Gemini API:', error.message);
-      return `Error de IA: ${error.message}`;
+      console.warn('[AIService] Gemini falló, activando fallback:', error.message);
+      return {
+        response: this.generateFallbackResponse(userMessage, systemPrompt, fallbackCtx),
+        mode: 'scripted',
+      };
     }
   }
 
   /**
-   * Análisis de desempeño del alumno usando IA
+   * Análisis de desempeño del alumno usando IA (con fallback offline).
+   * Si la IA no está disponible, genera una evaluación heurística basada en los logs.
    */
   async analyzStudentPerformance(
     course_id: string,
@@ -119,17 +242,59 @@ INSTRUCCIONES CRÍTICAS:
     const systemPrompt = 'Eres un evaluador pedagógico riguroso y justo. Devuelve SOLO JSON válido, sin explicaciones adicionales.';
 
     try {
-      const response = await this.sendMessageToGemini(analysisPrompt, systemPrompt);
-      // Intenta parsear la respuesta como JSON
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+      const aiResult = await this.sendMessageToGemini(analysisPrompt, systemPrompt);
+
+      if (aiResult.mode === 'scripted') {
+        // Fallback offline: evaluación heurística basada en logs
+        return this.buildHeuristicEvaluation(logs, evalCriteria);
       }
-      return { error: 'No se pudo parsear respuesta' };
+
+      const jsonMatch = aiResult.response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return { ...JSON.parse(jsonMatch[0]), ai_mode: 'live' };
+      }
+      return this.buildHeuristicEvaluation(logs, evalCriteria);
     } catch (error) {
       console.error('Error analizando desempeño:', error);
-      return { error: 'Error en análisis' };
+      return this.buildHeuristicEvaluation(logs, evalCriteria);
     }
+  }
+
+  /**
+   * Evaluación heurística offline: calcula puntuaciones a partir de los logs
+   * cuando la IA no está disponible.
+   */
+  private buildHeuristicEvaluation(logs: any[], evalCriteria: string[]): Record<string, any> {
+    const total = logs.length;
+    const messages = logs.filter(l => l.event_type === 'message_sent');
+    const correct = logs.filter(l => l.is_correct === 1).length;
+    const incorrect = logs.filter(l => l.is_correct === 0).length;
+    const evaluated = correct + incorrect;
+
+    const accuracy = evaluated > 0 ? Math.round((correct / evaluated) * 100) : 70;
+    const participation = Math.min(100, Math.round((messages.length / Math.max(1, total)) * 100 + 30));
+    const overall = Math.round((accuracy * 0.6 + participation * 0.4));
+
+    const hard_skills: Record<string, number> = {};
+    const soft_skills: Record<string, number> = {};
+
+    evalCriteria.forEach((c, i) => {
+      if (i % 2 === 0) hard_skills[c] = Math.max(50, accuracy + (i * 3) % 20 - 10);
+      else soft_skills[c] = Math.max(50, participation + (i * 5) % 20 - 10);
+    });
+
+    return {
+      hard_skills,
+      soft_skills,
+      overall_score: overall,
+      recommendations: [
+        overall < 70 ? 'Revisá los materiales del módulo y volvé a practicar los puntos débiles.' : 'Buen desempeño general. Continúa reforzando los conceptos avanzados.',
+        messages.length < 5 ? 'Intentá interactuar más con el simulador para obtener mejor retroalimentación.' : 'Excelente nivel de participación durante la simulación.',
+      ],
+      strengths: accuracy >= 70 ? ['Buena precisión en las respuestas', 'Comprensión del tema'] : ['Participación activa'],
+      areas_to_improve: accuracy < 70 ? ['Precisión en las respuestas', 'Profundización conceptual'] : ['Consistencia'],
+      ai_mode: 'scripted',
+    };
   }
 }
 

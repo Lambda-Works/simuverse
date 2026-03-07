@@ -2,7 +2,9 @@ import { Router, Request, Response } from 'express';
 import { simulationService, telemetryService } from '../services/SimulationService.js';
 import { courseService } from '../services/CourseService.js';
 import { authMiddleware } from '../middleware/AuthMiddleware.js';
-import { aiService } from '../services/AIService.js';
+import { aiService, FallbackContext } from '../services/AIService.js';
+import { crisisEngine } from '../services/CrisisEngine.js';
+import { rulesEngine } from '../services/RulesEngine.js';
 import { AppDataSource } from '../database/connection';
 
 const router = Router();
@@ -78,17 +80,31 @@ router.post('/:simulation_id/message', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Curso no encontrado' });
     }
 
+    // Obtener contenido del escenario para el fallback offline
+    const scenarioContent = await getScenarioContentForSim(req.params.simulation_id);
+    const fallbackCtx: FallbackContext = {
+      scenarioContext: scenarioContent?.context,
+      constraints: scenarioContent?.constraints,
+      base_role: (course.ai_config as any)?.base_role,
+      course_context: (course.ai_config as any)?.course_context,
+    };
+
     // Construir System Prompt dinámico
     const systemPrompt = aiService.buildSystemPrompt({
       base_role: (course.ai_config as any).base_role,
       course_context: (course.ai_config as any).course_context,
       knowledge_base: (course.ai_config as any).knowledge_base || '',
       personality_traits: (course.ai_config as any).personality_traits || [],
-      student_history: [], // TODO: Obtener del historial real
+      student_history: [],
     });
 
-    // Enviar a IA
-    const aiResponse = await aiService.sendMessageToGemini(message, systemPrompt, conversationHistory || []);
+    // Enviar a IA (con fallback automático si Gemini no está disponible)
+    const aiResult = await aiService.sendMessageToGemini(
+      message,
+      systemPrompt,
+      conversationHistory || [],
+      fallbackCtx
+    );
 
     const responseTime = Date.now() - startTime;
 
@@ -101,7 +117,8 @@ router.post('/:simulation_id/message', async (req: Request, res: Response) => {
       'message_sent',
       {
         message_length: message.length,
-        ai_response_length: aiResponse.length,
+        ai_response_length: aiResult.response.length,
+        ai_mode: aiResult.mode,
       },
       responseTime
     );
@@ -109,7 +126,8 @@ router.post('/:simulation_id/message', async (req: Request, res: Response) => {
     res.json({
       simulation_id: req.params.simulation_id,
       user_message: message,
-      ai_response: aiResponse,
+      ai_response: aiResult.response,
+      ai_mode: aiResult.mode,
       response_time_ms: responseTime,
     });
   } catch (error: any) {
@@ -132,8 +150,16 @@ router.post('/:simulation_id/action', async (req: Request, res: Response) => {
     }
 
     // Validar con el Rules Engine según el tipo de curso
-    // const validation = await rulesEngine.validate(course.family, action_type, actionData);
-    const validation = {}; // TODO: Implementar validación con Rules Engine
+    let validation: any = {};
+    try {
+      validation = await rulesEngine.validate(
+        (course as any).family || 'default',
+        action_type,
+        actionData
+      );
+    } catch (_) {
+      validation = { valid: true, note: 'Regla no evaluable para este tipo de acción' };
+    }
 
     const responseTime = Date.now() - startTime;
 
@@ -331,6 +357,185 @@ router.get('/:simulation_id/spreadsheet', async (req: Request, res: Response) =>
     const spreadsheet = content?.spreadsheet || null;
     res.json(spreadsheet);
   } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─── Crisis Engine ────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/simulations/:simulation_id/crisis
+ * Devuelve el evento de crisis activo (o genera uno nuevo).
+ */
+router.get('/:simulation_id/crisis', async (req: Request, res: Response) => {
+  try {
+    const sim = await simulationService.getSimulation(req.params.simulation_id);
+    if (!sim) return res.status(404).json({ error: 'Simulación no encontrada' });
+
+    const course = await courseService.getCourseById((sim as any).course_id);
+    const family = (course as any)?.family || 'default';
+
+    const crisis = crisisEngine.getOrCreateCrisis(req.params.simulation_id, family);
+    res.json(crisis);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/simulations/:simulation_id/crisis/respond
+ * El alumno responde al evento de crisis: { option_id: string }
+ */
+router.post('/:simulation_id/crisis/respond', async (req: Request, res: Response) => {
+  try {
+    const { option_id, user_id, course_id } = req.body;
+    if (!option_id) return res.status(400).json({ error: 'option_id requerido' });
+
+    const resolved = crisisEngine.resolvecrisis(req.params.simulation_id, option_id);
+    if (!resolved) {
+      return res.status(404).json({ error: 'Crisis no encontrada o ya resuelta' });
+    }
+
+    // Registrar la decisión en telemetría
+    if (user_id && course_id) {
+      await telemetryService.logAction(
+        req.params.simulation_id,
+        user_id,
+        course_id,
+        `Crisis resuelta: ${resolved.title}`,
+        'crisis_resolved',
+        {
+          crisis_id: resolved.id,
+          option_id,
+          score: resolved.score,
+          severity: resolved.severity,
+        }
+      );
+    }
+
+    res.json(resolved);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─── Evaluación automática ────────────────────────────────────────────────────
+
+/**
+ * POST /api/simulations/:simulation_id/evaluate
+ * Genera y guarda la evaluación de la simulación.
+ * Usa RulesEngine (offline) + IA (con fallback).
+ * Solo docentes y admins pueden disparar esto; el alumno lo ve al completar.
+ */
+router.post('/:simulation_id/evaluate', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const simId = req.params.simulation_id;
+    const requester = (req as any).user;
+
+    const sim = await simulationService.getSimulation(simId);
+    if (!sim) return res.status(404).json({ error: 'Simulación no encontrada' });
+
+    const course = await courseService.getCourseById((sim as any).course_id);
+    if (!course) return res.status(404).json({ error: 'Curso no encontrado' });
+
+    // Obtener logs de telemetría
+    const logs = await telemetryService.getSimulationLogs(simId);
+
+    // Criterios de evaluación según familia
+    const family: string = (course as any).family || 'default';
+    const criteriaMap: Record<string, string[]> = {
+      administracion: ['precisión_cálculo', 'cumplimiento_normativo', 'gestión_tiempo', 'documentación'],
+      rrhh: ['comunicación', 'empatía', 'resolución_conflictos', 'liderazgo'],
+      informatica: ['calidad_código', 'resolución_problemas', 'seguridad', 'documentación_técnica'],
+      emprendimiento: ['visión_estratégica', 'gestión_riesgo', 'comunicación_cliente', 'adaptabilidad'],
+    };
+    const evalCriteria = criteriaMap[family] || ['desempeño_general', 'participación', 'precisión'];
+
+    // Análisis de IA (con fallback heurístico si no hay clave)
+    const scenarioContent = await getScenarioContentForSim(simId);
+    const aiAnalysis = await aiService.analyzStudentPerformance(
+      (sim as any).course_id,
+      logs,
+      evalCriteria
+    );
+
+    // Aplicar Rules Engine sobre logs de acciones
+    const actionLogs = logs.filter(l => (l.action_type as string) === 'click' || (l.action_type as string) === 'action');
+    let rulesScore = 0;
+    let rulesCount = 0;
+    for (const log of actionLogs) {
+      try {
+        const r = await rulesEngine.validate(family, (log.metadata as any)?.action_type || 'generic', log.metadata);
+        if (typeof (r as any).score === 'number') { rulesScore += (r as any).score; rulesCount++; }
+      } catch (_) { /* skip */ }
+    }
+    const rulesAvg = rulesCount > 0 ? Math.round(rulesScore / rulesCount) : null;
+
+    // Puntaje final combinado
+    const aiScore = aiAnalysis.overall_score ?? 70;
+    const finalScore = rulesAvg !== null
+      ? Math.round(aiScore * 0.7 + rulesAvg * 0.3)
+      : aiScore;
+
+    // Crisis penalty/bonus
+    const crisisLog = logs.find(l => l.action_type === ('crisis_resolved' as any));
+    const crisisScore = (crisisLog?.metadata as any)?.score ?? null;
+    const crisisAdjust = crisisScore !== null ? Math.round((crisisScore - 50) * 0.1) : 0;
+    const adjustedScore = Math.max(0, Math.min(100, finalScore + crisisAdjust));
+
+    // Guardar en assessments
+    const passed = adjustedScore >= 70;
+    await AppDataSource.query(
+      `INSERT INTO assessments
+         (id, simulation_id, user_id, score, passed, kpis, ai_evaluation, recommendation, feedback, created_at, updated_at)
+       VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+       ON DUPLICATE KEY UPDATE
+         score = VALUES(score), passed = VALUES(passed), kpis = VALUES(kpis),
+         ai_evaluation = VALUES(ai_evaluation), recommendation = VALUES(recommendation),
+         feedback = VALUES(feedback), updated_at = NOW()`,
+      [
+        simId,
+        (sim as any).user_id,
+        adjustedScore,
+        passed ? 1 : 0,
+        JSON.stringify({
+          ...aiAnalysis.hard_skills,
+          ...(aiAnalysis.soft_skills || {}),
+          ...(crisisScore !== null ? { crisis_management: crisisScore } : {}),
+        }),
+        JSON.stringify(aiAnalysis),
+        aiAnalysis.recommendations?.[0] ?? null,
+        JSON.stringify({
+          strengths: aiAnalysis.strengths ?? [],
+          areas_to_improve: aiAnalysis.areas_to_improve ?? [],
+          ai_mode: aiAnalysis.ai_mode ?? 'scripted',
+          rules_score: rulesAvg,
+          crisis_score: crisisScore,
+        }),
+      ]
+    );
+
+    // También actualizar score en la simulación
+    await AppDataSource.query(
+      `UPDATE simulations SET progress_percentage = ? WHERE id = ?`,
+      [adjustedScore, simId]
+    );
+
+    res.json({
+      simulation_id: simId,
+      score: adjustedScore,
+      passed,
+      ai_mode: aiAnalysis.ai_mode ?? 'scripted',
+      kpis: {
+        ...aiAnalysis.hard_skills,
+        ...(aiAnalysis.soft_skills || {}),
+      },
+      analysis: aiAnalysis,
+      rules_score: rulesAvg,
+      crisis_score: crisisScore,
+    });
+  } catch (error: any) {
+    console.error('[evaluate]', error);
     res.status(500).json({ error: error.message });
   }
 });
