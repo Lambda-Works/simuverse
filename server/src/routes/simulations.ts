@@ -92,7 +92,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
  * 
  * 🔐 Data filtered by role:
  * - student: Only public scenario data
- * - teacher: Student data + evaluation
+ * - teacher: Student data + evaluation (+ admin_data if admin enabled it)
  * - ministerio: Teacher data + compliance
  * - admin: Everything (full access)
  */
@@ -106,11 +106,23 @@ router.get('/:simulation_id', authMiddleware, async (req: Request, res: Response
       return res.status(404).json({ error: 'Simulación no encontrada' });
     }
 
+    // Get admin configuration for teacher permissions
+    let teacherCanSeeAdminData = false;
+    if (userRole === 'teacher') {
+      try {
+        const { AdminSettingsService } = await import('../services/AdminSettingsService.js');
+        teacherCanSeeAdminData = await AdminSettingsService.shouldTeacherSeeAdminData();
+      } catch (error) {
+        console.warn('⚠️ Could not load admin settings, defaulting to false:', error);
+        teacherCanSeeAdminData = false;
+      }
+    }
+
     // Import the filter function
     const { filterSimulationByRole } = await import('../middleware/roleDataFilter.js');
     
-    // Apply role-based filtering
-    const filtered = filterSimulationByRole(simulation, userRole, userId);
+    // Apply role-based filtering with teacher permission setting
+    const filtered = filterSimulationByRole(simulation, userRole, userId, teacherCanSeeAdminData);
     
     res.json(filtered);
   } catch (error: any) {

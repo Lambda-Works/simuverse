@@ -391,4 +391,101 @@ router.delete('/courses/:course_id', async (req: Request, res: Response) => {
   }
 });
 
+// ========== TEACHER PERMISSIONS ==========
+
+/**
+ * GET /admin/teacher-permissions
+ * Get current teacher permissions configuration
+ */
+router.get('/teacher-permissions', async (req: Request, res: Response) => {
+  try {
+    const { AdminSettingsService } = await import('../services/AdminSettingsService');
+    const permissions = await AdminSettingsService.getTeacherPermissions();
+    
+    res.json({
+      success: true,
+      data: permissions,
+      message: 'Teacher permissions retrieved successfully',
+    });
+  } catch (error) {
+    console.error('❌ Error getting teacher permissions:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve teacher permissions',
+    });
+  }
+});
+
+/**
+ * PUT /admin/teacher-permissions
+ * Update teacher permissions configuration
+ * 
+ * Request body:
+ * {
+ *   can_see_ai_config?: boolean,
+ *   can_see_system_prompt?: boolean,
+ *   can_see_temperature?: boolean,
+ *   can_see_score_calculation?: boolean
+ * }
+ */
+router.put('/teacher-permissions', async (req: Request, res: Response) => {
+  try {
+    const { AdminSettingsService } = await import('../services/AdminSettingsService');
+    const { 
+      can_see_ai_config, 
+      can_see_system_prompt, 
+      can_see_temperature, 
+      can_see_score_calculation 
+    } = req.body;
+
+    // Validate request
+    const permissions: any = {};
+    
+    if (typeof can_see_ai_config === 'boolean') {
+      permissions.can_see_ai_config = can_see_ai_config;
+    }
+    if (typeof can_see_system_prompt === 'boolean') {
+      permissions.can_see_system_prompt = can_see_system_prompt;
+    }
+    if (typeof can_see_temperature === 'boolean') {
+      permissions.can_see_temperature = can_see_temperature;
+    }
+    if (typeof can_see_score_calculation === 'boolean') {
+      permissions.can_see_score_calculation = can_see_score_calculation;
+    }
+
+    if (Object.keys(permissions).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No valid permissions provided',
+        example: {
+          can_see_ai_config: true,
+          can_see_system_prompt: false,
+          can_see_temperature: false,
+          can_see_score_calculation: false,
+        },
+      });
+    }
+
+    // Update permissions
+    const updated = await AdminSettingsService.updateTeacherPermissions(permissions);
+
+    // Log the change
+    const adminId = (req as any).user?.userId || 'unknown';
+    console.log(`🔐 [AUDIT] Admin ${adminId} updated teacher permissions:`, updated);
+
+    res.json({
+      success: true,
+      data: updated,
+      message: 'Teacher permissions updated successfully',
+    });
+  } catch (error) {
+    console.error('❌ Error updating teacher permissions:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update teacher permissions',
+    });
+  }
+});
+
 export default router;
