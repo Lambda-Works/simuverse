@@ -70,10 +70,25 @@ const SimulationPage: React.FC = () => {
         const expectedObjectives = scenario.expected_outcomes?.main_objective || '';
         
         const introLines: string[] = [];
+        
+        // IMPROVED INTRO: More context and clarity for students
         if (scenarioTitle) introLines.push(`📚 ${scenarioTitle}`);
         if (scenarioContext) introLines.push(`\n${scenarioContext}`);
         if (expectedObjectives) introLines.push(`\n🎯 Tu objetivo:\n${expectedObjectives}`);
-        introLines.push('\n¿Por dónde querés empezar? Podés hacer preguntas, proponer soluciones o analizar la situación.');
+        
+        // ADD: Clear instructions if this is a crisis/operations scenario
+        if (scenarioTitle?.toLowerCase().includes('operación') || 
+            scenarioContext?.toLowerCase().includes('urgente') ||
+            expectedObjectives?.toLowerCase().includes('crisis')) {
+          introLines.push('\n⏱️  TIEMPO LÍMITE: Revisa tu bandeja (tienes mensajes urgentes)');
+          introLines.push('\n👉 COMIENZA AQUÍ:');
+          introLines.push('1. Abre la pestaña "Email" (abajo) → Lee los mensajes');
+          introLines.push('2. Entiende el problema');
+          introLines.push('3. Pregunta aquí a tu asesor si necesitas ayuda');
+          introLines.push('4. Toma decisiones y responde emails');
+        } else {
+          introLines.push('\n¿Por dónde querés empezar? Podés hacer preguntas, proponer soluciones o analizar la situación.');
+        }
         
         setChatMessages([{ role: 'assistant', message: introLines.join('\n'), timestamp: new Date() }]);
 
