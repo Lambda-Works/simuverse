@@ -62,15 +62,20 @@ const SimulationPage: React.FC = () => {
         const courseRes = await apiClient.get(`/courses/${courseId}`);
         setCourse(courseRes.data);
 
-        // Mensaje inicial de bienvenida con el escenario (siempre visible, sin necesitar IA)
-        const aiCfg = courseRes.data?.ai_config || {};
-        const introContext = aiCfg.course_context || courseRes.data?.description || '';
-        const introRole    = aiCfg.base_role || '';
+        // Mensaje inicial de bienvenida con el escenario (datos públicos SOLO)
+        // ✅ CORRECCIÓN: Usar SOLO student_data, NO aiCfg técnico
+        const scenario = courseRes.data?.scenario || {};
+        const scenarioTitle = scenario.title || courseRes.data?.title || 'Simulación';
+        const scenarioContext = scenario.content?.context || courseRes.data?.description || '';
+        const expectedObjectives = scenario.expected_outcomes?.main_objective || '';
+        
         const introLines: string[] = [];
-        if (introRole) introLines.push(`👤 ${introRole}`);
-        if (introContext) introLines.push(`\n📋 Escenario:\n${introContext}`);
+        if (scenarioTitle) introLines.push(`📚 ${scenarioTitle}`);
+        if (scenarioContext) introLines.push(`\n${scenarioContext}`);
+        if (expectedObjectives) introLines.push(`\n🎯 Tu objetivo:\n${expectedObjectives}`);
         introLines.push('\n¿Por dónde querés empezar? Podés hacer preguntas, proponer soluciones o analizar la situación.');
-        setChatMessages([{ role: 'ai', message: introLines.join('\n'), timestamp: new Date() }]);
+        
+        setChatMessages([{ role: 'assistant', message: introLines.join('\n'), timestamp: new Date() }]);
 
         // Create simulation (correct endpoint)
         const simRes = await apiClient.post('/simulations/start', {

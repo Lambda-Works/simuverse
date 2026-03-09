@@ -89,14 +89,30 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
 /**
  * GET /api/simulations/:simulation_id
  * Obtener detalles de una simulación
+ * 
+ * 🔐 Data filtered by role:
+ * - student: Only public scenario data
+ * - teacher: Student data + evaluation
+ * - ministerio: Teacher data + compliance
+ * - admin: Everything (full access)
  */
-router.get('/:simulation_id', async (req: Request, res: Response) => {
+router.get('/:simulation_id', authMiddleware, async (req: Request, res: Response) => {
   try {
+    const userRole = (req as any).user?.role || 'student';
+    const userId = (req as any).user?.userId;
+    
     const simulation = await simulationService.getSimulation(req.params.simulation_id);
     if (!simulation) {
       return res.status(404).json({ error: 'Simulación no encontrada' });
     }
-    res.json(simulation);
+
+    // Import the filter function
+    const { filterSimulationByRole } = await import('../middleware/roleDataFilter.js');
+    
+    // Apply role-based filtering
+    const filtered = filterSimulationByRole(simulation, userRole, userId);
+    
+    res.json(filtered);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
