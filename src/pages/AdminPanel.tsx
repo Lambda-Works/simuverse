@@ -288,7 +288,19 @@ const AdminPanel = () => {
       toast.success(response.data.message || 'Curso eliminado');
       fetchCourses();
     } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar el curso');
+      // Manejo de errores específicos
+      if (error.response?.status === 409) {
+        // Conflicto: El curso tiene asignaciones activas
+        const data = error.response.data;
+        toast.error(
+          `❌ No se puede eliminar.\n\n${data.reason}\n\n` +
+          `Asignaciones activas: ${data.activeAssignments}\n` +
+          `Asignaciones completadas: ${data.completedAssignments}\n\n` +
+          `💡 ${data.suggestion}`
+        );
+      } else {
+        toast.error(error.message || 'Error al eliminar el curso');
+      }
     }
   };
 

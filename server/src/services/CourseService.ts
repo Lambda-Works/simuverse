@@ -78,6 +78,54 @@ export class CourseService {
       await queryRunner.release();
     }
   }
+
+  /**
+   * Valida si un curso tiene asignaciones de simulaciones activas a estudiantes
+   * Si tiene asignaciones, NO se puede eliminar (solo desactivar)
+   */
+  async checkActiveAssignments(courseId: string) {
+    const connection = AppDataSource;
+    const queryRunner = connection.createQueryRunner();
+
+    try {
+      // Buscar asignaciones de simulaciones que NO están completadas
+      const result = await queryRunner.query(
+        `SELECT COUNT(*) as count FROM simulation_assignments 
+         WHERE course_id = ? AND status IN ('pending', 'in_progress')`,
+        [courseId]
+      );
+
+      const activeAssignments = result && result[0] ? result[0].count : 0;
+
+      if (activeAssignments > 0) {
+        // También obtener info sobre las asignaciones completadas
+        const completedResult = await queryRunner.query(
+          `SELECT COUNT(*) as count FROM simulation_assignments 
+           WHERE course_id = ? AND status = 'completed'`,
+          [courseId]
+        );
+        const completedAssignments = completedResult && completedResult[0] ? completedResult[0].count : 0;
+
+        return {
+          canDelete: false,
+          activeCount: activeAssignments,
+          completedCount: completedAssignments,
+          totalAssignments: activeAssignments + completedAssignments,
+          reason: `El curso tiene ${activeAssignments} asignación(es) activa(s) y ${completedAssignments} completada(s). No puede eliminarse, solo desactivarse.`
+        };
+      }
+
+      return {
+        canDelete: true,
+        activeCount: 0,
+        completedCount: 0,
+        totalAssignments: 0,
+        reason: 'Sin asignaciones activas'
+      };
+    } finally {
+      await queryRunner.release();
+    }
+  }
 }
 
 export const courseService = new CourseService();

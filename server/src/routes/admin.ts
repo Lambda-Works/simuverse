@@ -381,76 +381,118 @@ router.put('/courses/:course_id', async (req: Request, res: Response) => {
 /**
  * DELETE /admin/courses/:course_id
  * Delete course and all its dependencies
+ * 
+ * LÓGICA:
+ * 1. Si tiene ASIGNACIONES ACTIVAS → No permitir eliminación, sugerir desactivación
+ * 2. Si NO tiene asignaciones activas → Permitir eliminación en cascada dentro de transacción
+ * 
+ * TRANSACCIÓN SQL (líneas ~415-440):
+ * - DELETE FROM simulations WHERE course_id = ?
+ * - DELETE FROM scenarios WHERE course_id = ?
+ * - DELETE FROM course_modules WHERE course_id = ?
+ * - DELETE FROM course_config WHERE course_id = ?
+ * - DELETE FROM courses WHERE id = ?
+ * Si algo falla → ROLLBACK automático
  */
 router.delete('/courses/:course_id', async (req: Request, res: Response) => {
   const courseId = req.params.course_id;
   const queryRunner = AppDataSource.createQueryRunner();
   
   try {
-    // Primero validar si existen dependencias
+    // PASO 1: Validar si hay asignaciones activas de estudiantes
+    const assignmentStatus = await courseService.checkActiveAssignments(courseId);
+    
+    if (!assignmentStatus.canDelete) {
+      // El curso tiene asignaciones activas o completadas
+      return res.status(409).json({ 
+        success: false,
+        error: assignmentStatus.reason,
+        canDelete: false,
+        activeAssignments: assignmentStatus.activeCount,
+        completedAssignments: assignmentStatus.completedCount,
+        totalAssignments: assignmentStatus.totalAssignments,
+        suggestion: 'Desactiva el curso en lugar de eliminarlo con el botón Edit. Los estudiantes verán el curso como inactivo.'
+      });
+    }
+
+    // PASO 2: Validar si existen dependencias (escenarios, módulos, config, simulaciones)
     const dependencies = await courseService.checkCourseDependencies(courseId);
     
     if (Object.keys(dependencies).length > 0) {
-      // Si existen dependencias, iniciar transacción para eliminación en cascada
+      // PASO 3: Existen dependencias → Usar transacción para eliminación en cascada
       await queryRunner.connect();
       await queryRunner.startTransaction();
 
       try {
-        // Eliminar en orden inverso de dependencias
-        // 1. Eliminar simulations (depende de scenarios y course)
+        // ═══════════════════════════════════════════════════════════════════
+        // TRANSACCIÓN SQL - Eliminar en orden inverso de dependencias
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // 1️⃣ Eliminar simulations (depende de scenarios y course)
         await queryRunner.query(
           'DELETE FROM simulations WHERE course_id = ?',
           [courseId]
         );
 
-        // 2. Eliminar scenarios (depende de course)
+        // 2️⃣ Eliminar scenarios (depende de course)
         await queryRunner.query(
           'DELETE FROM scenarios WHERE course_id = ?',
           [courseId]
         );
 
-        // 3. Eliminar course_modules (depende de course)
+        // 3️⃣ Eliminar course_modules (depende de course)
         await queryRunner.query(
           'DELETE FROM course_modules WHERE course_id = ?',
           [courseId]
         );
 
-        // 4. Eliminar course_config (depende de course)
+        // 4️⃣ Eliminar course_config JSON (depende de course)
         await queryRunner.query(
           'DELETE FROM course_config WHERE course_id = ?',
           [courseId]
         );
 
-        // 5. Finalmente, eliminar el curso
+        // 5️⃣ Finalmente, eliminar el curso de la tabla courses
         await queryRunner.query(
           'DELETE FROM courses WHERE id = ?',
           [courseId]
         );
 
+        // 🔄 COMMIT - Si llegó acá, todo fue exitoso
         await queryRunner.commitTransaction();
         
         res.json({ 
           success: true,
           message: 'Curso eliminado exitosamente junto con todas sus dependencias',
-          deletedDependencies: dependencies
+          deletedItems: {
+            simulations: dependencies.simulations || 0,
+            scenarios: dependencies.scenarios || 0,
+            courseModules: dependencies.course_modules || 0,
+            courseConfig: dependencies.course_config ? 1 : 0,
+            course: 1
+          }
         });
       } catch (error) {
+        // ⚠️ ROLLBACK - Si algo falló, revertir TODOS los cambios
         await queryRunner.rollbackTransaction();
         throw error;
       }
     } else {
-      // Si no hay dependencias, solo eliminar el curso
+      // Sin dependencias → Solo eliminar el curso
       const result = await AppDataSource.getRepository(Course).delete(courseId);
       if (result.affected === 0) {
         return res.status(404).json({ error: 'Curso no encontrado' });
       }
       res.json({ 
         success: true,
-        message: 'Curso eliminado exitosamente'
+        message: 'Curso eliminado exitosamente (sin dependencias)'
       });
     }
   } catch (error) {
-    res.status(400).json({ error: (error as Error).message });
+    res.status(400).json({ 
+      success: false,
+      error: (error as Error).message 
+    });
   } finally {
     await queryRunner.release();
   }
