@@ -191,6 +191,7 @@ const AdminPanel = () => {
   };
   const [newCrisis, setNewCrisis] = useState<CrisisEventConfig>({ ...emtpyCrisisEvent, options: [...emtpyCrisisEvent.options] as CrisisEventConfig['options'] });
   const [currentTab, setCurrentTab] = useState<'courses' | 'categories' | 'documents' | 'techsheets' | 'assignments' | 'reports' | 'scenarios' | 'templates' | 'sessions' | 'users' | 'roles' | 'stats' | 'requests' | 'groups' | 'calendar' | 'companies' | 'foundation' | 'endorsers'>('courses');
+  const [courseFilter, setCourseFilter] = useState<'all' | 'active' | 'inactive'>('all'); // Filtro de cursos
 
   useEffect(() => {
     if (!loading && (!user || !hasRole('admin'))) navigate('/dashboard');
@@ -305,10 +306,14 @@ const AdminPanel = () => {
   };
 
   const handleDuplicate = async (course: any) => {
-    const newId = (course.course_id + '-COPIA').substring(0, 50);
+    // Generar ID único con timestamp + random para permitir duplicados múltiples
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    const newId = `${course.course_id}-COPIA-${timestamp}-${random}`.substring(0, 50);
+    
     const payload = {
       course_id: newId,
-      title: course.title + ' (Copia)',
+      title: course.title + ` (Copia ${new Date().toLocaleTimeString()})`,
       description: course.description || '',
       category: course.category,
       categories: Array.isArray(course.categories) ? course.categories : (course.category ? [course.category] : []),
@@ -316,7 +321,7 @@ const AdminPanel = () => {
       ai_config: course.ai_config || emptyForm.ai_config,
       eval_criteria: course.eval_criteria || [],
       crisis_events: course.crisis_events || [],
-      is_active: false,
+      is_active: false, // Las copias comienzan como inactivas
       tech_sheet_id: course.tech_sheet_id || null,
       simulated_company_id: course.simulated_company_id || null,
       created_by: user!.id,
@@ -914,8 +919,45 @@ const AdminPanel = () => {
               </Dialog>
             </div>
 
+            {/* Filtro de Cursos */}
+            <div className="flex gap-2 mb-4">
+              <Button 
+                variant={courseFilter === 'all' ? 'default' : 'outline'} 
+                size="sm"
+                onClick={() => setCourseFilter('all')}
+                className="gap-2"
+              >
+                <Settings className="w-4 h-4" />
+                Todos ({courses.length})
+              </Button>
+              <Button 
+                variant={courseFilter === 'active' ? 'default' : 'outline'} 
+                size="sm"
+                onClick={() => setCourseFilter('active')}
+                className="gap-2"
+              >
+                <Badge variant="default" className="text-xs bg-green-600">✓</Badge>
+                Activos ({courses.filter(c => c.is_active).length})
+              </Button>
+              <Button 
+                variant={courseFilter === 'inactive' ? 'default' : 'outline'} 
+                size="sm"
+                onClick={() => setCourseFilter('inactive')}
+                className="gap-2"
+              >
+                <Badge variant="secondary" className="text-xs bg-gray-400">✕</Badge>
+                Inactivos ({courses.filter(c => !c.is_active).length})
+              </Button>
+            </div>
+
             <div className="grid gap-4">
-              {courses.map(course => (
+              {courses
+                .filter(course => {
+                  if (courseFilter === 'active') return course.is_active;
+                  if (courseFilter === 'inactive') return !course.is_active;
+                  return true; // 'all'
+                })
+                .map(course => (
                 <Card key={course.id} className={`glass-card ${!course.is_active ? 'opacity-60' : ''}`}>
                   <CardContent className="flex items-center justify-between py-4">
                     <div className="flex-1">
