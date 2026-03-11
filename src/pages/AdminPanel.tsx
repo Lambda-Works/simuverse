@@ -994,6 +994,18 @@ const AdminPanel = () => {
                   <p>No hay cursos configurados. Cree el primero.</p>
                 </div>
               )}
+              {courses.length > 0 && courses.filter(c => {
+                if (courseFilter === 'active') return c.is_active;
+                if (courseFilter === 'inactive') return !c.is_active;
+                return true;
+              }).length === 0 && (
+                <div className="text-center py-16 text-muted-foreground">
+                  <Settings className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>
+                    No hay cursos {courseFilter === 'active' ? 'activos' : courseFilter === 'inactive' ? 'inactivos' : ''}.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
