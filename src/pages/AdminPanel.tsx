@@ -31,6 +31,8 @@ import { TemplatesABM } from '@/components/TemplatesABM';
 import { SimulationSessionViewer } from '@/components/SimulationSessionViewer';
 import { UsersABM } from '@/components/UsersABM';
 import { RolesABM } from '@/components/RolesABM';
+import { PromptTemplatesABM } from '@/components/PromptTemplatesABM';
+import { ConfigurePromptModal } from '@/components/ConfigurePromptModal';
 
 const AVAILABLE_MODULES = [
   { id: 'chat_ia', label: 'Chat IA (Simulación Conversacional)' },
@@ -190,7 +192,9 @@ const AdminPanel = () => {
     ],
   };
   const [newCrisis, setNewCrisis] = useState<CrisisEventConfig>({ ...emtpyCrisisEvent, options: [...emtpyCrisisEvent.options] as CrisisEventConfig['options'] });
-  const [currentTab, setCurrentTab] = useState<'courses' | 'categories' | 'documents' | 'techsheets' | 'assignments' | 'reports' | 'scenarios' | 'templates' | 'sessions' | 'users' | 'roles' | 'stats' | 'requests' | 'groups' | 'calendar' | 'companies' | 'foundation' | 'endorsers'>('courses');
+  const [currentTab, setCurrentTab] = useState<'courses' | 'categories' | 'documents' | 'techsheets' | 'assignments' | 'reports' | 'scenarios' | 'templates' | 'prompt-templates' | 'sessions' | 'users' | 'roles' | 'stats' | 'requests' | 'groups' | 'calendar' | 'companies' | 'foundation' | 'endorsers'>('courses');
+  const [showPromptConfigModal, setShowPromptConfigModal] = useState(false);
+  const [selectedCourseForPromptConfig, setSelectedCourseForPromptConfig] = useState<any>(null);
   const [courseFilter, setCourseFilter] = useState<'all' | 'active' | 'inactive'>('all'); // Filtro de cursos
 
   useEffect(() => {
@@ -418,6 +422,15 @@ const AdminPanel = () => {
             >
               <Wand2 className="w-4 h-4 mr-2" />
               Plantillas
+            </Button>
+            <Button
+              variant={currentTab === 'prompt-templates' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentTab('prompt-templates')}
+              className="rounded-b-none"
+            >
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Prompts IA
             </Button>
             <Button
               variant={currentTab === 'sessions' ? 'default' : 'ghost'}
@@ -1030,6 +1043,9 @@ const AdminPanel = () => {
 
         {/* Templates Tab */}
         {currentTab === 'templates' && <TemplatesABM />}
+
+        {/* Prompt Templates Tab */}
+        {currentTab === 'prompt-templates' && <PromptTemplatesABM />}
 
         {/* Sessions Tab - Solo admin/teacher */}
         {currentTab === 'sessions' && <SimulationSessionViewer />}

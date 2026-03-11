@@ -21,6 +21,7 @@ import { TechSheet } from '../entities/TechSheet';
 import { CourseDocument } from '../entities/CourseDocument';
 import { SimulationAssignment } from '../entities/SimulationAssignment';
 import { FlowTemplate } from '../entities/FlowTemplate';
+import { PromptTemplate } from '../entities/PromptTemplate';
 
 export const AppDataSource = new DataSource({
   type: 'mysql',
@@ -52,7 +53,8 @@ export const AppDataSource = new DataSource({
     TechSheet,
     CourseDocument,
     SimulationAssignment,
-    FlowTemplate
+    FlowTemplate,
+    PromptTemplate
   ],
   migrations: ['dist/database/migrations/*.js'],
   subscribers: [],

@@ -1,5 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne, ManyToOne, JoinColumn } from 'typeorm';
 import { Course } from './Course';
+import { TechSheet } from './TechSheet';
+import { PromptTemplate } from './PromptTemplate';
 
 export interface ModuleActivation {
   moduleId: number;
@@ -80,6 +82,34 @@ export class CourseConfig {
 
   @UpdateDateColumn()
   updated_at!: Date;
+
+  // NUEVO: Relaciones para Ficha Técnica y Prompts
+  @Column({ type: 'int', nullable: true })
+  tech_sheet_id?: number;
+
+  @ManyToOne(() => TechSheet, { nullable: true })
+  @JoinColumn({ name: 'tech_sheet_id' })
+  tech_sheet?: TechSheet;
+
+  @Column({ type: 'int', nullable: true })
+  prompt_template_id?: number;
+
+  @ManyToOne(() => PromptTemplate, { nullable: true })
+  @JoinColumn({ name: 'prompt_template_id' })
+  prompt_template?: PromptTemplate;
+
+  @Column({
+    type: 'enum',
+    enum: ['template', 'manual', 'guided'],
+    default: 'template'
+  })
+  prompt_generation_mode!: 'template' | 'manual' | 'guided';
+
+  @Column({ type: 'varchar', length: 36, nullable: true })
+  prompt_generated_by?: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  prompt_generated_at?: Date;
 
   @OneToOne(() => Course, (course) => course.config)
   @JoinColumn({ name: 'course_id' })

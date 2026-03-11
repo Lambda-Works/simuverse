@@ -11,6 +11,8 @@ import ministryRouter from './routes/ministry.js';
 import catalogRouter from './routes/catalog.js';
 import templatesRouter from './routes/templates.js';
 import legajoRouter from './routes/legajo.js';
+import promptTemplateRouter from './routes/prompt-template.router.js';
+import promptConfigRouter from './routes/prompt-config.router.js';
 
 dotenv.config();
 
@@ -66,6 +68,9 @@ app.use('/api/legajo', legajoRouter);
 app.use('/api', catalogRouter);
 // Templates (FlowTemplates persistidos en BD)
 app.use('/api/templates', templatesRouter);
+// Prompt Templates & Configuration
+app.use('/api/prompt-templates', promptTemplateRouter);
+app.use('/api/prompt-config', promptConfigRouter);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
