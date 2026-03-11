@@ -380,14 +380,79 @@ router.put('/courses/:course_id', async (req: Request, res: Response) => {
 
 /**
  * DELETE /admin/courses/:course_id
- * Delete course
+ * Delete course and all its dependencies
  */
 router.delete('/courses/:course_id', async (req: Request, res: Response) => {
+  const courseId = req.params.course_id;
+  const queryRunner = AppDataSource.createQueryRunner();
+  
   try {
-    await AppDataSource.getRepository(Course).delete(req.params.course_id);
-    res.json({ success: true });
+    // Primero validar si existen dependencias
+    const dependencies = await courseService.checkCourseDependencies(courseId);
+    
+    if (Object.keys(dependencies).length > 0) {
+      // Si existen dependencias, iniciar transacción para eliminación en cascada
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      try {
+        // Eliminar en orden inverso de dependencias
+        // 1. Eliminar simulations (depende de scenarios y course)
+        await queryRunner.query(
+          'DELETE FROM simulations WHERE course_id = ?',
+          [courseId]
+        );
+
+        // 2. Eliminar scenarios (depende de course)
+        await queryRunner.query(
+          'DELETE FROM scenarios WHERE course_id = ?',
+          [courseId]
+        );
+
+        // 3. Eliminar course_modules (depende de course)
+        await queryRunner.query(
+          'DELETE FROM course_modules WHERE course_id = ?',
+          [courseId]
+        );
+
+        // 4. Eliminar course_config (depende de course)
+        await queryRunner.query(
+          'DELETE FROM course_config WHERE course_id = ?',
+          [courseId]
+        );
+
+        // 5. Finalmente, eliminar el curso
+        await queryRunner.query(
+          'DELETE FROM courses WHERE id = ?',
+          [courseId]
+        );
+
+        await queryRunner.commitTransaction();
+        
+        res.json({ 
+          success: true,
+          message: 'Curso eliminado exitosamente junto con todas sus dependencias',
+          deletedDependencies: dependencies
+        });
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        throw error;
+      }
+    } else {
+      // Si no hay dependencias, solo eliminar el curso
+      const result = await AppDataSource.getRepository(Course).delete(courseId);
+      if (result.affected === 0) {
+        return res.status(404).json({ error: 'Curso no encontrado' });
+      }
+      res.json({ 
+        success: true,
+        message: 'Curso eliminado exitosamente'
+      });
+    }
   } catch (error) {
     res.status(400).json({ error: (error as Error).message });
+  } finally {
+    await queryRunner.release();
   }
 });
 

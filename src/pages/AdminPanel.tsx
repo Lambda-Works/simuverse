@@ -198,7 +198,8 @@ const AdminPanel = () => {
 
   const fetchCourses = async () => {
     try {
-      const res = await apiClient.get('/courses');
+      // Usar el endpoint de admin para obtener TODOS los cursos (activos e inactivos)
+      const res = await apiClient.get('/admin/courses');
       if (res.data) setCourses(res.data);
     } catch (error) {
       console.error('Error fetching courses:', error);
@@ -279,9 +280,12 @@ const AdminPanel = () => {
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm('⚠️ ¿Estás seguro? Esta acción eliminará el curso y TODAS sus dependencias (escenarios, simulaciones, etc) de forma irreversible.')) {
+      return;
+    }
     try {
-      await apiClient.delete(`/courses/${id}`);
-      toast.success('Curso eliminado');
+      const response = await apiClient.delete(`/admin/courses/${id}`);
+      toast.success(response.data.message || 'Curso eliminado');
       fetchCourses();
     } catch (error: any) {
       toast.error(error.message || 'Error al eliminar el curso');
@@ -900,7 +904,7 @@ const AdminPanel = () => {
 
             <div className="grid gap-4">
               {courses.map(course => (
-                <Card key={course.id} className="glass-card">
+                <Card key={course.id} className={`glass-card ${!course.is_active ? 'opacity-60' : ''}`}>
                   <CardContent className="flex items-center justify-between py-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
@@ -909,7 +913,10 @@ const AdminPanel = () => {
                           ? course.categories.map((cat: string) => <Badge key={cat} variant="secondary" className="text-xs capitalize">{cat}</Badge>)
                           : <Badge variant="secondary" className="text-xs">{course.category}</Badge>
                         }
-                        {course.is_active ? <span className="w-2 h-2 rounded-full bg-success" /> : <span className="w-2 h-2 rounded-full bg-muted-foreground" />}
+                        {course.is_active 
+                          ? <Badge variant="default" className="text-xs bg-green-600">✓ Activo</Badge>
+                          : <Badge variant="secondary" className="text-xs bg-gray-400">✕ Inactivo</Badge>
+                        }
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">{course.course_id} — {(course.modules as string[])?.join(', ')}</p>
                     </div>
@@ -920,7 +927,7 @@ const AdminPanel = () => {
                       <Button variant="outline" size="sm" onClick={() => handleEdit(course)}>
                         <Settings className="w-4 h-4" />
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDelete(course.id)}>
+                      <Button variant="destructive" size="sm" onClick={() => handleDelete(course.id)} title="Eliminar curso y todas sus dependencias">
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
