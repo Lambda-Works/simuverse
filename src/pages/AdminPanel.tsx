@@ -216,7 +216,7 @@ const AdminPanel = () => {
     if (user) {
       fetchCourses();
       // Cargar SOLO fichas técnicas válidas (con competencies o kpi_requirements)
-      fetch('http://localhost:5000/api/valid/list')
+      fetch('http://localhost:5000/api/tech-sheets/valid/list')
         .then(r => r.json())
         .then(d => setTechSheets(Array.isArray(d) ? d.map((s: any) => ({ id: s.id, name: s.name, processed: s.processed })) : []))
         .catch(() => {});

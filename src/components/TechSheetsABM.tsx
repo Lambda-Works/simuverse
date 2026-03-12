@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Edit2, Plus, Zap, FileUp, Paperclip, Link, Settings } from 'lucide-react';
+import { Trash2, Edit2, Plus, Zap, FileUp, Paperclip, Link, Settings, Check } from 'lucide-react';
 import { ConfigureTechSheetModal } from './ConfigureTechSheetModal';
 
 interface TechSheet {
@@ -18,6 +18,8 @@ interface TechSheet {
   extracted_data: any;
   created_at: string;
   updated_at: string;
+  competencies?: any;
+  kpi_requirements?: any;
 }
 
 interface Course {
@@ -37,6 +39,10 @@ export function TechSheetsABM() {
   const [configModalOpen, setConfigModalOpen] = useState(false);
   const [configSheetId, setConfigSheetId] = useState<number | null>(null);
   const [configCourseId, setConfigCourseId] = useState<string | null>(null);
+  const [editingSheetId, setEditingSheetId] = useState<number | null>(null);
+  const [editingCompetencies, setEditingCompetencies] = useState<string>('');
+  const [editingKpis, setEditingKpis] = useState<string>('');
+  const [completionMode, setCompletionMode] = useState<'auto' | 'manual'>('auto');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
@@ -195,6 +201,62 @@ export function TechSheetsABM() {
     } catch (error) {
       console.error('Error deleting tech sheet:', error);
       alert('Error al eliminar la ficha técnica');
+    }
+  };
+
+  const handleCompleteSheet = async (id: number) => {
+    const sheet = sheets.find(s => s.id === id);
+    if (!sheet) return;
+
+    // Parsear competencias y KPIs
+    let competencies: string[] = [];
+    let kpis: string[] = [];
+
+    if (editingCompetencies.trim()) {
+      competencies = editingCompetencies
+        .split(',')
+        .map(c => c.trim())
+        .filter(c => c.length > 0);
+    }
+
+    if (editingKpis.trim()) {
+      kpis = editingKpis
+        .split(',')
+        .map(k => k.trim())
+        .filter(k => k.length > 0);
+    }
+
+    if (competencies.length === 0 && kpis.length === 0) {
+      alert('❌ Debes agregar al menos una competencia o un KPI');
+      return;
+    }
+
+    try {
+      const updatedSheet = {
+        ...sheet,
+        competencies: competencies.length > 0 ? competencies : sheet.competencies,
+        kpi_requirements: kpis.length > 0 ? kpis : sheet.kpi_requirements,
+      };
+
+      const response = await fetch(`http://localhost:5000/api/tech-sheets/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedSheet),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al actualizar');
+      }
+
+      setEditingSheetId(null);
+      setEditingCompetencies('');
+      setEditingKpis('');
+      await fetchTechSheets();
+      alert('✅ Ficha técnica completada. Ahora puedes analizar con IA.');
+    } catch (error) {
+      console.error('Error updating tech sheet:', error);
+      alert(`❌ Error al completar la ficha: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   };
 
@@ -429,8 +491,34 @@ export function TechSheetsABM() {
                 </p>
               </div>
 
-              <div className="flex gap-2 ml-4">
-                {!sheet.processed && (
+              <div className="flex gap-2 ml-4 flex-wrap">
+                {!sheet.processed && !sheet.competencies && !sheet.kpi_requirements && (
+                  <Button
+                    onClick={() => {
+                      setEditingSheetId(sheet.id);
+                      setEditingCompetencies('');
+                      setEditingKpis('');
+                    }}
+                    className="bg-orange-600 hover:bg-orange-700"
+                  >
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    Completar
+                  </Button>
+                )}
+
+                {!sheet.processed && (sheet.competencies || sheet.kpi_requirements) && (
+                  <Button
+                    onClick={() => handleAnalyze(sheet.id)}
+                    disabled={processing === sheet.id || !sheet.course_id}
+                    title={!sheet.course_id ? 'Asocia un curso primero' : 'Analizar esta ficha técnica'}
+                    className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Zap className="w-4 h-4 mr-2" />
+                    {processing === sheet.id ? 'Analizando...' : 'Analizar'}
+                  </Button>
+                )}
+
+                {!sheet.processed && !sheet.competencies && !sheet.kpi_requirements && (
                   <Button
                     onClick={() => handleAnalyze(sheet.id)}
                     disabled={processing === sheet.id || !sheet.course_id || (!sheet.file_url && !sheet.description)}
@@ -521,6 +609,144 @@ export function TechSheetsABM() {
           <Button onClick={() => setSelectedSheet(null)} className="mt-4">
             Cerrar
           </Button>
+        </Card>
+      )}
+
+      {/* Modal para completar fichas inválidas - CON DOS OPCIONES */}
+      {editingSheetId && (
+        <Card className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">Completar Ficha Técnica</h3>
+              <button 
+                onClick={() => {
+                  setEditingSheetId(null);
+                  setEditingCompetencies('');
+                  setEditingKpis('');
+                  setCompletionMode('auto');
+                }}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* OPCIÓN AUTOMÁTICA: Si tiene archivo */}
+            {(() => {
+              const sheet = sheets.find(s => s.id === editingSheetId);
+              const hasFile = sheet?.file_url && sheet.file_url.length > 0;
+              
+              return hasFile ? (
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-blue-900 mb-2">🤖 Opción 1: Análisis Automático (IA)</h4>
+                      <p className="text-sm text-blue-800 mb-3">
+                        Detectamos que tu ficha tiene un archivo adjunto. La IA puede analizar automáticamente el contenido y extraer competencias y KPIs.
+                      </p>
+                      <Button
+                        onClick={async () => {
+                          if (!sheet) return;
+                          setProcessing(sheet.id);
+                          try {
+                            const response = await fetch(`http://localhost:5000/api/tech-sheets/${sheet.id}/analyze`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                            });
+                            
+                            if (!response.ok) {
+                              const error = await response.json();
+                              throw new Error(error.error || 'Error al analizar');
+                            }
+                            
+                            alert('✅ Ficha analizada con éxito por IA. Se generaron automáticamente competencias, KPIs y preguntas.');
+                            setEditingSheetId(null);
+                            setEditingCompetencies('');
+                            setEditingKpis('');
+                            setCompletionMode('auto');
+                            await fetchTechSheets();
+                          } catch (error) {
+                            alert(`❌ Error: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+                          } finally {
+                            setProcessing(null);
+                          }
+                        }}
+                        disabled={processing === sheet.id}
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        <Zap className="w-4 h-4 mr-2" />
+                        {processing === sheet.id ? 'Analizando...' : 'Analizar Archivo Automáticamente'}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-blue-200">
+                    <p className="text-sm text-blue-700 font-medium">O si prefieres, rellena manualmente:</p>
+                  </div>
+                </div>
+              ) : null;
+            })()}
+
+            {/* OPCIÓN MANUAL: Siempre disponible */}
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-3">✍️ Opción 2: Completar Manualmente</h4>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Competencias <span className="text-red-500">*</span> (separadas por coma)
+                </label>
+                <Textarea
+                  value={editingCompetencies}
+                  onChange={(e) => setEditingCompetencies(e.target.value)}
+                  placeholder="Ej: Comunicación, Trabajo en equipo, Pensamiento crítico"
+                  rows={3}
+                  className="w-full"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Escribe los nombres de las competencias separadas por comas. Se procesarán automáticamente.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Criterios de Evaluación / KPIs <span className="text-red-500">*</span>
+                </label>
+                <Textarea
+                  value={editingKpis}
+                  onChange={(e) => setEditingKpis(e.target.value)}
+                  placeholder="Ej: Participación activa (80%), Entregas a tiempo (90%), Calidad del trabajo"
+                  rows={3}
+                  className="w-full"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Escribe los criterios de evaluación. Al menos uno de los dos campos es obligatorio.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6 pt-4 border-t">
+              <Button
+                onClick={() => handleCompleteSheet(editingSheetId)}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <Check className="w-4 h-4 mr-2" />
+                Guardar Cambios
+              </Button>
+              <Button
+                onClick={() => {
+                  setEditingSheetId(null);
+                  setEditingCompetencies('');
+                  setEditingKpis('');
+                  setCompletionMode('auto');
+                }}
+                variant="outline"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
         </Card>
       )}
 

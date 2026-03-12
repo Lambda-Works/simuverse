@@ -74,23 +74,14 @@ router.delete('/categories/:id', async (req: Request, res: Response) => {
 // Contienen los KPIs y competencias exigidas por el ministerio
 // ============================================================
 
-router.get('/tech-sheets', async (req: Request, res: Response) => {
-  try {
-    const repo = AppDataSource.getRepository(TechSheet);
-    const sheets = await repo.find({ order: { created_at: 'DESC' } });
-    res.json(sheets);
-  } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
-  }
-});
-
 /**
  * GET /tech-sheets/valid/list
  * Obtiene solo las fichas técnicas válidas para asociar a cursos
  * Valida: name + (competencies OR kpi_requirements) 
  * Responde solo con id, name, processed
+ * NOTA: Este endpoint DEBE estar ANTES de /:id para que se evalúe primero
  */
-router.get('/valid/list', async (req: Request, res: Response) => {
+router.get('/tech-sheets/valid/list', async (req: Request, res: Response) => {
   try {
     const repo = AppDataSource.getRepository(TechSheet);
     const sheets = await repo.find({ order: { created_at: 'DESC' } });
@@ -107,6 +98,16 @@ router.get('/valid/list', async (req: Request, res: Response) => {
       }));
     
     res.json(validSheets);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+router.get('/tech-sheets', async (req: Request, res: Response) => {
+  try {
+    const repo = AppDataSource.getRepository(TechSheet);
+    const sheets = await repo.find({ order: { created_at: 'DESC' } });
+    res.json(sheets);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
