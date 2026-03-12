@@ -215,7 +215,8 @@ const AdminPanel = () => {
   useEffect(() => {
     if (user) {
       fetchCourses();
-      fetch('http://localhost:5000/api/tech-sheets')
+      // Cargar SOLO fichas técnicas válidas (con competencies o kpi_requirements)
+      fetch('http://localhost:5000/api/valid/list')
         .then(r => r.json())
         .then(d => setTechSheets(Array.isArray(d) ? d.map((s: any) => ({ id: s.id, name: s.name, processed: s.processed })) : []))
         .catch(() => {});
@@ -666,32 +667,92 @@ const AdminPanel = () => {
                       <Label className="text-base font-semibold">📊 Criterios de Evaluación (KPIs)</Label>
 
                       {/* Selector de Ficha Técnica (opcional) */}
-                      {techSheets.length > 0 && (
-                        <div className="p-3 rounded-lg border border-dashed border-purple-300 bg-purple-50 space-y-1.5">
-                          <Label className="text-xs font-semibold text-purple-800">
-                            📋 Vincular Ficha Técnica Ministerial (opcional)
+                      <div className="p-4 rounded-lg border border-dashed border-purple-300 bg-purple-50 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-semibold text-purple-800 flex items-center gap-2">
+                            📋 Ficha Técnica Ministerial
+                            <span className="text-xs font-normal text-purple-600">(opcional)</span>
                           </Label>
-                          <p className="text-xs text-purple-600">
-                            Al vincular una ficha, sus KPIs analizados aparecen automáticamente en los reportes y certificados.
-                          </p>
-                          <Select
-                            value={form.tech_sheet_id?.toString() || 'none'}
-                            onValueChange={v => setForm(p => ({ ...p, tech_sheet_id: v !== 'none' ? parseInt(v) : null }))}
-                          >
-                            <SelectTrigger className="bg-white text-sm">
-                              <SelectValue placeholder="Sin ficha técnica" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">Sin ficha técnica</SelectItem>
-                              {techSheets.map(s => (
-                                <SelectItem key={s.id} value={s.id.toString()}>
-                                  {s.processed ? '✅' : '⏳'} {s.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          {form.tech_sheet_id && (
+                            <Badge variant="default" className="bg-purple-600">Asignada</Badge>
+                          )}
                         </div>
-                      )}
+                        
+                        <p className="text-xs text-purple-700">
+                          Asocia una ficha técnica para que sus competencias y KPIs se reflejen automáticamente en reportes y certificados.
+                        </p>
+
+                        {form.tech_sheet_id ? (
+                          <div className="space-y-2">
+                            <div className="bg-white rounded-md p-3 border border-purple-200 flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-semibold text-purple-900">
+                                  ✅ {techSheets.find(s => s.id === form.tech_sheet_id)?.name || `Ficha #${form.tech_sheet_id}`}
+                                </p>
+                                <p className="text-xs text-purple-600 mt-1">
+                                  {techSheets.find(s => s.id === form.tech_sheet_id)?.processed ? 
+                                    '✓ Analizada y lista' : 
+                                    '⏳ Pendiente de análisis'}
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => setForm(p => ({ ...p, tech_sheet_id: null }))}
+                              >
+                                ✕ Desasignar
+                              </Button>
+                            </div>
+                            
+                            {techSheets.length > 1 && (
+                              <details className="text-xs">
+                                <summary className="cursor-pointer text-purple-700 font-semibold hover:text-purple-900">
+                                  ⇄ Cambiar a otra ficha técnica
+                                </summary>
+                                <div className="mt-2 grid grid-cols-1 gap-2">
+                                  {techSheets.filter(s => s.id !== form.tech_sheet_id).map(s => (
+                                    <button
+                                      key={s.id}
+                                      type="button"
+                                      className="text-left px-3 py-2 rounded-md bg-white border border-purple-200 hover:bg-purple-100 transition-colors text-sm"
+                                      onClick={() => setForm(p => ({ ...p, tech_sheet_id: s.id }))}
+                                    >
+                                      <span className="font-semibold">{s.processed ? '✅' : '⏳'} {s.name}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </details>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <p className="text-xs text-purple-700 font-semibold">Sin ficha técnica asignada</p>
+                            {techSheets.length > 0 ? (
+                              <div className="grid grid-cols-1 gap-2">
+                                {techSheets.map(s => (
+                                  <button
+                                    key={s.id}
+                                    type="button"
+                                    className="text-left px-3 py-2 rounded-md bg-white border border-purple-200 hover:bg-purple-100 transition-colors text-sm"
+                                    onClick={() => setForm(p => ({ ...p, tech_sheet_id: s.id }))}
+                                  >
+                                    <span className="font-semibold">{s.processed ? '✅' : '⏳'} {s.name}</span>
+                                    <p className="text-xs text-purple-600 mt-0.5">
+                                      {s.processed ? 'Analizada' : 'Pendiente análisis'}
+                                    </p>
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-purple-600 italic">
+                                No hay fichas técnicas disponibles. Crea una en la sección "Fichas Técnicas".
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
 
                       <div className="flex gap-2">
                         <Input value={newCriterion} onChange={e => setNewCriterion(e.target.value)} placeholder="empatía, resolución, conocimiento técnico..." onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (newCriterion.trim()) { setForm(p => ({ ...p, eval_criteria: [...p.eval_criteria, newCriterion.trim()] })); setNewCriterion(''); } } }} />
