@@ -116,11 +116,19 @@ export function TechSheetsABM() {
         uploaded_by: localStorage.getItem('userId') || 'system',
       };
 
-      await fetch('http://localhost:5000/api/tech-sheets', {
+      const response = await fetch('http://localhost:5000/api/tech-sheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al guardar');
+      }
+
+      const result = await response.json();
+      console.log('✅ Ficha técnica creada:', result);
 
       // Reset form
       setFormData({ name: '', course_id: '', ministry_code: '', description: '', file_url: '', file_name: '' });
@@ -128,9 +136,10 @@ export function TechSheetsABM() {
 
       // Refresh list
       await fetchTechSheets();
+      alert('✅ Ficha técnica guardada exitosamente');
     } catch (error) {
       console.error('Error saving tech sheet:', error);
-      alert('Error al guardar la ficha técnica');
+      alert(`Error al guardar la ficha técnica: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   };
 

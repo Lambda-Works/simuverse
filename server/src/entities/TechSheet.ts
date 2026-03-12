@@ -34,7 +34,7 @@ export class TechSheet {
   @Column({ type: 'json', nullable: true })
   extracted_data?: any;
 
-  @Column({ type: 'varchar', length: 500, nullable: true })
+  @Column({ type: 'text', nullable: true })
   file_url?: string;
 
   @Column({ type: 'boolean', default: false })
