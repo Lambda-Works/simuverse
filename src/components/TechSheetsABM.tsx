@@ -4,7 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Edit2, Plus, Zap, FileUp, Paperclip, Link } from 'lucide-react';
+import { Trash2, Edit2, Plus, Zap, FileUp, Paperclip, Link, Settings } from 'lucide-react';
+import { ConfigureTechSheetModal } from './ConfigureTechSheetModal';
 
 interface TechSheet {
   id: number;
@@ -33,6 +34,9 @@ export function TechSheetsABM() {
   const [processing, setProcessing] = useState<number | null>(null);
   const [selectedSheet, setSelectedSheet] = useState<TechSheet | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [configModalOpen, setConfigModalOpen] = useState(false);
+  const [configSheetId, setConfigSheetId] = useState<number | null>(null);
+  const [configCourseId, setConfigCourseId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
@@ -391,10 +395,25 @@ export function TechSheetsABM() {
                 )}
 
                 {sheet.processed && (
-                  <Button disabled className="bg-green-600">
-                    <Zap className="w-4 h-4 mr-2" />
-                    Analizado
-                  </Button>
+                  <>
+                    <Button disabled className="bg-green-600">
+                      <Zap className="w-4 h-4 mr-2" />
+                      Analizado
+                    </Button>
+                    {sheet.course_id && (
+                      <Button
+                        onClick={() => {
+                          setConfigSheetId(sheet.id);
+                          setConfigCourseId(sheet.course_id);
+                          setConfigModalOpen(true);
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Settings className="w-4 h-4 mr-2" />
+                        Configurar
+                      </Button>
+                    )}
+                  </>
                 )}
 
                 <Button
@@ -455,6 +474,20 @@ export function TechSheetsABM() {
             Cerrar
           </Button>
         </Card>
+      )}
+
+      {/* Modal para configurar ficha técnica */}
+      {configSheetId && configCourseId && (
+        <ConfigureTechSheetModal
+          techSheetId={configSheetId}
+          courseId={configCourseId}
+          isOpen={configModalOpen}
+          onClose={() => {
+            setConfigModalOpen(false);
+            setConfigSheetId(null);
+            setConfigCourseId(null);
+          }}
+        />
       )}
     </div>
   );

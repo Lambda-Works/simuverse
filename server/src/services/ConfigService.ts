@@ -157,7 +157,7 @@ export class ConfigService {
    */
   static async getSystemPrompt(course_id: string): Promise<string> {
     const config = await this.getOrCreateConfig(course_id);
-    return config.ia_config.systemPrompt;
+    return config.ia_config?.systemPrompt || '';
   }
 
   /**
@@ -165,7 +165,7 @@ export class ConfigService {
    */
   static async isModuleActive(course_id: string, moduleId: number): Promise<boolean> {
     const config = await this.getOrCreateConfig(course_id);
-    const module = config.active_modules.find((m) => m.moduleId === moduleId);
+    const module = config.active_modules?.find((m) => m.moduleId === moduleId);
     return module?.enabled || false;
   }
 
@@ -174,7 +174,7 @@ export class ConfigService {
    */
   static async getActiveModules(course_id: string): Promise<ModuleActivation[]> {
     const config = await this.getOrCreateConfig(course_id);
-    return config.active_modules.filter((m) => m.enabled);
+    return config.active_modules?.filter((m) => m.enabled) || [];
   }
 
   /**
@@ -182,7 +182,12 @@ export class ConfigService {
    */
   static async getUIConfig(course_id: string): Promise<UIConfig> {
     const config = await this.getOrCreateConfig(course_id);
-    return config.ui_config;
+    return config.ui_config || {
+      layout: 'office',
+      primaryColor: '#000000',
+      secondaryColor: '#ffffff',
+      theme: 'light'
+    };
   }
 
   /**

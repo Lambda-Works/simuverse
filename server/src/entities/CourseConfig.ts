@@ -50,26 +50,41 @@ export class CourseConfig {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'varchar', length: 36 })
   course_id!: string;
 
   @Column({ type: 'json' })
-  active_modules!: ModuleActivation[];
+  config_data!: any;
 
-  @Column({ type: 'json' })
-  ui_config!: UIConfig;
+  @Column({ type: 'text', nullable: true })
+  base_role?: string;
 
-  @Column({ type: 'json' })
-  ia_config!: IAConfig;
+  @Column({ type: 'text', nullable: true })
+  course_context?: string;
+
+  @Column({ type: 'json', nullable: true })
+  personality_traits?: Record<string, any>;
+
+  @Column({ type: 'longtext', nullable: true })
+  knowledge_base_prompt?: string;
+
+  @Column({ type: 'json', nullable: true })
+  active_modules?: ModuleActivation[];
+
+  @Column({ type: 'json', nullable: true })
+  ui_config?: UIConfig;
+
+  @Column({ type: 'json', nullable: true })
+  ia_config?: IAConfig;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  family_type?: 'administration' | 'rrhh' | 'it' | 'entrepreneurship';
 
   @Column({ type: 'json', nullable: true })
   calculator_config?: CalculatorConfig;
 
   @Column({ type: 'json', nullable: true })
   inbox_config?: InboxConfig;
-
-  @Column({ type: 'text', nullable: true })
-  family_type!: 'administration' | 'rrhh' | 'it' | 'entrepreneurship';
 
   @Column({ type: 'json', nullable: true })
   validation_rules?: ValidationRules;
