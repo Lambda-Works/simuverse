@@ -391,27 +391,41 @@ Intenta esto: [tip 1], [tip 2]. ¿Quieres intentar de nuevo?"`;
     courseId: string,
     updates: Partial<AnalyzedKPIsConfig>
   ): Promise<AnalyzedKPIsConfig> {
-    const courseConfigRepo = AppDataSource.getRepository(CourseConfig);
-    const config = await courseConfigRepo.findOne({
-      where: { course_id: courseId },
-    });
+    try {
+      // Primero obtener la configuración actual
+      const current = await this.getAnalyzedConfig(courseId);
+      if (!current) {
+        throw new Error('CourseConfig not found');
+      }
 
-    if (!config) {
-      throw new Error('CourseConfig not found');
+      // Fusionar con los updates
+      const updated: AnalyzedKPIsConfig = {
+        ...current,
+        ...updates,
+        analyzed_at: current.analyzed_at || new Date(),
+      };
+
+      // Usar SQL raw para actualizar
+      const configQuery = await AppDataSource.query(
+        `SELECT id FROM course_config WHERE course_id = ?`,
+        [courseId]
+      );
+
+      if (configQuery.length === 0) {
+        throw new Error('CourseConfig not found');
+      }
+
+      const configId = configQuery[0].id;
+      await AppDataSource.query(
+        `UPDATE course_config SET metadata = JSON_SET(COALESCE(metadata, '{}'), '$.analyzed_kpis_config', CAST(? AS JSON)) WHERE id = ?`,
+        [JSON.stringify(updated), configId]
+      );
+
+      console.log(`✅ Config actualizada para ${configId}`);
+      return updated;
+    } catch (err: any) {
+      console.error('Error updating analyzed config:', err.message);
+      throw err;
     }
-
-    if (!config.metadata) config.metadata = {};
-
-    const current = (config.metadata.analyzed_kpis_config ||
-      {}) as AnalyzedKPIsConfig;
-    config.metadata.analyzed_kpis_config = {
-      ...current,
-      ...updates,
-      analyzed_at: current.analyzed_at || new Date(),
-    };
-
-    await courseConfigRepo.save(config);
-
-    return config.metadata.analyzed_kpis_config as AnalyzedKPIsConfig;
   }
 }
