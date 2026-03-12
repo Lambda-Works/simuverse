@@ -80,7 +80,7 @@ export class TechSheetAnalysisService {
     }
 
     // 2. Extraer competencias del contenido REAL
-    const competencies = this.extractCompetencies(contentToAnalyze, []);
+    const competencies = this.extractCompetencies(contentToAnalyze);
 
     // 3. Extraer KPIs del contenido REAL
     const kpis = this.extractKPIs(contentToAnalyze, competencies);
@@ -283,44 +283,6 @@ export class TechSheetAnalysisService {
     if (lineLower.includes('calidad') || lineLower.includes('porcentaje') || lineLower.includes('%')) return 'quality';
     if (lineLower.includes('costo') || lineLower.includes('precio') || lineLower.includes('dinero')) return 'cost';
     return 'performance';
-  }
-          id: 'kpi-1',
-          name: 'Desempeño General',
-          description: 'KPI general para evaluar el desempeño',
-          category: 'performance',
-          weight: 100,
-          target_value: 95,
-          minimum_pass_value: 70,
-          competencies_required: competencies.slice(0, 1).map((c) => c.id),
-          evaluation_questions: [
-            '¿Logró completar la tarea de forma correcta?',
-            '¿Cumplió con el tiempo estimado?',
-          ],
-        },
-      ];
-    }
-
-    return kpiRequirements.map((kpi: any, idx: number) => ({
-      id: `kpi-${idx + 1}`,
-      name: typeof kpi === 'string' ? kpi : (kpi?.name || `KPI ${idx + 1}`),
-      description: typeof kpi === 'string' ? `Criterio: ${kpi}` : (kpi?.description || ''),
-      category:
-        typeof kpi === 'string'
-          ? 'performance'
-          : (kpi?.category || 'performance'),
-      weight: 100 / kpiRequirements.length,
-      target_value: 95,
-      minimum_pass_value: 70,
-      competencies_required: competencies
-        .slice(0, Math.max(1, Math.floor(competencies.length / 2)))
-        .map((c) => c.id),
-      evaluation_questions: [
-        `¿Logró alcanzar el KPI: "${
-          typeof kpi === 'string' ? kpi : (kpi?.name || '')
-        }"?`,
-        `¿Cuál fue el nivel de logro en este criterio?`,
-      ],
-    }));
   }
 
   /**

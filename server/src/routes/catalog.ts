@@ -235,17 +235,6 @@ router.post('/tech-sheets/:id/analyze', async (req: Request, res: Response) => {
     res.status(500).json({ error: (error as Error).message });
   }
 });
-      config: analyzedConfig,
-      summary: {
-        competencies_count: analyzedConfig.competencies.length,
-        kpis_count: analyzedConfig.kpis.length,
-        tasks_count: analyzedConfig.tasks.length
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
-  }
-});
 
 /**
  * GET /tech-sheets/:id/config
