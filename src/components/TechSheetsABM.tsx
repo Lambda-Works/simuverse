@@ -144,18 +144,41 @@ export function TechSheetsABM() {
   };
 
   const handleAnalyze = async (id: number) => {
+    // Buscar la ficha técnica a analizar
+    const sheet = sheets.find(s => s.id === id);
+    if (!sheet) return;
+
+    // ❌ VALIDACIÓN 1: Curso es obligatorio
+    if (!sheet.course_id) {
+      alert('❌ Error: Debes asociar la ficha técnica a un curso antes de analizarla.\n\nPor favor, edita la ficha y selecciona un curso.');
+      return;
+    }
+
+    // ❌ VALIDACIÓN 2: Al menos 1 contenido (archivo, URL o descripción)
+    const hasContent = sheet.file_url || sheet.description;
+    if (!hasContent) {
+      alert('❌ Error: La ficha técnica debe tener al menos uno de estos elementos:\n- Archivo adjunto (PDF/DOC)\n- URL del documento\n- Descripción/Contenido\n\nPor favor, agrega contenido antes de analizar.');
+      return;
+    }
+
     setProcessing(id);
     try {
       const response = await fetch(`http://localhost:5000/api/tech-sheets/${id}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al analizar');
+      }
+      
       const data = await response.json();
-      alert('✅ Ficha técnica analizada con éxito. El sistema generó automáticamente:\n- Competencias\n- KPIs\n- Preguntas de evaluación\n- Prompts para el Chat IA');
+      alert('✅ Ficha técnica analizada con éxito. El sistema generó automáticamente:\n- Competencias identificadas\n- KPIs extraídos\n- Preguntas de evaluación\n- Prompts para el Chat IA');
       await fetchTechSheets();
     } catch (error) {
       console.error('Error analyzing tech sheet:', error);
-      alert('Error al analizar la ficha técnica');
+      alert(`❌ Error al analizar la ficha técnica: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     } finally {
       setProcessing(null);
     }
@@ -285,12 +308,27 @@ export function TechSheetsABM() {
                   disabled={uploading}
                 >
                   <FileUp className="w-4 h-4 mr-2" />
-                  {uploading ? 'Cargando...' : 'Seleccionar Archivo'}
+                  {uploading ? 'Cargando...' : formData.file_name ? 'Cambiar Archivo' : 'Seleccionar Archivo'}
                 </Button>
                 {formData.file_name && (
-                  <span className="text-sm text-green-700 flex items-center gap-1">
-                    ✅ {formData.file_name}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-green-700 flex items-center gap-1">
+                      ✅ {formData.file_name}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setFormData(prev => ({ ...prev, file_url: '', file_name: '' }));
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                      }}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 h-6 w-6 p-0"
+                      title="Eliminar archivo"
+                    >
+                      ✕
+                    </Button>
+                  </div>
                 )}
                 {!formData.file_name && (
                   <span className="text-xs text-gray-400">PDF, DOC o DOCX</span>
@@ -395,8 +433,9 @@ export function TechSheetsABM() {
                 {!sheet.processed && (
                   <Button
                     onClick={() => handleAnalyze(sheet.id)}
-                    disabled={processing === sheet.id}
-                    className="bg-purple-600 hover:bg-purple-700"
+                    disabled={processing === sheet.id || !sheet.course_id || (!sheet.file_url && !sheet.description)}
+                    title={!sheet.course_id ? 'Asocia un curso primero' : (!sheet.file_url && !sheet.description) ? 'Agrega archivo, URL o descripción' : 'Analizar esta ficha técnica'}
+                    className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Zap className="w-4 h-4 mr-2" />
                     {processing === sheet.id ? 'Analizando...' : 'Analizar'}

@@ -50,30 +50,49 @@ export interface AnalyzedKPIsConfig {
 export class TechSheetAnalysisService {
   /**
    * Analiza una ficha técnica y guarda la configuración en course_config
-   * Crea automáticamente tareas para cada KPI
+   * Extrae competencias y KPIs del contenido REAL (file_url, description)
+   * NO usa datos hardcodeados
    */
   async analyzeAndSave(
     sheet: TechSheet,
     courseId: string
   ): Promise<AnalyzedKPIsConfig> {
-    // 1. Extraer competencias de la descripción
-    const competencies = this.extractCompetencies(
-      sheet.description || '',
-      sheet.extracted_data?.competencies || []
-    );
+    // 1. Extraer contenido real de la ficha
+    let contentToAnalyze = '';
+    
+    // Si tiene archivo base64, intentar decodificar
+    if (sheet.file_url && sheet.file_url.startsWith('data:')) {
+      try {
+        const base64Data = sheet.file_url.split(',')[1];
+        const decodedContent = Buffer.from(base64Data, 'base64').toString('utf-8');
+        contentToAnalyze += decodedContent;
+      } catch (e) {
+        console.warn('No se pudo decodificar archivo base64');
+      }
+    } else if (sheet.file_url && sheet.file_url.length > 0) {
+      // Si es una URL, agregar como referencia
+      contentToAnalyze += `\nURL del documento: ${sheet.file_url}\n`;
+    }
+    
+    // Agregar descripción
+    if (sheet.description) {
+      contentToAnalyze += sheet.description;
+    }
 
-    // 2. Extraer KPIs de los requisitos
-    const kpiRequirements = sheet.extracted_data?.kpi_requirements || [];
-    const kpis = this.extractKPIs(kpiRequirements, competencies);
+    // 2. Extraer competencias del contenido REAL
+    const competencies = this.extractCompetencies(contentToAnalyze, []);
 
-    // 3. Crear tareas para cada KPI
+    // 3. Extraer KPIs del contenido REAL
+    const kpis = this.extractKPIs(contentToAnalyze, competencies);
+
+    // 4. Crear tareas para cada KPI
     const tasks = await this.createTasksForKPIs(
       courseId,
       kpis,
       sheet.name
     );
 
-    // 4. Crear la configuración analizada
+    // 5. Crear la configuración analizada
     const analyzedConfig: AnalyzedKPIsConfig = {
       tech_sheet_id: sheet.id,
       analyzed_at: new Date(),
@@ -92,7 +111,7 @@ export class TechSheetAnalysisService {
       },
     };
 
-    // 5. Guardar en course_config.metadata usando SQL raw
+    // 6. Guardar en course_config.metadata usando SQL raw
     try {
       const existingConfig = await AppDataSource.query(
         `SELECT id FROM course_config WHERE course_id = ?`,
@@ -141,59 +160,130 @@ export class TechSheetAnalysisService {
   }
 
   /**
-   * Extrae competencias del texto de la ficha técnica
+   * Extrae competencias del CONTENIDO REAL de la ficha técnica
+   * Analiza texto del archivo/descripción usando palabras clave inteligentes
    */
   private extractCompetencies(
-    description: string,
-    aiExtracted: any[]
+    contentText: string
   ): Competency[] {
     const competencies: Competency[] = [];
+    const processedKeywords = new Set<string>();
 
-    // Usar lo que extrajo la IA
-    if (Array.isArray(aiExtracted) && aiExtracted.length > 0) {
-      aiExtracted.forEach((comp: any, idx: number) => {
+    // Palabras clave de competencias comunes en fichas técnicas ministeriales
+    const competencyKeywords = {
+      'gestión': { name: 'Gestión de operaciones', level: 'intermediate' as const },
+      'administración': { name: 'Administración de recursos', level: 'intermediate' as const },
+      'análisis': { name: 'Análisis crítico', level: 'intermediate' as const },
+      'comunicación': { name: 'Comunicación efectiva', level: 'intermediate' as const },
+      'liderazgo': { name: 'Liderazgo', level: 'advanced' as const },
+      'resolución': { name: 'Resolución de problemas', level: 'intermediate' as const },
+      'toma de decisiones': { name: 'Toma de decisiones', level: 'advanced' as const },
+      'planificación': { name: 'Planificación estratégica', level: 'advanced' as const },
+      'evaluación': { name: 'Evaluación de desempeño', level: 'intermediate' as const },
+      'cliente': { name: 'Atención al cliente', level: 'basic' as const },
+      'negociación': { name: 'Negociación', level: 'intermediate' as const },
+      'trabajo en equipo': { name: 'Trabajo en equipo', level: 'basic' as const },
+      'ética': { name: 'Ética profesional', level: 'basic' as const },
+      'calidad': { name: 'Aseguramiento de calidad', level: 'intermediate' as const },
+    };
+
+    const textLower = contentText.toLowerCase();
+    let compIdx = 1;
+
+    // Buscar palabras clave en el contenido
+    for (const [keyword, info] of Object.entries(competencyKeywords)) {
+      if (textLower.includes(keyword) && !processedKeywords.has(keyword)) {
         competencies.push({
-          id: `comp-${idx + 1}`,
-          name: typeof comp === 'string' ? comp : (comp?.name || `Competencia ${idx + 1}`),
-          description: typeof comp === 'string' ? `Competencia extraída: ${comp}` : (comp?.description || ''),
-          level: 'intermediate',
+          id: `comp-${compIdx++}`,
+          name: info.name,
+          description: `Competencia extraída del contenido: ${info.name}`,
+          level: info.level,
         });
-      });
-    } else {
-      // Fallback: palabras clave de competencias
-      const keywords = ['gestión', 'análisis', 'comunicación', 'liderazgo', 'resolución', 'toma de decisiones'];
-      keywords.forEach((kw, idx) => {
-        if (description.toLowerCase().includes(kw)) {
-          competencies.push({
-            id: `comp-${idx + 1}`,
-            name: kw.charAt(0).toUpperCase() + kw.slice(1),
-            description: `Capacidad de ${kw.toLowerCase()}`,
-            level: 'intermediate',
-          });
-        }
-      });
+        processedKeywords.add(keyword);
+      }
     }
 
+    // Si no encontró nada, retornar una competencia genérica
     return competencies.length > 0 ? competencies : [
       {
         id: 'comp-1',
         name: 'Competencia General',
-        description: 'Competencia genérica extraída de la ficha técnica',
+        description: 'Competencia extraída de la ficha técnica',
         level: 'intermediate',
       },
     ];
   }
 
   /**
-   * Extrae KPIs de los requisitos ministeriales
+   * Extrae KPIs del CONTENIDO REAL de la ficha técnica
+   * Analiza texto del archivo/descripción buscando criterios de evaluación
    */
   private extractKPIs(
-    kpiRequirements: any[],
+    contentText: string,
     competencies: Competency[]
   ): KPIConfig[] {
-    if (!Array.isArray(kpiRequirements) || kpiRequirements.length === 0) {
-      return [
-        {
+    const kpis: KPIConfig[] = [];
+    const textLower = contentText.toLowerCase();
+
+    // Palabras clave para identificar KPIs en el contenido
+    const kpiKeywords = ['kpi', 'criterio', 'objetivo', 'meta', 'desempeño', 'resultado', 'evaluación', 'cumplimiento', 'porcentaje', '%', 'minutos', 'horas'];
+    
+    // Buscar líneas que contengan estas palabras (generalmente los KPIs están en párrafos específicos)
+    const lines = contentText.split('\n').filter(line => line.trim().length > 0);
+    let kpiIdx = 1;
+
+    for (const line of lines) {
+      const lineLower = line.toLowerCase();
+      // Detectar si es una línea de KPI
+      if (kpiKeywords.some(kw => lineLower.includes(kw))) {
+        if (kpis.length < 10) { // Limitar a 10 KPIs máximo
+          kpis.push({
+            id: `kpi-${kpiIdx++}`,
+            name: line.substring(0, 100), // Primeros 100 caracteres como nombre
+            description: line,
+            category: this.detectKPICategory(lineLower),
+            weight: 100 / Math.max(1, kpiIdx),
+            target_value: 95,
+            minimum_pass_value: 70,
+            competencies_required: competencies.slice(0, Math.max(1, competencies.length)).map(c => c.id),
+            evaluation_questions: [
+              `¿Se logró el objetivo: "${line.substring(0, 50)}"?`,
+              `¿Cuál fue el nivel de cumplimiento de este criterio?`,
+            ],
+          });
+        }
+      }
+    }
+
+    // Si no encontró KPIs en el contenido, crear uno genérico
+    return kpis.length > 0 ? kpis : [
+      {
+        id: 'kpi-1',
+        name: 'Desempeño General',
+        description: 'KPI general para evaluar el desempeño en la ficha técnica',
+        category: 'performance',
+        weight: 100,
+        target_value: 95,
+        minimum_pass_value: 70,
+        competencies_required: competencies.map(c => c.id),
+        evaluation_questions: [
+          '¿Logró completar correctamente los requisitos de la ficha?',
+          '¿Cumplió con los estándares especificados?',
+        ],
+      },
+    ];
+  }
+
+  /**
+   * Detecta la categoría de un KPI basado en palabras clave
+   */
+  private detectKPICategory(lineLower: string): string {
+    if (lineLower.includes('cliente') || lineLower.includes('satisfacción')) return 'customer_satisfaction';
+    if (lineLower.includes('tiempo') || lineLower.includes('minutos') || lineLower.includes('horas')) return 'time';
+    if (lineLower.includes('calidad') || lineLower.includes('porcentaje') || lineLower.includes('%')) return 'quality';
+    if (lineLower.includes('costo') || lineLower.includes('precio') || lineLower.includes('dinero')) return 'cost';
+    return 'performance';
+  }
           id: 'kpi-1',
           name: 'Desempeño General',
           description: 'KPI general para evaluar el desempeño',

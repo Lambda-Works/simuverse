@@ -171,6 +171,10 @@ router.post('/tech-sheets/:id/process', async (req: Request, res: Response) => {
  * POST /tech-sheets/:id/analyze
  * Analiza la ficha técnica con IA y guarda config en course_config
  * Crea automáticamente tareas para cada KPI
+ * 
+ * REQUIERE:
+ * - course_id asignado
+ * - Al menos 1: file_url (PDF/base64), description, o URL manual
  */
 router.post('/tech-sheets/:id/analyze', async (req: Request, res: Response) => {
   try {
@@ -180,44 +184,57 @@ router.post('/tech-sheets/:id/analyze', async (req: Request, res: Response) => {
     const sheet = await techSheetRepo.findOne({ where: { id: parseInt(req.params.id) } });
     if (!sheet) return res.status(404).json({ error: 'Ficha técnica no encontrada' });
     
+    // ❌ VALIDACIÓN 1: Curso es obligatorio
     if (!sheet.course_id) {
       return res.status(400).json({ error: 'La ficha técnica debe tener un curso asignado' });
     }
 
-    // Simular análisis con IA (aquí se integraría Gemini real)
+    // ❌ VALIDACIÓN 2: Al menos 1 contenido
+    const hasContent = sheet.file_url || sheet.description;
+    if (!hasContent) {
+      return res.status(400).json({ 
+        error: 'La ficha técnica debe tener al menos uno de: archivo adjunto, URL o descripción/contenido',
+        details: {
+          has_file: !!sheet.file_url,
+          has_description: !!sheet.description,
+          required: 'Al menos 1 contenido'
+        }
+      });
+    }
+
+    // Marcar como procesado
     sheet.processed = true;
     sheet.processed_at = new Date();
-    sheet.extracted_data = {
-      competencies: sheet.competencies || [
-        'Gestión de operaciones',
-        'Comunicación efectiva',
-        'Toma de decisiones'
-      ],
-      kpi_requirements: sheet.kpi_requirements || [
-        'Resolver cliente insatisfecho en menos de 5 minutos',
-        'Mantener satisfacción del cliente >90%',
-        'Cumplimiento de protocolos >95%'
-      ],
-      suggested_questions: [
-        '¿Cuál fue tu estrategia para resolver el conflicto?',
-        '¿Cómo evaluarías el resultado obtenido?',
-        '¿Qué mejorarías para la próxima situación?'
-      ],
-      analyzed_at: new Date()
-    };
-
+    
     // Guardar cambios en tech_sheet
     const savedSheet = await techSheetRepo.save(sheet);
 
-    // Usar el servicio para analizar y guardar en course_config
+    // Pasar el sheet COMPLETO al servicio para que analice el contenido REAL
+    // (file_url, description, etc.)
     const analyzedConfig = await analysisService.analyzeAndSave(
       sheet,
       sheet.course_id
     );
 
     res.json({ 
-      message: 'Ficha técnica analizada con éxito y configuración guardada',
+      message: 'Ficha técnica analizada con éxito',
       sheet: savedSheet,
+      config: analyzedConfig,
+      summary: {
+        competencies_count: analyzedConfig.competencies.length,
+        kpis_count: analyzedConfig.kpis.length,
+        tasks_count: analyzedConfig.tasks.length,
+        from_content: {
+          file: !!sheet.file_url,
+          description: !!sheet.description
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error analyzing tech sheet:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
       config: analyzedConfig,
       summary: {
         competencies_count: analyzedConfig.competencies.length,
