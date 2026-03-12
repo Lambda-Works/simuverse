@@ -128,10 +128,35 @@ router.post('/tech-sheets', async (req: Request, res: Response) => {
   try {
     const repo = AppDataSource.getRepository(TechSheet);
     const { name, course_id, ministry_code, description, competencies, kpi_requirements, context_scenario, file_url, uploaded_by } = req.body;
+    
+    // VALIDACIONES
     if (!name) return res.status(400).json({ error: 'name es obligatorio' });
+    
+    // ✅ NUEVA VALIDACIÓN: course_id es OBLIGATORIO
+    if (!course_id) {
+      return res.status(400).json({ 
+        error: 'course_id es OBLIGATORIO. Toda ficha técnica debe estar asociada a un curso.',
+        reason: 'Una ficha técnica siempre tiene un curso. Un curso puede no tener ficha, pero una ficha siempre debe tener curso.',
+        received: { name, course_id, ministry_code }
+      });
+    }
+    
+    // Verificar que el curso exista
+    const coursesRepo = AppDataSource.getRepository('CourseDocument');
+    const courseExists = await AppDataSource.query(
+      'SELECT id FROM courses WHERE id = ?',
+      [course_id]
+    );
+    if (!courseExists || courseExists.length === 0) {
+      return res.status(400).json({ 
+        error: `El curso con ID "${course_id}" no existe. Selecciona un curso válido.`,
+        course_id: course_id
+      });
+    }
+    
     const sheet = repo.create({ 
       name, 
-      course_id: course_id || null,
+      course_id, // Ya validado que existe
       ministry_code, 
       description, 
       competencies, 

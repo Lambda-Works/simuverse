@@ -43,7 +43,11 @@ export function TechSheetsABM() {
   const [editingCompetencies, setEditingCompetencies] = useState<string>('');
   const [editingKpis, setEditingKpis] = useState<string>('');
   const [completionMode, setCompletionMode] = useState<'auto' | 'manual'>('auto');
+  const [editingCourseId, setEditingCourseId] = useState<string>('');
+  const [editingFileUrl, setEditingFileUrl] = useState<string>('');
+  const [editingFileName, setEditingFileName] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editingFileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -95,6 +99,26 @@ export function TechSheetsABM() {
       reader.onload = (ev) => {
         const dataUrl = ev.target?.result as string;
         setFormData(prev => ({ ...prev, file_url: dataUrl, file_name: file.name }));
+        setUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setUploading(false);
+      alert('Error al leer el archivo');
+    }
+  };
+
+  const handleEditingFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        setEditingFileUrl(dataUrl);
+        setEditingFileName(file.name);
         setUploading(false);
       };
       reader.readAsDataURL(file);
@@ -208,6 +232,13 @@ export function TechSheetsABM() {
     const sheet = sheets.find(s => s.id === id);
     if (!sheet) return;
 
+    // Validar que tenga curso asignado
+    const finalCourseId = editingCourseId || sheet.course_id;
+    if (!finalCourseId) {
+      alert('❌ Debes seleccionar un curso. Es obligatorio.');
+      return;
+    }
+
     // Parsear competencias y KPIs
     let competencies: string[] = [];
     let kpis: string[] = [];
@@ -234,6 +265,8 @@ export function TechSheetsABM() {
     try {
       const updatedSheet = {
         ...sheet,
+        course_id: finalCourseId,
+        file_url: editingFileUrl || sheet.file_url,
         competencies: competencies.length > 0 ? competencies : sheet.competencies,
         kpi_requirements: kpis.length > 0 ? kpis : sheet.kpi_requirements,
       };
@@ -252,6 +285,10 @@ export function TechSheetsABM() {
       setEditingSheetId(null);
       setEditingCompetencies('');
       setEditingKpis('');
+      setEditingCourseId('');
+      setEditingFileUrl('');
+      setEditingFileName('');
+      setCompletionMode('auto');
       await fetchTechSheets();
       alert('✅ Ficha técnica completada. Ahora puedes analizar con IA.');
     } catch (error) {
@@ -332,22 +369,27 @@ export function TechSheetsABM() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Asociar al Curso</label>
+              <label className="block text-sm font-medium mb-2">
+                Asociar al Curso <span className="text-red-500">*</span>
+              </label>
               <Select
-                value={formData.course_id || 'none'}
-                onValueChange={(val) => setFormData({ ...formData, course_id: val === 'none' ? '' : val })}
+                value={formData.course_id || ''}
+                onValueChange={(val) => setFormData({ ...formData, course_id: val })}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="— Sin asociar (global) —" />
+                <SelectTrigger className={formData.course_id ? '' : 'border-red-500 border-2'}>
+                  <SelectValue placeholder="— Selecciona un curso (OBLIGATORIO) —" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">— Sin asociar (global) —</SelectItem>
-                  {courses.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
-                  ))}
+                  {courses.length === 0 ? (
+                    <div className="p-2 text-sm text-gray-500">No hay cursos disponibles. Crea un curso primero.</div>
+                  ) : (
+                    courses.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-gray-500 mt-1">Si asociás la ficha a un curso, el sistema puede usar sus KPIs para evaluar ese simulador específico.</p>
+              <p className="text-xs text-red-500 mt-1">⚠️ OBLIGATORIO: Toda ficha técnica debe estar asociada a un curso. Un curso puede no tener ficha, pero una ficha siempre debe tener curso.</p>
             </div>
 
             <div>
@@ -420,7 +462,12 @@ export function TechSheetsABM() {
             </div>
 
             <div className="flex gap-3">
-              <Button type="submit" className="bg-green-600 hover:bg-green-700">
+              <Button 
+                type="submit" 
+                disabled={!formData.course_id}
+                className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!formData.course_id ? 'Debes seleccionar un curso primero' : 'Subir la ficha técnica'}
+              >
                 <FileUp className="w-4 h-4 mr-2" />
                 Subir Ficha
               </Button>
@@ -612,17 +659,20 @@ export function TechSheetsABM() {
         </Card>
       )}
 
-      {/* Modal para completar fichas inválidas - CON DOS OPCIONES */}
+      {/* Modal para completar fichas inválidas - CON TODO */}
       {editingSheetId && (
         <Card className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold">Completar Ficha Técnica</h3>
               <button 
                 onClick={() => {
                   setEditingSheetId(null);
                   setEditingCompetencies('');
                   setEditingKpis('');
+                  setEditingCourseId('');
+                  setEditingFileUrl('');
+                  setEditingFileName('');
                   setCompletionMode('auto');
                 }}
                 className="text-gray-400 hover:text-gray-600 text-2xl"
@@ -631,10 +681,83 @@ export function TechSheetsABM() {
               </button>
             </div>
 
-            {/* OPCIÓN AUTOMÁTICA: Si tiene archivo */}
+            {/* CAMPO 1: ASOCIAR AL CURSO */}
+            <div className="mb-6 pb-6 border-b">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Asociar al Curso <span className="text-red-500">*</span>
+              </label>
+              <Select
+                value={editingCourseId || sheets.find(s => s.id === editingSheetId)?.course_id || ''}
+                onValueChange={(val) => setEditingCourseId(val)}
+              >
+                <SelectTrigger className={(editingCourseId || sheets.find(s => s.id === editingSheetId)?.course_id) ? '' : 'border-red-500 border-2'}>
+                  <SelectValue placeholder="— Selecciona un curso (OBLIGATORIO) —" />
+                </SelectTrigger>
+                <SelectContent>
+                  {courses.length === 0 ? (
+                    <div className="p-2 text-sm text-gray-500">No hay cursos disponibles. Crea un curso primero.</div>
+                  ) : (
+                    courses.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-red-500 mt-1">⚠️ OBLIGATORIO: Toda ficha técnica debe estar asociada a un curso.</p>
+            </div>
+
+            {/* CAMPO 2: ADJUNTAR ARCHIVO */}
+            <div className="mb-6 pb-6 border-b">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Paperclip className="w-4 h-4 inline mr-1" />
+                Adjuntar Ficha del Ministerio (PDF, DOC, DOCX)
+              </label>
+              <div className="flex gap-2 items-center">
+                <input
+                  ref={editingFileInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  onChange={handleEditingFileChange}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => editingFileInputRef.current?.click()}
+                  disabled={uploading}
+                >
+                  <FileUp className="w-4 h-4 mr-2" />
+                  {uploading ? 'Cargando...' : editingFileName ? 'Cambiar Archivo' : 'Seleccionar Archivo'}
+                </Button>
+                {editingFileName && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-green-700 flex items-center gap-1">
+                      ✅ {editingFileName}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditingFileUrl('');
+                        setEditingFileName('');
+                        if (editingFileInputRef.current) editingFileInputRef.current.value = '';
+                      }}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 h-6 w-6 p-0"
+                      title="Eliminar archivo"
+                    >
+                      ✕
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Sube un archivo para que la IA lo analice automáticamente y extraiga competencias y KPIs.</p>
+            </div>
+
+            {/* OPCIÓN 1: ANÁLISIS AUTOMÁTICO - Si tiene archivo */}
             {(() => {
               const sheet = sheets.find(s => s.id === editingSheetId);
-              const hasFile = sheet?.file_url && sheet.file_url.length > 0;
+              const hasFile = editingFileUrl || (sheet?.file_url && sheet.file_url.length > 0);
               
               return hasFile ? (
                 <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
@@ -642,13 +765,37 @@ export function TechSheetsABM() {
                     <div className="flex-1">
                       <h4 className="font-semibold text-blue-900 mb-2">🤖 Opción 1: Análisis Automático (IA)</h4>
                       <p className="text-sm text-blue-800 mb-3">
-                        Detectamos que tu ficha tiene un archivo adjunto. La IA puede analizar automáticamente el contenido y extraer competencias y KPIs.
+                        Tu ficha tiene un archivo adjunto. La IA puede analizar automáticamente el contenido y extraer competencias y KPIs.
                       </p>
                       <Button
                         onClick={async () => {
+                          const finalCourseId = editingCourseId || sheet?.course_id;
+                          if (!finalCourseId) {
+                            alert('❌ Debes seleccionar un curso primero');
+                            return;
+                          }
                           if (!sheet) return;
                           setProcessing(sheet.id);
                           try {
+                            // Primero actualizar con el curso
+                            const updatedSheet = {
+                              ...sheet,
+                              course_id: finalCourseId,
+                              file_url: editingFileUrl || sheet.file_url,
+                            };
+                            
+                            const updateResponse = await fetch(`http://localhost:5000/api/tech-sheets/${sheet.id}`, {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify(updatedSheet),
+                            });
+                            
+                            if (!updateResponse.ok) {
+                              const error = await updateResponse.json();
+                              throw new Error(error.error || 'Error al actualizar');
+                            }
+                            
+                            // Luego analizar
                             const response = await fetch(`http://localhost:5000/api/tech-sheets/${sheet.id}/analyze`, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
@@ -663,6 +810,9 @@ export function TechSheetsABM() {
                             setEditingSheetId(null);
                             setEditingCompetencies('');
                             setEditingKpis('');
+                            setEditingCourseId('');
+                            setEditingFileUrl('');
+                            setEditingFileName('');
                             setCompletionMode('auto');
                             await fetchTechSheets();
                           } catch (error) {
@@ -671,11 +821,11 @@ export function TechSheetsABM() {
                             setProcessing(null);
                           }
                         }}
-                        disabled={processing === sheet.id}
+                        disabled={processing === sheet?.id}
                         className="bg-blue-600 hover:bg-blue-700 text-white"
                       >
                         <Zap className="w-4 h-4 mr-2" />
-                        {processing === sheet.id ? 'Analizando...' : 'Analizar Archivo Automáticamente'}
+                        {processing === sheet?.id ? 'Analizando...' : 'Analizar Archivo Automáticamente'}
                       </Button>
                     </div>
                   </div>
@@ -687,8 +837,8 @@ export function TechSheetsABM() {
               ) : null;
             })()}
 
-            {/* OPCIÓN MANUAL: Siempre disponible */}
-            <div className="space-y-4">
+            {/* OPCIÓN 2: COMPLETAR MANUALMENTE */}
+            <div className="space-y-4 mb-6">
               <div>
                 <h4 className="font-semibold text-gray-900 mb-3">✍️ Opción 2: Completar Manualmente</h4>
               </div>
@@ -726,7 +876,7 @@ export function TechSheetsABM() {
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6 pt-4 border-t">
+            <div className="flex gap-3 pt-4 border-t">
               <Button
                 onClick={() => handleCompleteSheet(editingSheetId)}
                 className="bg-green-600 hover:bg-green-700 text-white"
@@ -739,6 +889,9 @@ export function TechSheetsABM() {
                   setEditingSheetId(null);
                   setEditingCompetencies('');
                   setEditingKpis('');
+                  setEditingCourseId('');
+                  setEditingFileUrl('');
+                  setEditingFileName('');
                   setCompletionMode('auto');
                 }}
                 variant="outline"
