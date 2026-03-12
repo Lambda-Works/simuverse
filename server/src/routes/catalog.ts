@@ -97,9 +97,19 @@ router.get('/tech-sheets/:id', async (req: Request, res: Response) => {
 router.post('/tech-sheets', async (req: Request, res: Response) => {
   try {
     const repo = AppDataSource.getRepository(TechSheet);
-    const { name, ministry_code, description, competencies, kpi_requirements, context_scenario, uploaded_by } = req.body;
+    const { name, course_id, ministry_code, description, competencies, kpi_requirements, context_scenario, file_url, uploaded_by } = req.body;
     if (!name) return res.status(400).json({ error: 'name es obligatorio' });
-    const sheet = repo.create({ name, ministry_code, description, competencies, kpi_requirements, context_scenario, uploaded_by });
+    const sheet = repo.create({ 
+      name, 
+      course_id: course_id || null,
+      ministry_code, 
+      description, 
+      competencies, 
+      kpi_requirements, 
+      context_scenario, 
+      file_url: file_url || null,
+      uploaded_by 
+    });
     const saved = await repo.save(sheet);
     res.status(201).json(saved);
   } catch (error) {
@@ -151,6 +161,37 @@ router.post('/tech-sheets/:id/process', async (req: Request, res: Response) => {
     };
     const saved = await repo.save(sheet);
     res.json({ message: 'Ficha técnica procesada', sheet: saved });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * POST /tech-sheets/:id/analyze
+ * Analiza la ficha técnica y marca como procesada
+ */
+router.post('/tech-sheets/:id/analyze', async (req: Request, res: Response) => {
+  try {
+    const techSheetRepo = AppDataSource.getRepository(TechSheet);
+    
+    const sheet = await techSheetRepo.findOne({ where: { id: parseInt(req.params.id) } });
+    if (!sheet) return res.status(404).json({ error: 'Ficha técnica no encontrada' });
+
+    // Simular análisis con IA
+    sheet.processed = true;
+    sheet.processed_at = new Date();
+    sheet.extracted_data = {
+      competencies: sheet.competencies || ['Competencia 1', 'Competencia 2'],
+      kpi_requirements: sheet.kpi_requirements || ['KPI 1', 'KPI 2'],
+      suggested_questions: ['Pregunta 1', 'Pregunta 2'],
+      analyzed_at: new Date()
+    };
+
+    const saved = await techSheetRepo.save(sheet);
+    res.json({ 
+      message: 'Ficha técnica analizada con éxito',
+      sheet: saved
+    });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
