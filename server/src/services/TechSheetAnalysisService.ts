@@ -158,7 +158,10 @@ export class TechSheetAnalysisService {
     // Si tiene file_url con ruta relativa, leer del disco
     if (sheet.file_url && !sheet.file_url.startsWith('data:')) {
       try {
-        const filePath = path.join(process.cwd(), '..', '..', sheet.file_url);
+        // El archivo está en server/uploads/tech-sheets/
+        // file_url es: "tech-sheets/uuid.txt"
+        // process.cwd() es: /home/gaspi/.../simuverse-engine/server
+        const filePath = path.join(process.cwd(), 'uploads', sheet.file_url);
         console.log(`📂 Intentando leer archivo de: ${filePath}`);
         
         if (fs.existsSync(filePath)) {
@@ -296,10 +299,262 @@ Responde SOLO con JSON válido:
    * Fallback: análisis básico sin IA
    */
   private extractCompetenciesAndKPIsBasic(content: string): { competencies: Competency[]; kpis: KPIConfig[] } {
-    console.log('🔄 Usando análisis básico...');
-    const competencies = this.extractCompetencies(content);
-    const kpis = this.extractKPIs(content, competencies);
+    console.log('🔄 Usando análisis estructural local (sin API)...');
+    
+    // Análisis inteligente basado en estructura del documento
+    const competencies = this.extractCompetenciesFromStructure(content);
+    const objectives = this.extractObjectivesFromStructure(content);
+    const modules = this.extractModulesFromStructure(content);
+    
+    // Crear KPIs basados en objetivos y módulos
+    const kpis = this.createKPIsFromObjectivesAndModules(objectives, modules, competencies);
+    
+    console.log(`📊 Análisis local: ${competencies.length} competencias, ${kpis.length} KPIs`);
     return { competencies, kpis };
+  }
+
+  /**
+   * Extrae competencias buscando secciones específicas del documento
+   */
+  private extractCompetenciesFromStructure(content: string): Competency[] {
+    const competencies: Competency[] = [];
+    const lowerContent = content.toLowerCase();
+
+    // Patrones a buscar en el documento
+    const patterns = [
+      { keyword: 'competencia', level: 'intermediate' as const, baseName: 'Competencia' },
+      { keyword: 'habilidad', level: 'intermediate' as const, baseName: 'Habilidad' },
+      { keyword: 'destreza', level: 'intermediate' as const, baseName: 'Destreza' },
+      { keyword: 'capacidad', level: 'intermediate' as const, baseName: 'Capacidad' },
+      { keyword: 'conocimiento', level: 'basic' as const, baseName: 'Conocimiento' },
+      { keyword: 'liderazgo', level: 'advanced' as const, baseName: 'Liderazgo' },
+      { keyword: 'análisis', level: 'intermediate' as const, baseName: 'Análisis crítico' },
+      { keyword: 'comunicación', level: 'intermediate' as const, baseName: 'Comunicación efectiva' },
+      { keyword: 'resolución', level: 'advanced' as const, baseName: 'Resolución de problemas' },
+    ];
+
+    const foundCompetencies: { [key: string]: Competency } = {};
+
+    // Buscar patrones en el contenido
+    patterns.forEach((pattern, idx) => {
+      if (lowerContent.includes(pattern.keyword)) {
+        const key = pattern.baseName.toLowerCase();
+        if (!foundCompetencies[key]) {
+          foundCompetencies[key] = {
+            id: `comp-${Object.keys(foundCompetencies).length + 1}`,
+            name: pattern.baseName,
+            description: `Competencia identificada en el documento: ${pattern.baseName}`,
+            level: pattern.level,
+          };
+        }
+      }
+    });
+
+    // Buscar competencias específicas mencionadas explícitamente
+    const competencySection = this.extractSection(content, 'competencia', 200);
+    if (competencySection) {
+      const lines = competencySection.split('\n').filter(l => l.trim().length > 5);
+      lines.slice(0, 3).forEach((line, idx) => {
+        const key = line.toLowerCase().substring(0, 30);
+        if (!foundCompetencies[key] && Object.keys(foundCompetencies).length < 5) {
+          foundCompetencies[key] = {
+            id: `comp-${Object.keys(foundCompetencies).length + 1}`,
+            name: line.trim().substring(0, 50),
+            description: line.trim(),
+            level: 'intermediate',
+          };
+        }
+      });
+    }
+
+    return Object.values(foundCompetencies).slice(0, 6);
+  }
+
+  /**
+   * Extrae objetivos de aprendizaje del documento
+   */
+  private extractObjectivesFromStructure(content: string): string[] {
+    const objectives: string[] = [];
+
+    // Buscar sección de objetivos
+    const objectiveSection = this.extractSection(content, 'objetivo', 500);
+    if (objectiveSection) {
+      const lines = objectiveSection
+        .split('\n')
+        .filter(l => l.trim().length > 10 && !l.includes('•') && !l.includes('-'));
+      
+      lines.forEach(line => {
+        const cleaned = line.replace(/^[\d.•\-\*]\s*/, '').trim();
+        if (cleaned.length > 10 && cleaned.length < 200) {
+          objectives.push(cleaned);
+        }
+      });
+    }
+
+    // Si no encontró, buscar patrones "Diseñar", "Implementar", "Comprender"
+    const verbPatterns = ['diseñar', 'implementar', 'comprender', 'desarrollar', 'aplicar', 'crear', 'analizar'];
+    const contentLower = content.toLowerCase();
+    
+    verbPatterns.forEach(verb => {
+      const regex = new RegExp(`${verb}[^.]*\\.`, 'gi');
+      const matches = content.match(regex);
+      if (matches && objectives.length < 5) {
+        matches.slice(0, 2).forEach(match => {
+          objectives.push(match.trim());
+        });
+      }
+    });
+
+    return objectives.slice(0, 5);
+  }
+
+  /**
+   * Extrae módulos o temas del documento
+   */
+  private extractModulesFromStructure(content: string): string[] {
+    const modules: string[] = [];
+
+    // Buscar sección de módulos
+    const moduleSection = this.extractSection(content, 'módulo', 800);
+    if (moduleSection) {
+      const lines = moduleSection.split('\n');
+      lines.forEach(line => {
+        const match = line.match(/módulo\s+([ivxlcdm]+|[0-9]+)[:\s]+([^/]+)/i);
+        if (match && match[2]) {
+          modules.push(match[2].trim().substring(0, 100));
+        }
+      });
+    }
+
+    // Buscar "Eje temático"
+    const ejeSection = this.extractSection(content, 'eje temático', 500);
+    if (ejeSection && modules.length === 0) {
+      const lines = ejeSection.split('\n');
+      lines.forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed.length > 10 && trimmed.length < 150) {
+          modules.push(trimmed);
+        }
+      });
+    }
+
+    return modules.slice(0, 5);
+  }
+
+  /**
+   * Crea KPIs basados en objetivos y módulos
+   */
+  private createKPIsFromObjectivesAndModules(
+    objectives: string[],
+    modules: string[],
+    competencies: Competency[]
+  ): KPIConfig[] {
+    const kpis: KPIConfig[] = [];
+    let kpiIdx = 1;
+
+    // Crear KPI de cada objetivo
+    objectives.forEach((obj, idx) => {
+      if (kpiIdx <= 4) {
+        kpis.push({
+          id: `kpi-${kpiIdx}`,
+          name: obj.substring(0, 60),
+          description: obj.substring(0, 200),
+          category: this.categorizeKPI(obj),
+          weight: 100 / Math.max(1, objectives.length),
+          target_value: 95,
+          minimum_pass_value: 70,
+          competencies_required: competencies.map(c => c.id).slice(0, 2),
+          evaluation_questions: [
+            `¿Se logró: "${obj.substring(0, 50)}"?`,
+            `¿Cuál fue el nivel de cumplimiento?`,
+            `¿Qué evidencia demuestra este logro?`,
+          ]
+        });
+        kpiIdx++;
+      }
+    });
+
+    // Crear KPI de cada módulo
+    modules.forEach((mod, idx) => {
+      if (kpiIdx <= 6) {
+        kpis.push({
+          id: `kpi-${kpiIdx}`,
+          name: `Dominar: ${mod.substring(0, 40)}`,
+          description: `Adquisición de competencias en: ${mod.substring(0, 150)}`,
+          category: 'skill',
+          weight: 100 / Math.max(1, modules.length),
+          target_value: 90,
+          minimum_pass_value: 70,
+          competencies_required: competencies.map(c => c.id).slice(0, 2),
+          evaluation_questions: [
+            `¿Puede aplicar los conceptos de ${mod.substring(0, 30)}?`,
+            `¿Demuestra habilidad en ${mod.substring(0, 30)}?`,
+          ]
+        });
+        kpiIdx++;
+      }
+    });
+
+    // Si no hay ni objetivos ni módulos, crear KPI genérico mejorado
+    if (kpis.length === 0) {
+      kpis.push({
+        id: 'kpi-1',
+        name: 'Desempeño General de la Capacitación',
+        description: 'Evaluación integral del logro de las competencias propuestas en la capacitación',
+        category: 'performance',
+        weight: 100,
+        target_value: 95,
+        minimum_pass_value: 70,
+        competencies_required: competencies.map(c => c.id),
+        evaluation_questions: [
+          '¿Se lograron los objetivos de aprendizaje?',
+          '¿Demuestra las competencias requeridas?',
+          '¿Puede aplicar lo aprendido en contextos reales?',
+        ]
+      });
+    }
+
+    return kpis;
+  }
+
+  /**
+   * Busca una sección del documento por palabra clave
+   */
+  private extractSection(content: string, keyword: string, maxLength: number = 500): string {
+    const lowerContent = content.toLowerCase();
+    const keywordIndex = lowerContent.indexOf(keyword);
+    
+    if (keywordIndex === -1) return '';
+
+    // Encontrar el siguiente salto de línea o punto después de la palabra clave
+    const startIndex = keywordIndex;
+    let endIndex = keywordIndex + maxLength;
+
+    // Buscar un límite natural (próximo títul o sección)
+    const nextKeywordIndex = lowerContent.indexOf('\n\n', startIndex);
+    if (nextKeywordIndex > 0 && nextKeywordIndex < endIndex) {
+      endIndex = nextKeywordIndex;
+    }
+
+    return content.substring(startIndex, Math.min(endIndex, content.length));
+  }
+
+  /**
+   * Categoriza un KPI basado en su descripción
+   */
+  private categorizeKPI(text: string): string {
+    const lower = text.toLowerCase();
+    
+    if (lower.includes('conocimiento') || lower.includes('comprender') || lower.includes('entender')) {
+      return 'knowledge';
+    }
+    if (lower.includes('habilidad') || lower.includes('destreza') || lower.includes('aplicar')) {
+      return 'skill';
+    }
+    if (lower.includes('actitud') || lower.includes('comportamiento') || lower.includes('ética')) {
+      return 'attitude';
+    }
+    return 'performance';
   }
 
   /**
