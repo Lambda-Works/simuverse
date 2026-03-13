@@ -352,6 +352,13 @@ router.post('/tech-sheets/:id/analyze', async (req: Request, res: Response) => {
           file: !!sheet.file_url,
           description: !!sheet.description
         }
+      },
+      analysis_info: {
+        method: analyzedConfig.analysis_method,  // ✅ MUESTRA MÉTODO USADO
+        notes: analyzedConfig.analysis_notes,    // ✅ MUESTRA NOTAS DEL ANÁLISIS
+        method_label: analyzedConfig.analysis_method === 'gemini_api' 
+          ? '✅ GEMINI API - Análisis con IA avanzada'
+          : '⚠️ FALLBACK LOCAL - Análisis basado en patrones locales'
       }
     });
   } catch (error) {
