@@ -189,7 +189,7 @@ router.post('/tech-sheets', upload.single('file'), async (req: Request, res: Res
     }
     
     // ✅ NUEVO: Si hay archivo adjunto, guardarlo en disk
-    let fileUrl = null;
+    let fileUrl: string | undefined = undefined;
     let fileInfo = null;
 
     if (req.file) {

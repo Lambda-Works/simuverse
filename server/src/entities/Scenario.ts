@@ -58,8 +58,8 @@ export class Scenario {
   @JoinColumn({ name: 'course_id' })
   course?: Course;
 
-  // Relación con ScenarioConfig (se define en ScenarioConfig.entity.ts)
-  config?: any;
+  @Column({ type: 'json', nullable: true })
+  config?: any; // ScenarioConfig as JSON (stored denormalized)
 
   @OneToMany(() => SimulationInstance, (instance) => instance.scenario)
   instances?: SimulationInstance[];
