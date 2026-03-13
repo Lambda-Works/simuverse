@@ -17,6 +17,13 @@ export interface Competency {
   level: 'basic' | 'intermediate' | 'advanced';
 }
 
+export interface AnalysisResult {
+  competencies: Competency[];
+  kpis: KPIConfig[];
+  method: 'gemini_api' | 'local_fallback'; // ✅ Qué método se usó
+  notes: string; // ✅ Detalles del análisis
+}
+
 export interface KPIConfig {
   id: string;
   name: string;
@@ -51,6 +58,8 @@ export interface AnalyzedKPIsConfig {
     evaluation_prompt: string;
     coaching_prompt: string;
   };
+  analysis_method: 'gemini_api' | 'local_fallback'; // ✅ NUEVO: Qué método se usó
+  analysis_notes?: string; // ✅ NUEVO: Notas sobre el análisis
 }
 
 export class TechSheetAnalysisService {
@@ -74,10 +83,15 @@ export class TechSheetAnalysisService {
 
       console.log(`📄 Contenido a analizar (${contentToAnalyze.length} caracteres)`);
       
-      // 2. Llamar a Gemini para análisis inteligente
-      const { competencies, kpis } = await this.analyzeWithGemini(contentToAnalyze, sheet.name);
+      // 2. Llamar a Gemini (o fallback) para análisis inteligente
+      const analysisResult = await this.analyzeWithGemini(contentToAnalyze, sheet.name);
+      const { competencies, kpis, method, notes } = analysisResult;
 
-      console.log(`✅ Gemini extrajo: ${competencies.length} competencias, ${kpis.length} KPIs`);
+      console.log(`📊 Análisis completado:`);
+      console.log(`   Método: ${method === 'gemini_api' ? '✅ GEMINI API' : '⚠️ FALLBACK LOCAL'}`);
+      console.log(`   Competencias: ${competencies.length}`);
+      console.log(`   KPIs: ${kpis.length}`);
+      console.log(`   Notas: ${notes}`);
 
       // 3. Crear tareas para cada KPI
       const tasks = await this.createTasksForKPIs(
@@ -103,6 +117,8 @@ export class TechSheetAnalysisService {
           evaluation_prompt: this.generateEvaluationPrompt(kpis),
           coaching_prompt: this.generateCoachingPrompt(sheet),
         },
+        analysis_method: method,  // ✅ GUARDAR QUÉ MÉTODO SE USÓ
+        analysis_notes: notes,    // ✅ GUARDAR NOTAS DEL ANÁLISIS
       };
 
       // 5. Guardar en course_config.metadata
@@ -271,19 +287,29 @@ export class TechSheetAnalysisService {
 
   /**
    * Llama a Google Gemini para analizar el contenido
+   * RETORNA: { competencies, kpis, method, notes }
    */
   private async analyzeWithGemini(
     content: string,
     sheetName: string
-  ): Promise<{ competencies: Competency[]; kpis: KPIConfig[] }> {
+  ): Promise<AnalysisResult> {
     const apiKey = process.env.GEMINI_API_KEY;
 
+    // ❌ API KEY NO CONFIGURADA → USAR FALLBACK
     if (!apiKey || apiKey === 'tu_gemini_api_key_aqui') {
-      console.warn('⚠️ GEMINI_API_KEY no está configurada. Usando análisis básico.');
-      return this.extractCompetenciesAndKPIsBasic(content);
+      console.warn('⚠️ GEMINI_API_KEY no está configurada');
+      console.warn('🔄 Usando análisis local (fallback)...');
+      const basicResult = this.extractCompetenciesAndKPIsBasic(content);
+      return {
+        ...basicResult,
+        method: 'local_fallback',
+        notes: 'Análisis realizado SIN API de Gemini. GEMINI_API_KEY no está configurada. Se usó análisis estructural local.'
+      };
     }
 
     try {
+      console.log('🔑 GEMINI_API_KEY detectada. Intentando usar API de Gemini...');
+      
       const prompt = `Analiza este documento de capacitación/ficha técnica y extrae la información en JSON.
 
 DOCUMENTO:
@@ -332,23 +358,41 @@ Responde SOLO con JSON válido:
       });
 
       if (!response.ok) {
-        console.error(`❌ Error de Gemini: ${response.status}`);
-        return this.extractCompetenciesAndKPIsBasic(content);
+        console.error(`❌ Error de Gemini API: ${response.status} ${response.statusText}`);
+        console.warn('⚠️ Gemini falló. Usando fallback local...');
+        const basicResult = this.extractCompetenciesAndKPIsBasic(content);
+        return {
+          ...basicResult,
+          method: 'local_fallback',
+          notes: `Análisis realizado SIN API de Gemini. Error: HTTP ${response.status}. Se usó análisis estructural local como fallback.`
+        };
       }
 
       const data: any = await response.json();
       
       if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
         console.error('❌ Respuesta vacía de Gemini');
-        return this.extractCompetenciesAndKPIsBasic(content);
+        console.warn('⚠️ Gemini retornó respuesta vacía. Usando fallback local...');
+        const basicResult = this.extractCompetenciesAndKPIsBasic(content);
+        return {
+          ...basicResult,
+          method: 'local_fallback',
+          notes: 'Análisis realizado SIN API de Gemini. Gemini retornó respuesta vacía. Se usó análisis estructural local.'
+        };
       }
 
       const responseText = data.candidates[0].content.parts[0].text;
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       
       if (!jsonMatch) {
-        console.error('❌ No se encontró JSON en la respuesta');
-        return this.extractCompetenciesAndKPIsBasic(content);
+        console.error('❌ No se encontró JSON en la respuesta de Gemini');
+        console.warn('⚠️ Usando fallback local...');
+        const basicResult = this.extractCompetenciesAndKPIsBasic(content);
+        return {
+          ...basicResult,
+          method: 'local_fallback',
+          notes: 'Análisis realizado SIN API de Gemini. Gemini no retornó JSON válido. Se usó análisis estructural local.'
+        };
       }
 
       const parsedData = JSON.parse(jsonMatch[0]);
@@ -372,11 +416,23 @@ Responde SOLO con JSON válido:
         evaluation_questions: k.evaluation_questions || [`¿Se logró ${k.name}?`]
       }));
 
-      console.log(`✅ Análisis exitoso: ${competencies.length} competencias, ${kpis.length} KPIs`);
-      return { competencies, kpis };
+      console.log(`✅ Gemini API exitosa: ${competencies.length} competencias, ${kpis.length} KPIs`);
+      
+      return {
+        competencies,
+        kpis,
+        method: 'gemini_api',
+        notes: `Análisis realizado CON éxito usando API de Gemini. Se extrajeron ${competencies.length} competencias y ${kpis.length} KPIs.`
+      };
     } catch (err: any) {
       console.error(`❌ Error con Gemini: ${err.message}`);
-      return this.extractCompetenciesAndKPIsBasic(content);
+      console.warn('⚠️ Usando fallback local...');
+      const basicResult = this.extractCompetenciesAndKPIsBasic(content);
+      return {
+        ...basicResult,
+        method: 'local_fallback',
+        notes: `Análisis realizado SIN API de Gemini. Error: ${err.message}. Se usó análisis estructural local como fallback.`
+      };
     }
   }
 
