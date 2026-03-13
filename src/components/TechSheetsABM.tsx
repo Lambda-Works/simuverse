@@ -132,47 +132,72 @@ export function TechSheetsABM() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name) {
-      alert('El nombre es obligatorio');
+    // Validación: nombre es obligatorio
+    const trimmedName = formData.name?.trim();
+    if (!trimmedName) {
+      alert('❌ El nombre de la ficha es obligatorio');
+      return;
+    }
+
+    // Validación: al menos un campo de contenido
+    if (!formData.course_id && !formData.description && !formData.file_url) {
+      alert('❌ Debes rellenar: Curso (obligatorio) O al menos Descripción/Archivo');
       return;
     }
 
     try {
-      const payload = {
-        name: formData.name,
-        course_id: formData.course_id || null,
-        ministry_code: formData.ministry_code,
-        description: formData.description,
-        uploaded_by: localStorage.getItem('userId') || 'system',
-      };
+      // Usar FormData para enviar archivos si existen
+      const hasFile = fileInputRef.current?.files?.[0];
+      
+      if (hasFile) {
+        // Con archivo: usar FormData
+        const formDataObj = new FormData();
+        formDataObj.append('name', trimmedName);
+        if (formData.course_id) formDataObj.append('course_id', formData.course_id);
+        if (formData.ministry_code) formDataObj.append('ministry_code', formData.ministry_code);
+        if (formData.description) formDataObj.append('description', formData.description);
+        formDataObj.append('uploaded_by', localStorage.getItem('userId') || 'system');
+        formDataObj.append('file', hasFile);
 
-      // ✅ NUEVO: Usar FormData para multipart/form-data
-      const formDataObj = new FormData();
-      formDataObj.append('name', payload.name);
-      formDataObj.append('course_id', payload.course_id);
-      formDataObj.append('ministry_code', payload.ministry_code);
-      formDataObj.append('description', payload.description);
-      formDataObj.append('uploaded_by', payload.uploaded_by);
+        console.log(`📤 Archivo a enviar: ${hasFile.name} (${(hasFile.size / 1024).toFixed(2)} KB)`);
 
-      // ✅ CORRECCIÓN: Usar fileInputRef en lugar de getElementById
-      if (fileInputRef.current?.files?.[0]) {
-        formDataObj.append('file', fileInputRef.current.files[0]);
-        console.log(`📤 Archivo a enviar: ${fileInputRef.current.files[0].name} (${(fileInputRef.current.files[0].size / 1024).toFixed(2)} KB)`);
+        const response = await fetch('http://localhost:5000/api/tech-sheets', {
+          method: 'POST',
+          body: formDataObj,
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Error al guardar');
+        }
+
+        const result = await response.json();
+        console.log('✅ Ficha técnica creada:', result);
+      } else {
+        // Sin archivo: usar JSON (más simple)
+        const payload = {
+          name: trimmedName,
+          course_id: formData.course_id || null,
+          ministry_code: formData.ministry_code || null,
+          description: formData.description || null,
+          file_url: formData.file_url || null,
+          uploaded_by: localStorage.getItem('userId') || 'system',
+        };
+
+        const response = await fetch('http://localhost:5000/api/tech-sheets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Error al guardar');
+        }
+
+        const result = await response.json();
+        console.log('✅ Ficha técnica creada:', result);
       }
-
-      const response = await fetch('http://localhost:5000/api/tech-sheets', {
-        method: 'POST',
-        // ✅ NO incluir Content-Type, browser lo setea automáticamente
-        body: formDataObj,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Error al guardar');
-      }
-
-      const result = await response.json();
-      console.log('✅ Ficha técnica creada:', result);
 
       // Reset form
       setFormData({ name: '', course_id: '', ministry_code: '', description: '', file_url: '', file_name: '' });
@@ -184,7 +209,7 @@ export function TechSheetsABM() {
       alert('✅ Ficha técnica guardada exitosamente');
     } catch (error) {
       console.error('Error saving tech sheet:', error);
-      alert(`Error al guardar la ficha técnica: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      alert(`❌ Error al guardar la ficha técnica: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   };
 
@@ -208,9 +233,40 @@ export function TechSheetsABM() {
 
     setProcessing(id);
     try {
+      // Preparar contenido para análisis
+      let fileContent = sheet.description || '';
+      
+      // Si hay un archivo URL, intentar obtener el contenido
+      if (sheet.file_url && !fileContent) {
+        try {
+          // Intentar obtener el contenido del archivo remoto
+          const fileResponse = await fetch(sheet.file_url);
+          if (fileResponse.ok) {
+            // Para archivos de texto, leer como texto
+            if (sheet.file_url.endsWith('.txt') || sheet.file_url.includes('text')) {
+              fileContent = await fileResponse.text();
+            } else {
+              // Para otros tipos, usar el nombre como contexto
+              fileContent = sheet.name || 'Archivo sin contenido extractable';
+            }
+          }
+        } catch (e) {
+          // Si no se puede obtener el contenido remoto, usar el nombre
+          fileContent = sheet.name || sheet.file_url;
+        }
+      }
+
+      // Enviar el contenido REAL al backend para análisis
       const response = await fetch(`http://localhost:5000/api/tech-sheets/${id}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: fileContent,
+          file_url: sheet.file_url || '',
+          description: sheet.description || '',
+          scenario: sheet.name || '',
+          competencies: []
+        })
       });
       
       if (!response.ok) {
@@ -219,7 +275,18 @@ export function TechSheetsABM() {
       }
       
       const data = await response.json();
-      alert('✅ Ficha técnica analizada con éxito. El sistema generó automáticamente:\n- Competencias identificadas\n- KPIs extraídos\n- Preguntas de evaluación\n- Prompts para el Chat IA');
+      
+      // Mostrar los resultados reales del análisis
+      const competenciesList = data.extracted_data?.competencies?.join(', ') || 'No se identificaron';
+      const kpiCount = data.extracted_data?.kpi_requirements?.length || 0;
+      
+      alert(`✅ Ficha técnica analizada con éxito!\n\n📊 Resultados del análisis:
+- Competencias identificadas (${data.competencies_found || 0}): ${competenciesList}
+- KPIs extraídos: ${kpiCount}
+- Preguntas de evaluación: ${data.extracted_data?.suggested_questions?.length || 0}
+- Prompts para Chat IA: Generado
+- Tiempo de análisis: ${new Date(data.analysis_timestamp).toLocaleTimeString('es-ES')}`);
+      
       await fetchTechSheets();
     } catch (error) {
       console.error('Error analyzing tech sheet:', error);
