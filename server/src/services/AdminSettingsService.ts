@@ -10,7 +10,7 @@
  * - Determine if teachers can see admin_data
  */
 
-import { DatabaseConnection } from '../database/connection';
+import { AppDataSource } from '../database/connection';
 
 export interface TeacherPermissions {
   can_see_ai_config?: boolean;
@@ -30,7 +30,7 @@ export class AdminSettingsService {
    */
   static async getTeacherPermissions(): Promise<TeacherPermissions> {
     try {
-      const db = DatabaseConnection.getInstance();
+      const db = AppDataSource;
       
       const query = `
         SELECT setting_value 
@@ -70,7 +70,7 @@ export class AdminSettingsService {
     permissions: TeacherPermissions
   ): Promise<TeacherPermissions> {
     try {
-      const db = DatabaseConnection.getInstance();
+      const db = AppDataSource;
 
       // Merge with current permissions to preserve any fields not provided
       const currentPerms = await this.getTeacherPermissions();

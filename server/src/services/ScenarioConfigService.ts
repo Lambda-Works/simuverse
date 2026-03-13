@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+// import { Injectable } from '@nestjs/common';
+// import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ScenarioConfig } from '../entities/ScenarioConfig.entity';
 import { CourseConfig } from '../entities/CourseConfig';
@@ -36,20 +36,20 @@ import { Course } from '../entities/Course';
  * // Solo este escenario usa esta config
  * // Otros escenarios del curso usan CourseConfig global
  */
-@Injectable()
+// @Injectable()
 export class ScenarioConfigService {
   constructor(
-    @InjectRepository(ScenarioConfig)
-    private scenarioConfigRepo: Repository<ScenarioConfig>,
+    // @InjectRepository(ScenarioConfig)
+    private scenarioConfigRepo?: Repository<ScenarioConfig>,
 
-    @InjectRepository(CourseConfig)
-    private courseConfigRepo: Repository<CourseConfig>,
+    // @InjectRepository(CourseConfig)
+    private courseConfigRepo?: Repository<CourseConfig>,
 
-    @InjectRepository(Scenario)
-    private scenarioRepo: Repository<Scenario>,
+    // @InjectRepository(Scenario)
+    private scenarioRepo?: Repository<Scenario>,
 
-    @InjectRepository(Course)
-    private courseRepo: Repository<Course>,
+    // @InjectRepository(Course)
+    private courseRepo?: Repository<Course>,
   ) {}
 
   // ─────────────────────────────────────────────────────────────────────
@@ -293,9 +293,9 @@ export class ScenarioConfigService {
     });
 
     if (!config) {
-      config = await this.createScenarioConfig(scenarioId, { crisis_events: crisisEvents });
+      config = await this.createScenarioConfig(scenarioId, { crisis_events: crisisEvents as any });
     } else {
-      await this.updateScenarioConfig(scenarioId, { crisis_events: crisisEvents });
+      await this.updateScenarioConfig(scenarioId, { crisis_events: crisisEvents as any });
     }
 
     return config;
@@ -313,9 +313,9 @@ export class ScenarioConfigService {
     });
 
     if (!config) {
-      config = await this.createScenarioConfig(scenarioId, { scenario_modules: modules });
+      config = await this.createScenarioConfig(scenarioId, { scenario_modules: modules as any });
     } else {
-      await this.updateScenarioConfig(scenarioId, { scenario_modules: modules });
+      await this.updateScenarioConfig(scenarioId, { scenario_modules: modules as any });
     }
 
     return config;

@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+// import { Injectable } from '@nestjs/common';
+// import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { OfflineCache } from '../entities/offline/OfflineCache.entity';
 import { ChatResponseCache } from '../entities/offline/ChatResponseCache.entity';
@@ -26,29 +26,29 @@ import * as zlib from 'zlib';
  * 3. student.goOffline() → usa datos locales
  * 4. student.goOnline() → sincroniza con servidor
  */
-@Injectable()
+// @Injectable()
 export class OfflineCacheService {
   constructor(
-    @InjectRepository(OfflineCache)
-    private offlineCacheRepo: Repository<OfflineCache>,
+    // @InjectRepository(OfflineCache)
+    private offlineCacheRepo?: Repository<OfflineCache>,
 
-    @InjectRepository(ChatResponseCache)
-    private chatCacheRepo: Repository<ChatResponseCache>,
+    // @InjectRepository(ChatResponseCache)
+    private chatCacheRepo?: Repository<ChatResponseCache>,
 
-    @InjectRepository(EvaluationCache)
-    private evaluationCacheRepo: Repository<EvaluationCache>,
+    // @InjectRepository(EvaluationCache)
+    private evaluationCacheRepo?: Repository<EvaluationCache>,
 
-    @InjectRepository(OfflineSession)
-    private sessionRepo: Repository<OfflineSession>,
+    // @InjectRepository(OfflineSession)
+    private sessionRepo?: Repository<OfflineSession>,
 
-    @InjectRepository(Course)
-    private courseRepo: Repository<Course>,
+    // @InjectRepository(Course)
+    private courseRepo?: Repository<Course>,
 
-    @InjectRepository(Scenario)
-    private scenarioRepo: Repository<Scenario>,
+    // @InjectRepository(Scenario)
+    private scenarioRepo?: Repository<Scenario>,
 
-    @InjectRepository(KPI)
-    private kpiRepo: Repository<KPI>,
+    // @InjectRepository(KPI)
+    private kpiRepo?: Repository<KPI>,
   ) {}
 
   // ─────────────────────────────────────────────────────────────────────

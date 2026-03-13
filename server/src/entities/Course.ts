@@ -67,6 +67,12 @@ export class Course {
   @OneToOne(() => CourseConfig, config => config.course)
   config?: CourseConfig;
 
+  @Column({ type: 'json', nullable: true })
+  course_config?: any; // CourseConfig metadata
+
+  @Column({ type: 'json', nullable: true })
+  scenario_configs?: any; // Array of ScenarioConfig
+
   @OneToMany(() => Simulation, simulation => simulation.course)
   simulations?: Simulation[];
 

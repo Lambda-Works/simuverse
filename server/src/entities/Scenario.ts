@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany, OneToOne } from 'typeorm';
 import { Course } from './Course';
 import { SimulationInstance } from './SimulationInstance';
 import { Task } from './Task';
@@ -57,6 +57,9 @@ export class Scenario {
   @ManyToOne(() => Course, (course) => course.scenarios)
   @JoinColumn({ name: 'course_id' })
   course?: Course;
+
+  // Relación con ScenarioConfig (se define en ScenarioConfig.entity.ts)
+  config?: any;
 
   @OneToMany(() => SimulationInstance, (instance) => instance.scenario)
   instances?: SimulationInstance[];
