@@ -13,8 +13,8 @@ export class TechSheet {
   @Column({ type: 'varchar', length: 200 })
   name!: string;
 
-  @Column({ type: 'varchar', length: 36, nullable: true })
-  course_id?: string;
+  @Column({ type: 'varchar', length: 36, nullable: false })
+  course_id!: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   ministry_code?: string;

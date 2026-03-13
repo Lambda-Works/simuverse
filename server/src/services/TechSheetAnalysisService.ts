@@ -2,6 +2,7 @@ import { AppDataSource } from '../database/connection';
 import { TechSheet } from '../entities/TechSheet';
 import { CourseConfig } from '../entities/CourseConfig';
 import { Task } from '../entities/Task';
+import { KPI } from '../entities/KPI';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface Competency {
@@ -287,6 +288,7 @@ export class TechSheetAnalysisService {
 
   /**
    * Crea tareas automáticamente para cada KPI
+   * ⚠️ IMPORTANTE: También persiste KPIs en la tabla kpis
    */
   private async createTasksForKPIs(
     courseId: string,
@@ -294,45 +296,122 @@ export class TechSheetAnalysisService {
     techSheetName: string
   ): Promise<TaskConfig[]> {
     const tasks: TaskConfig[] = [];
+    const kpiRepo = AppDataSource.getRepository(KPI);
     const taskRepo = AppDataSource.getRepository(Task);
 
-    for (const kpi of kpis) {
-      // Crear 2 tareas práctica + 1 evaluación por KPI
-      const difficulties = ['easy', 'medium'] as const;
+    console.log(`[KPI_CREATION] Iniciando creación de ${kpis.length} KPIs para curso ${courseId}`);
 
-      for (let i = 0; i < difficulties.length; i++) {
-        const taskConfig: TaskConfig = {
-          id: `task-${kpi.id}-practice-${i + 1}`,
-          kpi_id: kpi.id,
-          type: 'practice',
-          title: `${kpi.name} - Práctica ${i + 1}`,
-          description: `Practica el siguiente KPI: ${kpi.name}\n\nDescripción: ${kpi.description}\n\nObjetivo: Alcanzar al menos ${kpi.minimum_pass_value}% de desempeño.`,
-          difficulty: difficulties[i],
-          sequence: i + 1,
-          expected_duration_minutes: 15 * (i + 1),
-        };
+    for (const kpiConfig of kpis) {
+      try {
+        // ✅ NUEVO: Crear KPI real en BD
+        const kpiEntity = new KPI();
+        kpiEntity.id = uuidv4();
+        kpiEntity.course_id = courseId;
+        kpiEntity.name = kpiConfig.name;
+        kpiEntity.description = kpiConfig.description;
+        kpiEntity.category = kpiConfig.category as any;
+        kpiEntity.weight = kpiConfig.weight;
+        kpiEntity.target_value = kpiConfig.target_value;
+        kpiEntity.minimum_pass_value = kpiConfig.minimum_pass_value;
+        kpiEntity.is_active = true;
+        kpiEntity.tasks_count = 3; // 2 práctica + 1 evaluación
 
-        tasks.push(taskConfig);
+        const savedKpi = await kpiRepo.save(kpiEntity);
+        console.log(`✅ KPI creado: ${savedKpi.id} - ${savedKpi.name}`);
 
-        // Crear registro en BD si lo necesitamos
-        // Aquí podríamos crear registros Task reales en la BD
+        // Crear 2 tareas práctica + 1 evaluación por KPI
+        const difficulties = ['easy', 'medium'] as const;
+
+        for (let i = 0; i < difficulties.length; i++) {
+          try {
+            const taskEntity = new Task();
+            taskEntity.id = uuidv4();
+            taskEntity.course_id = courseId;
+            taskEntity.kpi_id = savedKpi.id;
+            taskEntity.title = `${kpiConfig.name} - Práctica ${i + 1}`;
+            taskEntity.description = `Practica el siguiente KPI: ${kpiConfig.name}\n\nDescripción: ${kpiConfig.description}\n\nObjetivo: Alcanzar al menos ${kpiConfig.minimum_pass_value}% de desempeño.`;
+            taskEntity.type = 'practice';
+            taskEntity.sequence_order = i + 1;
+            taskEntity.ai_prompt_config = {
+              system_prompt: `Ayuda al estudiante a practicar: ${kpiConfig.name}`,
+              temperature: 0.7,
+              give_hints: true,
+              max_attempts: 3
+            };
+            taskEntity.evaluation_criteria = {
+              accuracy_required: kpiConfig.minimum_pass_value,
+              time_limit_minutes: 15 * (i + 1),
+              partial_credit_allowed: true,
+              auto_evaluation_rules: []
+            };
+            taskEntity.status = 'pending';
+            taskEntity.is_active = true;
+
+            const savedTask = await taskRepo.save(taskEntity);
+            console.log(`  ✅ Task práctica ${i + 1} creada: ${savedTask.id}`);
+
+            tasks.push({
+              id: savedTask.id,
+              kpi_id: savedKpi.id,
+              type: 'practice',
+              title: taskEntity.title,
+              description: taskEntity.description,
+              difficulty: difficulties[i],
+              sequence: i + 1,
+              expected_duration_minutes: 15 * (i + 1),
+            });
+          } catch (taskErr: any) {
+            console.error(`  ❌ Error creando task práctica ${i + 1}:`, taskErr.message);
+          }
+        }
+
+        // Tarea de evaluación
+        try {
+          const evalTask = new Task();
+          evalTask.id = uuidv4();
+          evalTask.course_id = courseId;
+          evalTask.kpi_id = savedKpi.id;
+          evalTask.title = `${kpiConfig.name} - Evaluación Final`;
+          evalTask.description = `Evaluación del KPI: ${kpiConfig.name}\n\nDebes alcanzar al menos ${kpiConfig.target_value}% para pasar.\n\nBuena suerte!`;
+          evalTask.type = 'evaluation';
+          evalTask.sequence_order = difficulties.length + 1;
+          evalTask.ai_prompt_config = {
+            system_prompt: `Evalúa al estudiante en: ${kpiConfig.name}`,
+            temperature: 0.3, // Más riguroso
+            give_hints: false,
+            max_attempts: 1
+          };
+          evalTask.evaluation_criteria = {
+            accuracy_required: kpiConfig.target_value,
+            time_limit_minutes: 20,
+            partial_credit_allowed: false,
+            auto_evaluation_rules: []
+          };
+          evalTask.status = 'pending';
+          evalTask.is_active = true;
+
+          const savedEvalTask = await taskRepo.save(evalTask);
+          console.log(`  ✅ Task evaluación creada: ${savedEvalTask.id}`);
+
+          tasks.push({
+            id: savedEvalTask.id,
+            kpi_id: savedKpi.id,
+            type: 'evaluation',
+            title: evalTask.title,
+            description: evalTask.description,
+            difficulty: 'hard',
+            sequence: difficulties.length + 1,
+            expected_duration_minutes: 20,
+          });
+        } catch (evalErr: any) {
+          console.error(`  ❌ Error creando task evaluación:`, evalErr.message);
+        }
+      } catch (kpiErr: any) {
+        console.error(`❌ Error creando KPI ${kpiConfig.name}:`, kpiErr.message);
       }
-
-      // Tarea de evaluación
-      const evalTask: TaskConfig = {
-        id: `task-${kpi.id}-evaluation`,
-        kpi_id: kpi.id,
-        type: 'evaluation',
-        title: `${kpi.name} - Evaluación Final`,
-        description: `Evaluación del KPI: ${kpi.name}\n\nDebes alcanzar al menos ${kpi.target_value}% para pasar.\n\nBuena suerte!`,
-        difficulty: 'hard',
-        sequence: difficulties.length + 1,
-        expected_duration_minutes: 20,
-      };
-
-      tasks.push(evalTask);
     }
 
+    console.log(`[KPI_CREATION] Completado: ${tasks.length} tasks creadas`);
     return tasks;
   }
 

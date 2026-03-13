@@ -44,8 +44,9 @@ export class Course {
   @Column({ type: 'json', nullable: true })
   crisis_events?: any;
 
-  @Column({ type: 'int', nullable: true })
-  tech_sheet_id?: number | null;
+  // ⚠️ Removed: tech_sheet_id. Use TechSheet.course_id instead (N:1 relationship)
+  // @Column({ type: 'int', nullable: true })
+  // tech_sheet_id?: number | null;
 
   @Column({ type: 'int', nullable: true })
   simulated_company_id?: number | null;
