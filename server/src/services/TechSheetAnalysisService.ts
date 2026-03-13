@@ -6,6 +6,8 @@ import { KPI } from '../entities/KPI';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
+import pdfParse from 'pdf-parse';
+import * as mammoth from 'mammoth';
 
 export interface Competency {
   id: string;
@@ -151,6 +153,7 @@ export class TechSheetAnalysisService {
 
   /**
    * Lee el contenido real del archivo de la ficha técnica
+   * Soporta: TXT, DOCX, DOC, PDF, CSV, PNG
    */
   private async readTechSheetContent(sheet: TechSheet): Promise<string> {
     let content = '';
@@ -159,15 +162,58 @@ export class TechSheetAnalysisService {
     if (sheet.file_url && !sheet.file_url.startsWith('data:')) {
       try {
         // El archivo está en server/uploads/tech-sheets/
-        // file_url es: "tech-sheets/uuid.txt"
+        // file_url es: "tech-sheets/uuid.ext"
         // process.cwd() es: /home/gaspi/.../simuverse-engine/server
         const filePath = path.join(process.cwd(), 'uploads', sheet.file_url);
         console.log(`📂 Intentando leer archivo de: ${filePath}`);
         
         if (fs.existsSync(filePath)) {
-          const fileContent = fs.readFileSync(filePath, 'utf-8');
-          content += fileContent;
-          console.log(`✅ Archivo leído (${fileContent.length} caracteres)`);
+          const ext = path.extname(filePath).toLowerCase();
+          
+          // Extraer contenido según el tipo de archivo
+          if (ext === '.txt' || ext === '.csv') {
+            // Archivos de texto plano
+            const fileContent = fs.readFileSync(filePath, 'utf-8');
+            content += fileContent;
+            console.log(`✅ Archivo TXT/CSV leído (${fileContent.length} caracteres)`);
+          } 
+          else if (ext === '.docx') {
+            // Archivo DOCX con mammoth
+            try {
+              const buffer = fs.readFileSync(filePath);
+              const result = await mammoth.extractRawText({ buffer });
+              content += result.value;
+              console.log(`✅ Archivo DOCX leído (${result.value.length} caracteres)`);
+            } catch (docxError: any) {
+              console.warn(`⚠️ Error extrayendo DOCX: ${docxError.message}`);
+              // Fallback: leer como binario y buscar texto visible
+              const buffer = fs.readFileSync(filePath);
+              const textContent = buffer.toString('utf-8', 0, Math.min(buffer.length, 10000));
+              content += textContent.replace(/[^\x20-\x7E\n\r\t]/g, ' ');
+            }
+          }
+          else if (ext === '.pdf') {
+            // Archivo PDF con pdf-parse
+            try {
+              const buffer = fs.readFileSync(filePath);
+              const data = await (pdfParse as any)(buffer);
+              content += data.text;
+              console.log(`✅ Archivo PDF leído (${data.text.length} caracteres)`);
+            } catch (pdfError: any) {
+              console.warn(`⚠️ Error extrayendo PDF: ${pdfError.message}`);
+            }
+          }
+          else if (ext === '.png' || ext === '.jpg' || ext === '.jpeg') {
+            // Para imágenes, solo registramos que no podemos extraer texto
+            console.warn(`⚠️ Archivo de imagen - no se puede extraer texto: ${ext}`);
+            content += `[Archivo de imagen: ${path.basename(filePath)}]`;
+          }
+          else {
+            // Otros formatos - intentar leer como texto
+            const fileContent = fs.readFileSync(filePath, 'utf-8');
+            content += fileContent;
+            console.log(`✅ Archivo ${ext} leído como texto (${fileContent.length} caracteres)`);
+          }
         } else {
           console.warn(`⚠️ Archivo no encontrado: ${filePath}`);
         }
@@ -181,6 +227,7 @@ export class TechSheetAnalysisService {
       content += '\n\n--- DESCRIPCIÓN ADICIONAL ---\n' + sheet.description;
     }
 
+    console.log(`📄 Contenido total a analizar: ${content.length} caracteres`);
     return content;
   }
 
