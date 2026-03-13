@@ -1783,5 +1783,236 @@ router.get('/files/download/:filePath(*)', async (req: Request, res: Response) =
   }
 });
 
+// ============================================================
+// KPIs (Métricas de Evaluación)
+// ============================================================
+
+router.get('/kpis', async (req: Request, res: Response) => {
+  try {
+    const repo = AppDataSource.getRepository(KPI);
+    const courseId = req.query.course_id as string;
+    
+    let query = repo.createQueryBuilder('kpi');
+    if (courseId) {
+      query = query.where('kpi.course_id = :courseId', { courseId });
+    }
+    
+    const kpis = await query.orderBy('kpi.name', 'ASC').getMany();
+    res.json(kpis);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+router.get('/kpis/:id', async (req: Request, res: Response) => {
+  try {
+    const repo = AppDataSource.getRepository(KPI);
+    const kpi = await repo.findOne({ where: { id: req.params.id } });
+    if (!kpi) return res.status(404).json({ error: 'KPI no encontrado' });
+    res.json(kpi);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+router.post('/kpis', async (req: Request, res: Response) => {
+  try {
+    const repo = AppDataSource.getRepository(KPI);
+    const { course_id, ministry_requirement_id, name, description, category, weight, target_value, minimum_pass_value } = req.body;
+    
+    if (!course_id || !name || !description || !category) {
+      return res.status(400).json({ error: 'course_id, name, description, category son obligatorios' });
+    }
+    
+    const kpi = repo.create({
+      id: uuidv4(),
+      course_id,
+      ministry_requirement_id: ministry_requirement_id || uuidv4(),
+      name,
+      description,
+      category,
+      weight: weight || 1.0,
+      target_value: target_value || 100,
+      minimum_pass_value: minimum_pass_value || 80
+    });
+    
+    const saved = await repo.save(kpi);
+    res.status(201).json(saved);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+router.put('/kpis/:id', async (req: Request, res: Response) => {
+  try {
+    const repo = AppDataSource.getRepository(KPI);
+    const kpi = await repo.findOne({ where: { id: req.params.id } });
+    if (!kpi) return res.status(404).json({ error: 'KPI no encontrado' });
+    
+    const { name, description, category, weight, target_value, minimum_pass_value } = req.body;
+    if (name) kpi.name = name;
+    if (description) kpi.description = description;
+    if (category) kpi.category = category;
+    if (weight !== undefined) kpi.weight = weight;
+    if (target_value !== undefined) kpi.target_value = target_value;
+    if (minimum_pass_value !== undefined) kpi.minimum_pass_value = minimum_pass_value;
+    
+    const saved = await repo.save(kpi);
+    res.json(saved);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+router.delete('/kpis/:id', async (req: Request, res: Response) => {
+  try {
+    const repo = AppDataSource.getRepository(KPI);
+    const result = await repo.delete(req.params.id);
+    if (result.affected === 0) return res.status(404).json({ error: 'KPI no encontrado' });
+    res.json({ message: 'KPI eliminado correctamente' });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// ============================================================
+// TASKS (Tareas de Simulación)
+// ============================================================
+
+router.get('/tasks', async (req: Request, res: Response) => {
+  try {
+    const repo = AppDataSource.getRepository(Task);
+    const courseId = req.query.course_id as string;
+    const scenarioId = req.query.scenario_id as string;
+    
+    let query = repo.createQueryBuilder('task');
+    if (courseId) {
+      query = query.where('task.course_id = :courseId', { courseId });
+    }
+    if (scenarioId) {
+      query = query.andWhere('task.scenario_id = :scenarioId', { scenarioId });
+    }
+    
+    const tasks = await query.orderBy('task.sequence_order', 'ASC').getMany();
+    res.json(tasks);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+router.get('/tasks/:id', async (req: Request, res: Response) => {
+  try {
+    const repo = AppDataSource.getRepository(Task);
+    const task = await repo.findOne({ where: { id: req.params.id } });
+    if (!task) return res.status(404).json({ error: 'Tarea no encontrada' });
+    res.json(task);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+router.post('/tasks', async (req: Request, res: Response) => {
+  try {
+    const repo = AppDataSource.getRepository(Task);
+    const { course_id, kpi_id, scenario_id, title, description, type, sequence_order } = req.body;
+    
+    if (!course_id || !kpi_id || !title || !description || !type) {
+      return res.status(400).json({ error: 'course_id, kpi_id, title, description, type son obligatorios' });
+    }
+    
+    if (!['practice', 'evaluation'].includes(type)) {
+      return res.status(400).json({ error: 'type debe ser practice o evaluation' });
+    }
+    
+    const task = repo.create({
+      id: uuidv4(),
+      course_id,
+      kpi_id,
+      scenario_id: scenario_id || null,
+      title,
+      description,
+      type,
+      sequence_order: sequence_order || 0,
+      status: 'pending'
+    });
+    
+    const saved = await repo.save(task);
+    res.status(201).json(saved);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+router.put('/tasks/:id', async (req: Request, res: Response) => {
+  try {
+    const repo = AppDataSource.getRepository(Task);
+    const task = await repo.findOne({ where: { id: req.params.id } });
+    if (!task) return res.status(404).json({ error: 'Tarea no encontrada' });
+    
+    const { title, description, type, status, sequence_order } = req.body;
+    if (title) task.title = title;
+    if (description) task.description = description;
+    if (type) task.type = type;
+    if (status) task.status = status;
+    if (sequence_order !== undefined) task.sequence_order = sequence_order;
+    
+    const saved = await repo.save(task);
+    res.json(saved);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+router.delete('/tasks/:id', async (req: Request, res: Response) => {
+  try {
+    const repo = AppDataSource.getRepository(Task);
+    const result = await repo.delete(req.params.id);
+    if (result.affected === 0) return res.status(404).json({ error: 'Tarea no encontrada' });
+    res.json({ message: 'Tarea eliminada correctamente' });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// ============================================================
+// SIMULATION INSTANCES (Instancias de Simulación)
+// ============================================================
+
+router.get('/simulation-instances', async (req: Request, res: Response) => {
+  try {
+    const repo = AppDataSource.getRepository(SimulationInstance);
+    const studentId = req.query.student_id as string;
+    const scenarioId = req.query.scenario_id as string;
+    const status = req.query.status as string;
+    
+    let query = repo.createQueryBuilder('instance');
+    if (studentId) {
+      query = query.where('instance.student_id = :studentId', { studentId });
+    }
+    if (scenarioId) {
+      query = query.andWhere('instance.scenario_id = :scenarioId', { scenarioId });
+    }
+    if (status) {
+      query = query.andWhere('instance.status = :status', { status });
+    }
+    
+    const instances = await query.orderBy('instance.started_at', 'DESC').getMany();
+    res.json(instances);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+router.get('/simulation-instances/:id', async (req: Request, res: Response) => {
+  try {
+    const repo = AppDataSource.getRepository(SimulationInstance);
+    const instance = await repo.findOne({ where: { id: req.params.id } });
+    if (!instance) return res.status(404).json({ error: 'Instancia de simulación no encontrada' });
+    res.json(instance);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 export default router;
 
