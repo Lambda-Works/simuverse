@@ -17,8 +17,8 @@ export class SimulationInstance {
   @Column({ type: 'uuid' })
   scenario_id!: string;
 
-  // course_id: obtenido de la relación con scenario (no es una columna directa en la tabla)
-  course_id?: string;
+  @Column({ type: 'uuid' })
+  course_id!: string;
 
   @Column({ type: 'enum', enum: ['not_started', 'in_progress', 'paused', 'completed', 'failed', 'submitted_for_review'], default: 'not_started' })
   status!: SimulationStatus;
