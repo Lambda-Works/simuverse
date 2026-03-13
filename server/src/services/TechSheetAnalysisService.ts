@@ -314,97 +314,62 @@ export class TechSheetAnalysisService {
         kpiEntity.target_value = kpiConfig.target_value;
         kpiEntity.minimum_pass_value = kpiConfig.minimum_pass_value;
         kpiEntity.is_active = true;
-        kpiEntity.tasks_count = 3; // 2 práctica + 1 evaluación
+        kpiEntity.tasks_count = 2; // 1 práctica + 1 evaluación
 
         const savedKpi = await kpiRepo.save(kpiEntity);
         console.log(`✅ KPI creado: ${savedKpi.id} - ${savedKpi.name}`);
 
-        // Crear 2 tareas práctica + 1 evaluación por KPI
-        const difficulties = ['easy', 'medium'] as const;
+        // Crear 2 tareas: 1 práctica + 1 evaluación por KPI
+        const taskDefs = [
+          { type: 'practice' as const, seq: 1, suffix: 'Práctica' },
+          { type: 'evaluation' as const, seq: 2, suffix: 'Evaluación' }
+        ];
 
-        for (let i = 0; i < difficulties.length; i++) {
+        for (const taskDef of taskDefs) {
           try {
             const taskEntity = new Task();
             taskEntity.id = uuidv4();
             taskEntity.course_id = courseId;
             taskEntity.kpi_id = savedKpi.id;
-            taskEntity.title = `${kpiConfig.name} - Práctica ${i + 1}`;
-            taskEntity.description = `Practica el siguiente KPI: ${kpiConfig.name}\n\nDescripción: ${kpiConfig.description}\n\nObjetivo: Alcanzar al menos ${kpiConfig.minimum_pass_value}% de desempeño.`;
-            taskEntity.type = 'practice';
-            taskEntity.sequence_order = i + 1;
+            // scenario_id es opcional
+            taskEntity.title = `${kpiConfig.name} - ${taskDef.suffix}`;
+            taskEntity.description = `${taskDef.type === 'practice' ? 'Practica el siguiente KPI' : 'Evaluación del KPI'}: ${kpiConfig.name}\n\nDescripción: ${kpiConfig.description}\n\nObjetivo: Alcanzar al menos ${kpiConfig[taskDef.type === 'practice' ? 'minimum_pass_value' : 'target_value']}% de desempeño.`;
+            taskEntity.type = taskDef.type;
+            taskEntity.sequence_order = taskDef.seq;
             taskEntity.ai_prompt_config = {
-              system_prompt: `Ayuda al estudiante a practicar: ${kpiConfig.name}`,
-              temperature: 0.7,
-              give_hints: true,
-              max_attempts: 3
+              system_prompt: `${taskDef.type === 'practice' ? 'Ayuda al estudiante a practicar' : 'Evalúa al estudiante en'}: ${kpiConfig.name}`,
+              temperature: taskDef.type === 'practice' ? 0.7 : 0.3,
+              give_hints: taskDef.type === 'practice',
+              max_attempts: taskDef.type === 'practice' ? 3 : 1
             };
             taskEntity.evaluation_criteria = {
-              accuracy_required: kpiConfig.minimum_pass_value,
-              time_limit_minutes: 15 * (i + 1),
-              partial_credit_allowed: true,
+              accuracy_required: kpiConfig[taskDef.type === 'practice' ? 'minimum_pass_value' : 'target_value'],
+              time_limit_minutes: taskDef.type === 'practice' ? 15 : 20,
+              partial_credit_allowed: taskDef.type === 'practice',
               auto_evaluation_rules: []
             };
             taskEntity.status = 'pending';
             taskEntity.is_active = true;
+            taskEntity.students_completed = 0;
+            taskEntity.average_completion_rate = 0;
 
             const savedTask = await taskRepo.save(taskEntity);
-            console.log(`  ✅ Task práctica ${i + 1} creada: ${savedTask.id}`);
+            console.log(`  ✅ Task ${taskDef.type} creada: ${savedTask.id}`);
 
             tasks.push({
               id: savedTask.id,
               kpi_id: savedKpi.id,
-              type: 'practice',
+              type: taskDef.type,
               title: taskEntity.title,
               description: taskEntity.description,
-              difficulty: difficulties[i],
-              sequence: i + 1,
-              expected_duration_minutes: 15 * (i + 1),
+              difficulty: taskDef.type === 'practice' ? 'medium' : 'hard',
+              sequence: taskDef.seq,
+              expected_duration_minutes: taskDef.type === 'practice' ? 15 : 20,
             });
           } catch (taskErr: any) {
-            console.error(`  ❌ Error creando task práctica ${i + 1}:`, taskErr.message);
+            console.error(`  ❌ Error creando task ${taskDef.type}:`, taskErr.message);
+            console.error(`     Stack:`, taskErr.stack);
           }
-        }
-
-        // Tarea de evaluación
-        try {
-          const evalTask = new Task();
-          evalTask.id = uuidv4();
-          evalTask.course_id = courseId;
-          evalTask.kpi_id = savedKpi.id;
-          evalTask.title = `${kpiConfig.name} - Evaluación Final`;
-          evalTask.description = `Evaluación del KPI: ${kpiConfig.name}\n\nDebes alcanzar al menos ${kpiConfig.target_value}% para pasar.\n\nBuena suerte!`;
-          evalTask.type = 'evaluation';
-          evalTask.sequence_order = difficulties.length + 1;
-          evalTask.ai_prompt_config = {
-            system_prompt: `Evalúa al estudiante en: ${kpiConfig.name}`,
-            temperature: 0.3, // Más riguroso
-            give_hints: false,
-            max_attempts: 1
-          };
-          evalTask.evaluation_criteria = {
-            accuracy_required: kpiConfig.target_value,
-            time_limit_minutes: 20,
-            partial_credit_allowed: false,
-            auto_evaluation_rules: []
-          };
-          evalTask.status = 'pending';
-          evalTask.is_active = true;
-
-          const savedEvalTask = await taskRepo.save(evalTask);
-          console.log(`  ✅ Task evaluación creada: ${savedEvalTask.id}`);
-
-          tasks.push({
-            id: savedEvalTask.id,
-            kpi_id: savedKpi.id,
-            type: 'evaluation',
-            title: evalTask.title,
-            description: evalTask.description,
-            difficulty: 'hard',
-            sequence: difficulties.length + 1,
-            expected_duration_minutes: 20,
-          });
-        } catch (evalErr: any) {
-          console.error(`  ❌ Error creando task evaluación:`, evalErr.message);
         }
       } catch (kpiErr: any) {
         console.error(`❌ Error creando KPI ${kpiConfig.name}:`, kpiErr.message);
