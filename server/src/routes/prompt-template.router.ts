@@ -15,13 +15,33 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-// GET: Obtener plantillas por categoría
+// GET: Obtener plantillas por categoría (DEBE IR ANTES DE /:id)
 router.get('/category/:category', async (req: Request, res: Response) => {
   try {
     const templates = await service.getTemplatesByCategory(req.params.category);
     res.json(templates);
   } catch (error) {
     console.error('Error getting templates by category:', error);
+    res.status(400).json({ error: (error as Error).message });
+  }
+});
+
+// POST: Duplicar plantilla (DEBE IR ANTES DE /:id)
+router.post('/:id/duplicate', async (req: Request, res: Response) => {
+  try {
+    const { name } = req.body;
+    if (!name) {
+      res.status(400).json({ error: 'Name is required' });
+      return;
+    }
+    const template = await service.duplicateTemplate(
+      parseInt(req.params.id),
+      name,
+      (req as any).user?.id
+    );
+    res.status(201).json(template);
+  } catch (error) {
+    console.error('Error duplicating template:', error);
     res.status(400).json({ error: (error as Error).message });
   }
 });
@@ -76,26 +96,6 @@ router.delete('/:id', async (req: Request, res: Response) => {
     res.json({ success: true, message: 'Template deactivated' });
   } catch (error) {
     console.error('Error deactivating template:', error);
-    res.status(400).json({ error: (error as Error).message });
-  }
-});
-
-// POST: Duplicar plantilla
-router.post('/:id/duplicate', async (req: Request, res: Response) => {
-  try {
-    const { name } = req.body;
-    if (!name) {
-      res.status(400).json({ error: 'Name is required' });
-      return;
-    }
-    const template = await service.duplicateTemplate(
-      parseInt(req.params.id),
-      name,
-      (req as any).user?.id
-    );
-    res.status(201).json(template);
-  } catch (error) {
-    console.error('Error duplicating template:', error);
     res.status(400).json({ error: (error as Error).message });
   }
 });
