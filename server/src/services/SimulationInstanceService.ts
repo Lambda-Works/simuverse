@@ -117,7 +117,7 @@ export class SimulationInstanceService {
     const updated = await this.simulationRepository.save(simulation);
 
     // Log state change if significant
-    if (metadata?.logStateChange) {
+    if (metadata?.logStateChange && simulation.course_id) {
       await PracticeLogsService.logAction(
         simulation.student_id,
         simulation.course_id,
@@ -147,14 +147,16 @@ export class SimulationInstanceService {
     simulation.status = 'paused';
     const updated = await this.simulationRepository.save(simulation);
 
-    await PracticeLogsService.logAction(
-      simulation.student_id,
-      simulation.course_id,
-      'system_event',
-      `Paused simulation`,
-      { moduleName: 'SimulationInstance' },
-      id
-    );
+    if (simulation.course_id) {
+      await PracticeLogsService.logAction(
+        simulation.student_id,
+        simulation.course_id,
+        'system_event',
+        `Paused simulation`,
+        { moduleName: 'SimulationInstance' },
+        id
+      );
+    }
 
     return updated;
   }
@@ -172,14 +174,16 @@ export class SimulationInstanceService {
     simulation.updated_at = new Date();
     const updated = await this.simulationRepository.save(simulation);
 
-    await PracticeLogsService.logAction(
-      simulation.student_id,
-      simulation.course_id,
-      'system_event',
-      `Resumed simulation`,
-      { moduleName: 'SimulationInstance' },
-      id
-    );
+    if (simulation.course_id) {
+      await PracticeLogsService.logAction(
+        simulation.student_id,
+        simulation.course_id,
+        'system_event',
+        `Resumed simulation`,
+        { moduleName: 'SimulationInstance' },
+        id
+      );
+    }
 
     return updated;
   }
@@ -211,18 +215,20 @@ export class SimulationInstanceService {
 
     const updated = await this.simulationRepository.save(simulation);
 
-    await PracticeLogsService.logAction(
-      simulation.student_id,
-      simulation.course_id,
-      'case_submitted',
-      `Completed simulation with metrics`,
-      {
-        moduleName: 'SimulationInstance',
-        outputData: performance_metrics,
-        duration: simulation.completed_at.getTime() - simulation.started_at.getTime(),
-      },
-      id
-    );
+    if (simulation.course_id) {
+      await PracticeLogsService.logAction(
+        simulation.student_id,
+        simulation.course_id,
+        'case_submitted',
+        `Completed simulation with metrics`,
+        {
+          moduleName: 'SimulationInstance',
+          outputData: performance_metrics,
+          duration: simulation.completed_at.getTime() - simulation.started_at.getTime(),
+        },
+        id
+      );
+    }
 
     return updated;
   }
@@ -240,14 +246,16 @@ export class SimulationInstanceService {
     simulation.submitted_at = new Date();
     const updated = await this.simulationRepository.save(simulation);
 
-    await PracticeLogsService.logAction(
-      simulation.student_id,
-      simulation.course_id,
-      'case_submitted',
-      `Submitted simulation for teacher review`,
-      { moduleName: 'SimulationInstance' },
-      id
-    );
+    if (simulation.course_id) {
+      await PracticeLogsService.logAction(
+        simulation.student_id,
+        simulation.course_id,
+        'case_submitted',
+        `Submitted simulation for teacher review`,
+        { moduleName: 'SimulationInstance' },
+        id
+      );
+    }
 
     return updated;
   }
@@ -270,17 +278,19 @@ export class SimulationInstanceService {
 
     const updated = await this.simulationRepository.save(simulation);
 
-    await PracticeLogsService.logAction(
-      simulation.student_id,
-      simulation.course_id,
-      'system_event',
-      `Simulation failed: ${reason}`,
-      {
-        moduleName: 'SimulationInstance',
-        errors: [reason],
-      },
-      id
-    );
+    if (simulation.course_id) {
+      await PracticeLogsService.logAction(
+        simulation.student_id,
+        simulation.course_id,
+        'system_event',
+        `Simulation failed: ${reason}`,
+        {
+          moduleName: 'SimulationInstance',
+          errors: [reason],
+        },
+        id
+      );
+    }
 
     return updated;
   }
