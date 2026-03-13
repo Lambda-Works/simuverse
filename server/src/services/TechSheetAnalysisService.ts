@@ -167,9 +167,11 @@ export class TechSheetAnalysisService {
         // process.cwd() es: /home/gaspi/.../simuverse-engine/server
         const filePath = path.join(process.cwd(), 'uploads', sheet.file_url);
         console.log(`📂 Intentando leer archivo de: ${filePath}`);
+        console.log(`   Archivo existe: ${fs.existsSync(filePath)}`);
         
         if (fs.existsSync(filePath)) {
           const ext = path.extname(filePath).toLowerCase();
+          console.log(`📋 Tipo de archivo: ${ext}`);
           
           // Extraer contenido según el tipo de archivo
           if (ext === '.txt' || ext === '.csv') {
@@ -182,7 +184,9 @@ export class TechSheetAnalysisService {
             // Archivo DOCX/DOC con mammoth (funciona para ambos)
             try {
               const buffer = fs.readFileSync(filePath);
+              console.log(`📖 Buffer DOCX leído (${buffer.length} bytes)`);
               const result = await mammoth.extractRawText({ buffer });
+              console.log(`📄 Texto extraído: ${result.value.length} caracteres`);
               content += result.value;
               console.log(`✅ Archivo DOCX/DOC leído (${result.value.length} caracteres)`);
             } catch (docxError: any) {
@@ -254,10 +258,14 @@ export class TechSheetAnalysisService {
 
     // Agregar descripción si existe
     if (sheet.description) {
+      console.log(`📝 Descripción encontrada (${sheet.description.length} caracteres)`);
       content += '\n\n--- DESCRIPCIÓN ADICIONAL ---\n' + sheet.description;
     }
 
-    console.log(`📄 Contenido total a analizar: ${content.length} caracteres`);
+    console.log(`📊 TOTAL: ${content.length} caracteres para analizar`);
+    if (content.length === 0) {
+      console.error('❌ ¡CRÍTICO! No hay contenido para analizar');
+    }
     return content;
   }
 
@@ -373,78 +381,264 @@ Responde SOLO con JSON válido:
   }
 
   /**
-   * Fallback: análisis básico sin IA
+   * Fallback MEJORADO: análisis básico sin IA con patrones más robustos
    */
   private extractCompetenciesAndKPIsBasic(content: string): { competencies: Competency[]; kpis: KPIConfig[] } {
-    console.log('🔄 Usando análisis estructural local (sin API)...');
+    console.log('🔄 Usando análisis estructural MEJORADO (sin API)...');
     
-    // Análisis inteligente basado en estructura del documento
+    // 1. Intentar análisis por estructura primero
     const competencies = this.extractCompetenciesFromStructure(content);
     const objectives = this.extractObjectivesFromStructure(content);
     const modules = this.extractModulesFromStructure(content);
     
-    // Crear KPIs basados en objetivos y módulos
-    const kpis = this.createKPIsFromObjectivesAndModules(objectives, modules, competencies);
+    console.log(`📊 Análisis estructura: ${competencies.length} comp, ${objectives.length} obj, ${modules.length} mod`);
     
-    console.log(`📊 Análisis local: ${competencies.length} competencias, ${kpis.length} KPIs`);
-    return { competencies, kpis };
+    // 2. Si estructura no retorna nada, usar análisis por contenido real
+    let finalCompetencies = competencies;
+    let finalKPIs: KPIConfig[] = [];
+    
+    if (finalCompetencies.length === 0) {
+      console.log('⚠️ No se encontraron competencias por estructura, analizando contenido...');
+      finalCompetencies = this.extractCompetenciesFromContent(content);
+    }
+    
+    // 3. Crear KPIs basados en lo que se encontró
+    if (objectives.length > 0 || modules.length > 0) {
+      finalKPIs = this.createKPIsFromObjectivesAndModules(objectives, modules, finalCompetencies);
+    } else {
+      console.log('⚠️ No se encontraron objetivos/módulos, creando KPIs del contenido...');
+      finalKPIs = this.createKPIsFromContent(content, finalCompetencies);
+    }
+    
+    // 4. Si aún no hay KPIs, crear mínimo un KPI genérico
+    if (finalKPIs.length === 0) {
+      console.log('⚠️ Sin KPIs generados, creando genérico...');
+      finalKPIs = [
+        {
+          id: 'kpi-1',
+          name: 'Desempeño General de la Capacitación',
+          description: 'Evaluación integral de los conocimientos y habilidades en la capacitación',
+          category: 'performance',
+          weight: 100,
+          target_value: 95,
+          minimum_pass_value: 70,
+          competencies_required: finalCompetencies.map(c => c.id),
+          evaluation_questions: [
+            '¿Se lograron los objetivos de la capacitación?',
+            '¿Demuestra dominio de los conceptos principales?',
+            '¿Puede aplicar lo aprendido en situaciones prácticas?'
+          ]
+        }
+      ];
+    }
+    
+    console.log(`✅ Análisis completado: ${finalCompetencies.length} competencias, ${finalKPIs.length} KPIs`);
+    return { competencies: finalCompetencies, kpis: finalKPIs };
+  }
+
+  /**
+   * NUEVO: Extrae competencias directamente del contenido del documento
+   * Busca palabras clave reales y contexto
+   */
+  private extractCompetenciesFromContent(content: string): Competency[] {
+    const competencies: Competency[] = [];
+    const textLower = content.toLowerCase();
+    const competencyMap = new Map<string, Competency>();
+
+    // Diccionario ampliado de palabras clave de competencias
+    const competencyKeywords = [
+      { keywords: ['gestión', 'administración', 'dirigir', 'coordinar'], name: 'Gestión de operaciones', level: 'intermediate' as const },
+      { keywords: ['análisis', 'analizar', 'investigación', 'evaluar'], name: 'Análisis crítico', level: 'intermediate' as const },
+      { keywords: ['comunicación', 'comunicar', 'expresar', 'presentar'], name: 'Comunicación efectiva', level: 'intermediate' as const },
+      { keywords: ['liderazgo', 'liderar', 'influencia', 'motivación'], name: 'Liderazgo', level: 'advanced' as const },
+      { keywords: ['resolución', 'problema', 'solución', 'solucionar'], name: 'Resolución de problemas', level: 'intermediate' as const },
+      { keywords: ['decisiones', 'decidir', 'seleccionar', 'elegir'], name: 'Toma de decisiones', level: 'advanced' as const },
+      { keywords: ['planificación', 'planificar', 'planteamiento', 'diseño'], name: 'Planificación estratégica', level: 'advanced' as const },
+      { keywords: ['equipo', 'colaboración', 'cooperación', 'trabajo conjunto'], name: 'Trabajo en equipo', level: 'basic' as const },
+      { keywords: ['calidad', 'estándar', 'norma', 'requisito'], name: 'Aseguramiento de calidad', level: 'intermediate' as const },
+      { keywords: ['cliente', 'usuario', 'satisfacción', 'servicio'], name: 'Atención al cliente', level: 'basic' as const },
+      { keywords: ['ética', 'integridad', 'transparencia', 'responsable'], name: 'Ética profesional', level: 'basic' as const },
+      { keywords: ['innovación', 'creatividad', 'nuevo', 'mejora'], name: 'Innovación y creatividad', level: 'advanced' as const },
+      { keywords: ['tecnología', 'digital', 'sistemas', 'software'], name: 'Competencia tecnológica', level: 'intermediate' as const },
+      { keywords: ['comercial', 'ventas', 'negocio', 'mercado'], name: 'Competencia comercial', level: 'intermediate' as const },
+      { keywords: ['negociación', 'acuerdo', 'diálogo', 'conversación'], name: 'Negociación', level: 'intermediate' as const },
+    ];
+
+    let compId = 1;
+
+    for (const compGroup of competencyKeywords) {
+      const hasAny = compGroup.keywords.some(kw => {
+        // Busca palabras completas no dentro de otras palabras
+        const regex = new RegExp(`\\b${kw}\\b`, 'i');
+        return regex.test(content);
+      });
+
+      if (hasAny && !competencyMap.has(compGroup.name)) {
+        competencyMap.set(compGroup.name, {
+          id: `comp-${compId++}`,
+          name: compGroup.name,
+          description: `Competencia identificada: ${compGroup.name}`,
+          level: compGroup.level,
+        });
+      }
+    }
+
+    // Convertir mapa a array
+    const foundCompetencies = Array.from(competencyMap.values());
+    
+    if (foundCompetencies.length === 0) {
+      console.log('⚠️ No se encontraron competencias específicas, usando genérica');
+      return [
+        {
+          id: 'comp-1',
+          name: 'Competencia General',
+          description: 'Competencia general extraída de la ficha técnica',
+          level: 'intermediate',
+        }
+      ];
+    }
+
+    console.log(`✅ Encontradas ${foundCompetencies.length} competencias del contenido`);
+    return foundCompetencies;
+  }
+
+  /**
+   * NUEVO: Crea KPIs directamente del contenido si no hay estructura clara
+   */
+  private createKPIsFromContent(content: string, competencies: Competency[]): KPIConfig[] {
+    const kpis: KPIConfig[] = [];
+    const textLower = content.toLowerCase();
+    const lines = content.split('\n').filter(line => line.trim().length > 0);
+    
+    // Palabras que indican criterios de evaluación o KPIs
+    const evaluationKeywords = ['objetivo', 'meta', 'criterio', 'resultado', 'logro', 'desempeño', 'cumplimiento', 'evaluación', 'alcanzar', '%', 'puntos'];
+    
+    const potentialKPILines = lines.filter(line => {
+      const lineLower = line.toLowerCase();
+      return evaluationKeywords.some(kw => lineLower.includes(kw)) && 
+             line.trim().length > 20 && 
+             line.trim().length < 300;
+    });
+
+    console.log(`📍 Encontradas ${potentialKPILines.length} líneas con criterios potenciales`);
+
+    let kpiId = 1;
+    const processedLines = new Set<string>();
+
+    for (const line of potentialKPILines) {
+      const cleanLine = line.trim();
+      if (!processedLines.has(cleanLine) && kpiId <= 6) {
+        processedLines.add(cleanLine);
+        
+        kpis.push({
+          id: `kpi-${kpiId}`,
+          name: cleanLine.substring(0, 80),
+          description: cleanLine.substring(0, 200),
+          category: this.detectKPICategory(cleanLine),
+          weight: 100 / Math.max(1, potentialKPILines.length),
+          target_value: this.extractTargetValue(cleanLine, 95),
+          minimum_pass_value: this.extractMinimumValue(cleanLine, 70),
+          competencies_required: competencies.slice(0, 2).map(c => c.id),
+          evaluation_questions: [
+            `¿Se logró: "${cleanLine.substring(0, 50)}"?`,
+            `¿Cuál fue el nivel de cumplimiento?`,
+            `¿Puede proporcionar evidencia de este logro?`
+          ]
+        });
+        kpiId++;
+      }
+    }
+
+    console.log(`✅ Creados ${kpis.length} KPIs del contenido`);
+    return kpis;
+  }
+
+  /**
+   * NUEVO: Intenta extraer valores numéricos del texto (porcentajes, puntos)
+   */
+  private extractTargetValue(text: string, defaultValue: number = 95): number {
+    const matches = text.match(/(\d+)\s*%?\s*(?:objetivo|meta|target)/i);
+    if (matches && matches[1]) {
+      const value = parseInt(matches[1]);
+      return value > 0 && value <= 100 ? value : defaultValue;
+    }
+    return defaultValue;
+  }
+
+  /**
+   * NUEVO: Intenta extraer valores mínimos del texto
+   */
+  private extractMinimumValue(text: string, defaultValue: number = 70): number {
+    const matches = text.match(/(?:mínimo|mínima|al menos|minimum)\s*(\d+)\s*%?/i);
+    if (matches && matches[1]) {
+      const value = parseInt(matches[1]);
+      return value > 0 && value <= 100 ? value : defaultValue;
+    }
+    return defaultValue;
   }
 
   /**
    * Extrae competencias buscando secciones específicas del documento
+   * MEJORADO: Con manejo de múltiples formatos
    */
   private extractCompetenciesFromStructure(content: string): Competency[] {
     const competencies: Competency[] = [];
     const lowerContent = content.toLowerCase();
+    const processedNames = new Set<string>();
 
-    // Patrones a buscar en el documento
-    const patterns = [
-      { keyword: 'competencia', level: 'intermediate' as const, baseName: 'Competencia' },
-      { keyword: 'habilidad', level: 'intermediate' as const, baseName: 'Habilidad' },
-      { keyword: 'destreza', level: 'intermediate' as const, baseName: 'Destreza' },
-      { keyword: 'capacidad', level: 'intermediate' as const, baseName: 'Capacidad' },
-      { keyword: 'conocimiento', level: 'basic' as const, baseName: 'Conocimiento' },
-      { keyword: 'liderazgo', level: 'advanced' as const, baseName: 'Liderazgo' },
-      { keyword: 'análisis', level: 'intermediate' as const, baseName: 'Análisis crítico' },
-      { keyword: 'comunicación', level: 'intermediate' as const, baseName: 'Comunicación efectiva' },
-      { keyword: 'resolución', level: 'advanced' as const, baseName: 'Resolución de problemas' },
+    // Patrones de secciones donde pueden estar competencias
+    const competencySectionPatterns = [
+      'competencia',
+      'habilidad',
+      'destreza',
+      'capacidad',
+      'requisito',
+      'conocimiento',
+      'propósito',
+      'objetivo de aprendizaje',
+      'resultado de aprendizaje'
     ];
 
-    const foundCompetencies: { [key: string]: Competency } = {};
+    // Buscar secciones por palabra clave
+    for (const pattern of competencySectionPatterns) {
+      const section = this.extractSection(content, pattern, 500);
+      if (section && section.length > 20) {
+        const lines = section.split('\n')
+          .filter(l => l.trim().length > 5 && l.trim().length < 200)
+          .slice(0, 3);
 
-    // Buscar patrones en el contenido
-    patterns.forEach((pattern, idx) => {
-      if (lowerContent.includes(pattern.keyword)) {
-        const key = pattern.baseName.toLowerCase();
-        if (!foundCompetencies[key]) {
-          foundCompetencies[key] = {
-            id: `comp-${Object.keys(foundCompetencies).length + 1}`,
-            name: pattern.baseName,
-            description: `Competencia identificada en el documento: ${pattern.baseName}`,
-            level: pattern.level,
-          };
+        for (const line of lines) {
+          const cleanedLine = line.trim().replace(/^[\d.•\-\*]\s*/, '');
+          if (cleanedLine.length > 10 && !processedNames.has(cleanedLine)) {
+            competencies.push({
+              id: `comp-${competencies.length + 1}`,
+              name: cleanedLine.substring(0, 80),
+              description: cleanedLine,
+              level: this.determineLevel(cleanedLine),
+            });
+            processedNames.add(cleanedLine);
+            if (competencies.length >= 5) break; // Máximo 5 competencias
+          }
         }
       }
-    });
-
-    // Buscar competencias específicas mencionadas explícitamente
-    const competencySection = this.extractSection(content, 'competencia', 200);
-    if (competencySection) {
-      const lines = competencySection.split('\n').filter(l => l.trim().length > 5);
-      lines.slice(0, 3).forEach((line, idx) => {
-        const key = line.toLowerCase().substring(0, 30);
-        if (!foundCompetencies[key] && Object.keys(foundCompetencies).length < 5) {
-          foundCompetencies[key] = {
-            id: `comp-${Object.keys(foundCompetencies).length + 1}`,
-            name: line.trim().substring(0, 50),
-            description: line.trim(),
-            level: 'intermediate',
-          };
-        }
-      });
+      if (competencies.length >= 5) break;
     }
 
-    return Object.values(foundCompetencies).slice(0, 6);
+    return competencies.length > 0 ? competencies : [];
+  }
+
+  /**
+   * NUEVO: Determina el nivel de una competencia basado en palabras clave
+   */
+  private determineLevel(text: string): 'basic' | 'intermediate' | 'advanced' {
+    const lower = text.toLowerCase();
+    if (lower.includes('avanzado') || lower.includes('experto') || lower.includes('liderazgo') || lower.includes('estrategia')) {
+      return 'advanced';
+    }
+    if (lower.includes('básico') || lower.includes('conocimiento') || lower.includes('introducción') || lower.includes('comprender')) {
+      return 'basic';
+    }
+    return 'intermediate';
   }
 
   /**
@@ -751,13 +945,38 @@ Responde SOLO con JSON válido:
 
   /**
    * Detecta la categoría de un KPI basado en palabras clave
+   * MEJORADO: Con más categorías y patrones
    */
-  private detectKPICategory(lineLower: string): string {
-    if (lineLower.includes('cliente') || lineLower.includes('satisfacción')) return 'customer_satisfaction';
-    if (lineLower.includes('tiempo') || lineLower.includes('minutos') || lineLower.includes('horas')) return 'time';
-    if (lineLower.includes('calidad') || lineLower.includes('porcentaje') || lineLower.includes('%')) return 'quality';
-    if (lineLower.includes('costo') || lineLower.includes('precio') || lineLower.includes('dinero')) return 'cost';
-    return 'performance';
+  private detectKPICategory(text: string): string {
+    const lower = text.toLowerCase();
+
+    // Prioridad por especificidad
+    if (lower.includes('cliente') || lower.includes('satisfacción') || lower.includes('usuario')) {
+      return 'customer_satisfaction';
+    }
+    if (lower.includes('tiempo') || lower.includes('minuto') || lower.includes('hora') || lower.includes('rapidez') || lower.includes('velocidad')) {
+      return 'time';
+    }
+    if (lower.includes('calidad') || lower.includes('porcentaje') || lower.includes('%') || lower.includes('defecto') || lower.includes('error')) {
+      return 'quality';
+    }
+    if (lower.includes('costo') || lower.includes('precio') || lower.includes('dinero') || lower.includes('presupuesto') || lower.includes('economía')) {
+      return 'cost';
+    }
+    if (lower.includes('productividad') || lower.includes('producción') || lower.includes('output') || lower.includes('rendimiento')) {
+      return 'productivity';
+    }
+    if (lower.includes('conocimiento') || lower.includes('aprendizaje') || lower.includes('comprensión') || lower.includes('entendimiento')) {
+      return 'knowledge';
+    }
+    if (lower.includes('habilidad') || lower.includes('destreza') || lower.includes('aplicación') || lower.includes('práctica')) {
+      return 'skill';
+    }
+    if (lower.includes('actitud') || lower.includes('comportamiento') || lower.includes('ética') || lower.includes('valores')) {
+      return 'attitude';
+    }
+
+    return 'performance'; // Categoría por defecto
   }
 
   /**
