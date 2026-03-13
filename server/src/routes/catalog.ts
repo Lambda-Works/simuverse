@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
 import { AppDataSource } from '../database/connection';
 import { Category } from '../entities/Category';
 import { TechSheet } from '../entities/TechSheet';
@@ -7,10 +8,36 @@ import { SimulationAssignment } from '../entities/SimulationAssignment';
 import { User } from '../entities/User';
 import { Scenario } from '../entities/Scenario';
 import { TechSheetAnalysisService } from '../services/TechSheetAnalysisService';
+import { fileStorageService } from '../services/FileStorageService';
 import { v4 as uuidv4 } from 'uuid';
 import * as nodemailer from 'nodemailer';
 
 const router = Router();
+
+// Configurar multer para archivos
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/csv',
+      'image/png',
+      'image/jpeg',
+      'text/plain'
+    ];
+    
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Tipo de archivo no permitido: ${file.mimetype}`));
+    }
+  }
+});
 
 // ============================================================
 // CATEGORÍAS (antes llamadas "familias" en algunos sistemas)
@@ -124,15 +151,23 @@ router.get('/tech-sheets/:id', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/tech-sheets', async (req: Request, res: Response) => {
+/**
+ * POST /tech-sheets
+ * Crea una nueva ficha técnica
+ * Soporta adjuntar archivo (PDF, DOC, DOCX, PNG, JPG, CSV, TXT)
+ * 
+ * IMPORTANTE: El archivo se guarda en disk, NO en BD
+ * BD solo almacena: file_path (ruta relativa), file_name, mime_type, size_bytes
+ */
+router.post('/tech-sheets', upload.single('file'), async (req: Request, res: Response) => {
   try {
     const repo = AppDataSource.getRepository(TechSheet);
-    const { name, course_id, ministry_code, description, competencies, kpi_requirements, context_scenario, file_url, uploaded_by } = req.body;
+    const { name, course_id, ministry_code, description, competencies, kpi_requirements, context_scenario, uploaded_by } = req.body;
     
     // VALIDACIONES
     if (!name) return res.status(400).json({ error: 'name es obligatorio' });
     
-    // ✅ NUEVA VALIDACIÓN: course_id es OBLIGATORIO
+    // ✅ VALIDACIÓN: course_id es OBLIGATORIO
     if (!course_id) {
       return res.status(400).json({ 
         error: 'course_id es OBLIGATORIO. Toda ficha técnica debe estar asociada a un curso.',
@@ -142,7 +177,6 @@ router.post('/tech-sheets', async (req: Request, res: Response) => {
     }
     
     // Verificar que el curso exista
-    const coursesRepo = AppDataSource.getRepository('CourseDocument');
     const courseExists = await AppDataSource.query(
       'SELECT id FROM courses WHERE id = ?',
       [course_id]
@@ -154,19 +188,52 @@ router.post('/tech-sheets', async (req: Request, res: Response) => {
       });
     }
     
+    // ✅ NUEVO: Si hay archivo adjunto, guardarlo en disk
+    let fileUrl = null;
+    let fileInfo = null;
+
+    if (req.file) {
+      try {
+        fileInfo = await fileStorageService.saveFile(
+          req.file.buffer,
+          req.file.originalname,
+          req.file.mimetype
+        );
+        // Guardar ruta relativa en BD
+        fileUrl = fileInfo.file_path;
+        console.log(`✅ Archivo guardado para ficha técnica: ${fileUrl}`);
+      } catch (fileErr: any) {
+        return res.status(400).json({
+          error: 'Error al guardar archivo',
+          details: fileErr.message
+        });
+      }
+    }
+    
     const sheet = repo.create({ 
       name, 
-      course_id, // Ya validado que existe
+      course_id,
       ministry_code, 
       description, 
       competencies, 
       kpi_requirements, 
       context_scenario, 
-      file_url: file_url || null,
-      uploaded_by 
+      file_url: fileUrl,
+      uploaded_by: uploaded_by || 'system'
     });
+
     const saved = await repo.save(sheet);
-    res.status(201).json(saved);
+    
+    res.status(201).json({
+      ...saved,
+      file_info: fileInfo ? {
+        id: fileInfo.id,
+        original_name: fileInfo.original_filename,
+        size_bytes: fileInfo.size_bytes,
+        mime_type: fileInfo.mime_type,
+        stored_at: fileInfo.stored_at
+      } : null
+    });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
@@ -1677,6 +1744,40 @@ router.delete('/course-endorsers', async (req: Request, res: Response) => {
     await AppDataSource.query('DELETE FROM course_endorsers WHERE course_id = ? AND endorser_id = ?', [course_id, endorser_id]);
     res.json({ message: 'Vínculo eliminado' });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+/**
+ * GET /tech-sheets/files/download/:filePath
+ * Descarga un archivo adjunto a una ficha técnica
+ * 
+ * Ejemplo: /tech-sheets/files/download/tech-sheets/uuid.pdf
+ */
+router.get('/files/download/:filePath(*)', async (req: Request, res: Response) => {
+  try {
+    const filePath = req.params.filePath;
+    
+    // Validaciones de seguridad
+    if (!filePath || filePath.includes('..')) {
+      return res.status(400).json({ error: 'Invalid file path' });
+    }
+
+    // Leer archivo
+    const fileBuffer = await fileStorageService.readFile(filePath);
+    const fileStats = await fileStorageService.getFileInfo(filePath);
+
+    // Determinar MIME type
+    const ext = filePath.split('.').pop()?.toLowerCase();
+    const mimeType = fileStorageService.getMimeType(ext || '') || 'application/octet-stream';
+
+    // Retornar archivo
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Length', fileStats.size);
+    res.setHeader('Content-Disposition', `attachment; filename="${filePath.split('/').pop()}"`);
+    res.send(fileBuffer);
+  } catch (error: any) {
+    console.error('Error downloading file:', error.message);
+    res.status(404).json({ error: 'Archivo no encontrado', details: error.message });
+  }
 });
 
 export default router;

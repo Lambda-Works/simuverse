@@ -86,21 +86,29 @@ export function TechSheetsABM() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Store file name for display; encode as base64 data URL for local preview
-    // In production, this would upload to S3/storage and return a URL
-    setUploading(true);
-    try {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const dataUrl = ev.target?.result as string;
-        setFormData(prev => ({ ...prev, file_url: dataUrl, file_name: file.name }));
-        setUploading(false);
-      };
-      reader.readAsDataURL(file);
-    } catch {
-      setUploading(false);
-      alert('Error al leer el archivo');
+    // ✅ NUEVO: Validar tipo y tamaño en cliente
+    const allowedTypes = ['application/pdf', 'application/msword', 
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/csv', 'image/png', 'image/jpeg', 'text/plain'];
+    
+    if (!allowedTypes.includes(file.type)) {
+      alert(`❌ Tipo de archivo no permitido: ${file.type}\n\nSoportados: PDF, DOC, DOCX, XLS, XLSX, CSV, PNG, JPG, TXT`);
+      e.target.value = '';
+      return;
     }
+
+    const maxSize = 50 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert(`❌ Archivo demasiado grande: ${(file.size / (1024 * 1024)).toFixed(2)} MB\n\nMáximo: 50 MB`);
+      e.target.value = '';
+      return;
+    }
+
+    // ✅ NUEVO: Solo almacenar nombre, NO base64
+    setFormData(prev => ({ ...prev, file_name: file.name }));
+    console.log(`✅ Archivo seleccionado: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
   };
 
   const handleEditingFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -135,14 +143,27 @@ export function TechSheetsABM() {
         course_id: formData.course_id || null,
         ministry_code: formData.ministry_code,
         description: formData.description,
-        file_url: formData.file_url || null,
         uploaded_by: localStorage.getItem('userId') || 'system',
       };
 
+      // ✅ NUEVO: Usar FormData para multipart/form-data
+      const formDataObj = new FormData();
+      formDataObj.append('name', payload.name);
+      formDataObj.append('course_id', payload.course_id);
+      formDataObj.append('ministry_code', payload.ministry_code);
+      formDataObj.append('description', payload.description);
+      formDataObj.append('uploaded_by', payload.uploaded_by);
+
+      // ✅ CORRECCIÓN: Usar fileInputRef en lugar de getElementById
+      if (fileInputRef.current?.files?.[0]) {
+        formDataObj.append('file', fileInputRef.current.files[0]);
+        console.log(`📤 Archivo a enviar: ${fileInputRef.current.files[0].name} (${(fileInputRef.current.files[0].size / 1024).toFixed(2)} KB)`);
+      }
+
       const response = await fetch('http://localhost:5000/api/tech-sheets', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        // ✅ NO incluir Content-Type, browser lo setea automáticamente
+        body: formDataObj,
       });
 
       if (!response.ok) {
@@ -155,6 +176,7 @@ export function TechSheetsABM() {
 
       // Reset form
       setFormData({ name: '', course_id: '', ministry_code: '', description: '', file_url: '', file_name: '' });
+      if (fileInputRef.current) fileInputRef.current.value = '';
       setIsAddingNew(false);
 
       // Refresh list
