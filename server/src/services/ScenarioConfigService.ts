@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ScenarioConfig } from '../entities/ScenarioConfig.entity';
-import { CourseConfig } from '../entities/CourseConfig.entity';
-import { Scenario } from '../entities/Scenario.entity';
-import { Course } from '../entities/Course.entity';
+import { CourseConfig } from '../entities/CourseConfig';
+import { Scenario } from '../entities/Scenario';
+import { Course } from '../entities/Course';
 
 /**
  * ScenarioConfigService

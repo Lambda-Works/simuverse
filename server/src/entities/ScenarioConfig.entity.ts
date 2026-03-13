@@ -8,8 +8,8 @@ import {
   JoinColumn,
   ManyToOne,
 } from 'typeorm';
-import { Scenario } from './Scenario.entity';
-import { Course } from './Course.entity';
+import { Scenario } from './Scenario';
+import { Course } from './Course';
 
 /**
  * ScenarioConfig Entity (NUEVA - CRÍTICA)

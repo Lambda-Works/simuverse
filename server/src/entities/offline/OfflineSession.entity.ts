@@ -8,8 +8,8 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { SimulationInstance } from '../SimulationInstance.entity';
-import { Scenario } from '../Scenario.entity';
+import { SimulationInstance } from '../SimulationInstance';
+import { Scenario } from '../Scenario';
 
 /**
  * OfflineSession Entity

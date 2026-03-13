@@ -5,9 +5,9 @@ import { OfflineCache } from '../entities/offline/OfflineCache.entity';
 import { ChatResponseCache } from '../entities/offline/ChatResponseCache.entity';
 import { EvaluationCache } from '../entities/offline/EvaluationCache.entity';
 import { OfflineSession } from '../entities/offline/OfflineSession.entity';
-import { Course } from '../entities/Course.entity';
-import { Scenario } from '../entities/Scenario.entity';
-import { KPI } from '../entities/KPI.entity';
+import { Course } from '../entities/Course';
+import { Scenario } from '../entities/Scenario';
+import { KPI } from '../entities/KPI';
 import * as crypto from 'crypto';
 import * as zlib from 'zlib';
 

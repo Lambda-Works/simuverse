@@ -7,8 +7,8 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { KPI } from '../KPI.entity';
-import { Scenario } from '../Scenario.entity';
+import { KPI } from '../KPI';
+import { Scenario } from '../Scenario';
 
 /**
  * EvaluationCache Entity

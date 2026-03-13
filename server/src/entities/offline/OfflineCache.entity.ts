@@ -8,7 +8,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { Course } from '../Course.entity';
+import { Course } from '../Course';
 
 /**
  * OfflineCache Entity
