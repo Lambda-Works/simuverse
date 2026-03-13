@@ -42,12 +42,7 @@ export function TechSheetsABM() {
   const [editingSheetId, setEditingSheetId] = useState<number | null>(null);
   const [editingCompetencies, setEditingCompetencies] = useState<string>('');
   const [editingKpis, setEditingKpis] = useState<string>('');
-  const [completionMode, setCompletionMode] = useState<'auto' | 'manual'>('auto');
-  const [editingCourseId, setEditingCourseId] = useState<string>('');
-  const [editingFileUrl, setEditingFileUrl] = useState<string>('');
-  const [editingFileName, setEditingFileName] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const editingFileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -117,8 +112,6 @@ export function TechSheetsABM() {
       const reader = new FileReader();
       reader.onload = (ev) => {
         const dataUrl = ev.target?.result as string;
-        setEditingFileUrl(dataUrl);
-        setEditingFileName(file.name);
         setUploading(false);
       };
       reader.readAsDataURL(file);
@@ -232,13 +225,6 @@ export function TechSheetsABM() {
     const sheet = sheets.find(s => s.id === id);
     if (!sheet) return;
 
-    // Validar que tenga curso asignado
-    const finalCourseId = editingCourseId || sheet.course_id;
-    if (!finalCourseId) {
-      alert('❌ Debes seleccionar un curso. Es obligatorio.');
-      return;
-    }
-
     // Parsear competencias y KPIs
     let competencies: string[] = [];
     let kpis: string[] = [];
@@ -265,8 +251,6 @@ export function TechSheetsABM() {
     try {
       const updatedSheet = {
         ...sheet,
-        course_id: finalCourseId,
-        file_url: editingFileUrl || sheet.file_url,
         competencies: competencies.length > 0 ? competencies : sheet.competencies,
         kpi_requirements: kpis.length > 0 ? kpis : sheet.kpi_requirements,
       };
@@ -285,12 +269,8 @@ export function TechSheetsABM() {
       setEditingSheetId(null);
       setEditingCompetencies('');
       setEditingKpis('');
-      setEditingCourseId('');
-      setEditingFileUrl('');
-      setEditingFileName('');
-      setCompletionMode('auto');
       await fetchTechSheets();
-      alert('✅ Ficha técnica completada. Ahora puedes analizar con IA.');
+      alert('✅ Ficha técnica completada exitosamente.');
     } catch (error) {
       console.error('Error updating tech sheet:', error);
       alert(`❌ Error al completar la ficha: ${error instanceof Error ? error.message : 'Error desconocido'}`);
@@ -659,21 +639,17 @@ export function TechSheetsABM() {
         </Card>
       )}
 
-      {/* Modal para completar fichas inválidas - CON TODO */}
+      {/* Modal para completar fichas - OPCIÓN MANUAL SIMPLE */}
       {editingSheetId && (
         <Card className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
+          <div className="bg-white rounded-lg p-6 max-w-xl w-full">
+            <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold">Completar Ficha Técnica</h3>
               <button 
                 onClick={() => {
                   setEditingSheetId(null);
                   setEditingCompetencies('');
                   setEditingKpis('');
-                  setEditingCourseId('');
-                  setEditingFileUrl('');
-                  setEditingFileName('');
-                  setCompletionMode('auto');
                 }}
                 className="text-gray-400 hover:text-gray-600 text-2xl"
               >
@@ -681,171 +657,10 @@ export function TechSheetsABM() {
               </button>
             </div>
 
-            {/* CAMPO 1: ASOCIAR AL CURSO */}
-            <div className="mb-6 pb-6 border-b">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Asociar al Curso <span className="text-red-500">*</span>
-              </label>
-              <Select
-                value={editingCourseId || sheets.find(s => s.id === editingSheetId)?.course_id || ''}
-                onValueChange={(val) => setEditingCourseId(val)}
-              >
-                <SelectTrigger className={(editingCourseId || sheets.find(s => s.id === editingSheetId)?.course_id) ? '' : 'border-red-500 border-2'}>
-                  <SelectValue placeholder="— Selecciona un curso (OBLIGATORIO) —" />
-                </SelectTrigger>
-                <SelectContent>
-                  {courses.length === 0 ? (
-                    <div className="p-2 text-sm text-gray-500">No hay cursos disponibles. Crea un curso primero.</div>
-                  ) : (
-                    courses.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-red-500 mt-1">⚠️ OBLIGATORIO: Toda ficha técnica debe estar asociada a un curso.</p>
-            </div>
-
-            {/* CAMPO 2: ADJUNTAR ARCHIVO */}
-            <div className="mb-6 pb-6 border-b">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Paperclip className="w-4 h-4 inline mr-1" />
-                Adjuntar Ficha del Ministerio (PDF, DOC, DOCX)
-              </label>
-              <div className="flex gap-2 items-center">
-                <input
-                  ref={editingFileInputRef}
-                  type="file"
-                  accept=".pdf,.doc,.docx"
-                  onChange={handleEditingFileChange}
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => editingFileInputRef.current?.click()}
-                  disabled={uploading}
-                >
-                  <FileUp className="w-4 h-4 mr-2" />
-                  {uploading ? 'Cargando...' : editingFileName ? 'Cambiar Archivo' : 'Seleccionar Archivo'}
-                </Button>
-                {editingFileName && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-green-700 flex items-center gap-1">
-                      ✅ {editingFileName}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setEditingFileUrl('');
-                        setEditingFileName('');
-                        if (editingFileInputRef.current) editingFileInputRef.current.value = '';
-                      }}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 h-6 w-6 p-0"
-                      title="Eliminar archivo"
-                    >
-                      ✕
-                    </Button>
-                  </div>
-                )}
-              </div>
-              <p className="text-xs text-gray-500 mt-2">Sube un archivo para que la IA lo analice automáticamente y extraiga competencias y KPIs.</p>
-            </div>
-
-            {/* OPCIÓN 1: ANÁLISIS AUTOMÁTICO - Si tiene archivo */}
-            {(() => {
-              const sheet = sheets.find(s => s.id === editingSheetId);
-              const hasFile = editingFileUrl || (sheet?.file_url && sheet.file_url.length > 0);
-              
-              return hasFile ? (
-                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
-                  <div className="flex gap-4">
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-blue-900 mb-2">🤖 Opción 1: Análisis Automático (IA)</h4>
-                      <p className="text-sm text-blue-800 mb-3">
-                        Tu ficha tiene un archivo adjunto. La IA puede analizar automáticamente el contenido y extraer competencias y KPIs.
-                      </p>
-                      <Button
-                        onClick={async () => {
-                          const finalCourseId = editingCourseId || sheet?.course_id;
-                          if (!finalCourseId) {
-                            alert('❌ Debes seleccionar un curso primero');
-                            return;
-                          }
-                          if (!sheet) return;
-                          setProcessing(sheet.id);
-                          try {
-                            // Primero actualizar con el curso
-                            const updatedSheet = {
-                              ...sheet,
-                              course_id: finalCourseId,
-                              file_url: editingFileUrl || sheet.file_url,
-                            };
-                            
-                            const updateResponse = await fetch(`http://localhost:5000/api/tech-sheets/${sheet.id}`, {
-                              method: 'PUT',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify(updatedSheet),
-                            });
-                            
-                            if (!updateResponse.ok) {
-                              const error = await updateResponse.json();
-                              throw new Error(error.error || 'Error al actualizar');
-                            }
-                            
-                            // Luego analizar
-                            const response = await fetch(`http://localhost:5000/api/tech-sheets/${sheet.id}/analyze`, {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                            });
-                            
-                            if (!response.ok) {
-                              const error = await response.json();
-                              throw new Error(error.error || 'Error al analizar');
-                            }
-                            
-                            alert('✅ Ficha analizada con éxito por IA. Se generaron automáticamente competencias, KPIs y preguntas.');
-                            setEditingSheetId(null);
-                            setEditingCompetencies('');
-                            setEditingKpis('');
-                            setEditingCourseId('');
-                            setEditingFileUrl('');
-                            setEditingFileName('');
-                            setCompletionMode('auto');
-                            await fetchTechSheets();
-                          } catch (error) {
-                            alert(`❌ Error: ${error instanceof Error ? error.message : 'Error desconocido'}`);
-                          } finally {
-                            setProcessing(null);
-                          }
-                        }}
-                        disabled={processing === sheet?.id}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                      >
-                        <Zap className="w-4 h-4 mr-2" />
-                        {processing === sheet?.id ? 'Analizando...' : 'Analizar Archivo Automáticamente'}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 pt-4 border-t border-blue-200">
-                    <p className="text-sm text-blue-700 font-medium">O si prefieres, rellena manualmente:</p>
-                  </div>
-                </div>
-              ) : null;
-            })()}
-
-            {/* OPCIÓN 2: COMPLETAR MANUALMENTE */}
-            <div className="space-y-4 mb-6">
-              <div>
-                <h4 className="font-semibold text-gray-900 mb-3">✍️ Opción 2: Completar Manualmente</h4>
-              </div>
-
+            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Competencias <span className="text-red-500">*</span> (separadas por coma)
+                  Competencias (separadas por coma)
                 </label>
                 <Textarea
                   value={editingCompetencies}
@@ -855,13 +670,13 @@ export function TechSheetsABM() {
                   className="w-full"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Escribe los nombres de las competencias separadas por comas. Se procesarán automáticamente.
+                  Escribe los nombres de las competencias separadas por comas.
                 </p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Criterios de Evaluación / KPIs <span className="text-red-500">*</span>
+                  Criterios de Evaluación / KPIs (separados por coma)
                 </label>
                 <Textarea
                   value={editingKpis}
@@ -871,28 +686,28 @@ export function TechSheetsABM() {
                   className="w-full"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Escribe los criterios de evaluación. Al menos uno de los dos campos es obligatorio.
+                  Escribe los criterios de evaluación.
                 </p>
               </div>
+
+              <p className="text-xs text-orange-600 font-medium">
+                ⚠️ Al menos uno de los dos campos debe tener contenido.
+              </p>
             </div>
 
-            <div className="flex gap-3 pt-4 border-t">
+            <div className="flex gap-3 mt-6 pt-4 border-t">
               <Button
                 onClick={() => handleCompleteSheet(editingSheetId)}
                 className="bg-green-600 hover:bg-green-700 text-white"
               >
                 <Check className="w-4 h-4 mr-2" />
-                Guardar Cambios
+                Guardar
               </Button>
               <Button
                 onClick={() => {
                   setEditingSheetId(null);
                   setEditingCompetencies('');
                   setEditingKpis('');
-                  setEditingCourseId('');
-                  setEditingFileUrl('');
-                  setEditingFileName('');
-                  setCompletionMode('auto');
                 }}
                 variant="outline"
               >
