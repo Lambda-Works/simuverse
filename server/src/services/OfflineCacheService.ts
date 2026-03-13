@@ -1,5 +1,3 @@
-// import { Injectable } from '@nestjs/common';
-// import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { OfflineCache } from '../entities/offline/OfflineCache.entity';
 import { ChatResponseCache } from '../entities/offline/ChatResponseCache.entity';
@@ -26,30 +24,34 @@ import * as zlib from 'zlib';
  * 3. student.goOffline() → usa datos locales
  * 4. student.goOnline() → sincroniza con servidor
  */
-// @Injectable()
 export class OfflineCacheService {
+  // Propiedades para inyección manual de repositorios
+  // Se pueden pasar en el constructor o usar AppDataSource directamente
+  private offlineCacheRepo?: Repository<OfflineCache>;
+  private chatCacheRepo?: Repository<ChatResponseCache>;
+  private evaluationCacheRepo?: Repository<EvaluationCache>;
+  private sessionRepo?: Repository<OfflineSession>;
+  private courseRepo?: Repository<Course>;
+  private scenarioRepo?: Repository<Scenario>;
+  private kpiRepo?: Repository<KPI>;
+
   constructor(
-    // @InjectRepository(OfflineCache)
-    private offlineCacheRepo?: Repository<OfflineCache>,
-
-    // @InjectRepository(ChatResponseCache)
-    private chatCacheRepo?: Repository<ChatResponseCache>,
-
-    // @InjectRepository(EvaluationCache)
-    private evaluationCacheRepo?: Repository<EvaluationCache>,
-
-    // @InjectRepository(OfflineSession)
-    private sessionRepo?: Repository<OfflineSession>,
-
-    // @InjectRepository(Course)
-    private courseRepo?: Repository<Course>,
-
-    // @InjectRepository(Scenario)
-    private scenarioRepo?: Repository<Scenario>,
-
-    // @InjectRepository(KPI)
-    private kpiRepo?: Repository<KPI>,
-  ) {}
+    offlineCacheRepo?: Repository<OfflineCache>,
+    chatCacheRepo?: Repository<ChatResponseCache>,
+    evaluationCacheRepo?: Repository<EvaluationCache>,
+    sessionRepo?: Repository<OfflineSession>,
+    courseRepo?: Repository<Course>,
+    scenarioRepo?: Repository<Scenario>,
+    kpiRepo?: Repository<KPI>,
+  ) {
+    this.offlineCacheRepo = offlineCacheRepo;
+    this.chatCacheRepo = chatCacheRepo;
+    this.evaluationCacheRepo = evaluationCacheRepo;
+    this.sessionRepo = sessionRepo;
+    this.courseRepo = courseRepo;
+    this.scenarioRepo = scenarioRepo;
+    this.kpiRepo = kpiRepo;
+  }
 
   // ─────────────────────────────────────────────────────────────────────
   // CACHE GENERATION
