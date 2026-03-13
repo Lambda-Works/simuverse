@@ -52,9 +52,8 @@ export interface AnalyzedKPIsConfig {
 
 export class TechSheetAnalysisService {
   /**
-   * Analiza una ficha técnica y guarda la configuración en course_config
-   * Extrae competencias y KPIs del contenido REAL (file_url, description)
-   * NO usa datos hardcodeados
+   * Analiza una ficha técnica usando IA real (Gemini)
+   * Lee el contenido del archivo y lo envía a Google Gemini para análisis
    */
   async analyzeAndSave(
     sheet: TechSheet,
@@ -72,18 +71,25 @@ export class TechSheetAnalysisService {
       console.log(`📄 Contenido a analizar (${contentToAnalyze.length} caracteres)`);
       
       // 2. Llamar a Gemini para análisis inteligente
-      const { competencies, kpis } = await this.analyzeWithGemini(contentToAnalyze, sheet.name);
+      const geminiAnalysis = await this.analyzeWithGemini(contentToAnalyze, sheet.name);
+
+      if (!geminiAnalysis) {
+        throw new Error('No se pudo obtener análisis de Gemini');
+      }
+
+      // 3. Procesar respuesta de Gemini
+      const { competencies, kpis } = geminiAnalysis;
 
       console.log(`✅ Gemini extrajo: ${competencies.length} competencias, ${kpis.length} KPIs`);
 
-      // 3. Crear tareas para cada KPI
+      // 4. Crear tareas para cada KPI
       const tasks = await this.createTasksForKPIs(
         courseId,
         kpis,
         sheet.name
       );
 
-      // 4. Crear la configuración analizada
+      // 5. Crear la configuración analizada
       const analyzedConfig: AnalyzedKPIsConfig = {
         tech_sheet_id: sheet.id,
         analyzed_at: new Date(),
@@ -102,7 +108,7 @@ export class TechSheetAnalysisService {
         },
       };
 
-      // 5. Guardar en course_config.metadata
+      // 6. Guardar en course_config.metadata
       try {
         const existingConfig = await AppDataSource.query(
           `SELECT id FROM course_config WHERE course_id = ?`,
@@ -182,12 +188,12 @@ export class TechSheetAnalysisService {
   }
 
   /**
-   * Llama a Google Gemini para analizar el contenido
+   * Llama a Google Gemini para analizar el contenido y extraer competencias y KPIs
    */
   private async analyzeWithGemini(
     content: string,
     sheetName: string
-  ): Promise<{ competencies: Competency[]; kpis: KPIConfig[] }> {
+  ): Promise<{ competencies: Competency[]; kpis: KPIConfig[] } | null> {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey || apiKey === 'tu_gemini_api_key_aqui') {
@@ -196,20 +202,20 @@ export class TechSheetAnalysisService {
     }
 
     try {
-      const prompt = `Analiza este documento de capacitación/ficha técnica y extrae la información en JSON.
+      const prompt = `Analiza este documento de capacitación o ficha técnica y extrae la información estructurada en JSON.
 
 DOCUMENTO:
 ${content.substring(0, 8000)}
 
-${content.length > 8000 ? '\n[... documento truncado ...]' : ''}
+${content.length > 8000 ? '\n[... documento truncado por longitud ...]' : ''}
 
-Responde SOLO con JSON válido:
+Responde SOLO con un JSON válido, sin explicaciones adicionales:
 {
   "competencies": [
     {
       "id": "comp-1",
-      "name": "Nombre",
-      "description": "Descripción",
+      "name": "Nombre de la competencia",
+      "description": "Descripción breve",
       "level": "basic|intermediate|advanced"
     }
   ],
@@ -218,15 +224,21 @@ Responde SOLO con JSON válido:
       "id": "kpi-1",
       "name": "Nombre del KPI",
       "description": "Descripción",
-      "category": "knowledge|skill|performance",
+      "category": "knowledge|skill|attitude|performance",
       "weight": 100,
       "target_value": 95,
       "minimum_pass_value": 70,
       "competencies_required": ["comp-1"],
-      "evaluation_questions": ["Pregunta?"]
+      "evaluation_questions": ["Pregunta 1?", "Pregunta 2?"]
     }
   ]
-}`;
+}
+
+Instrucciones:
+1. Extrae al menos 3-5 competencias del documento
+2. Extrae al menos 2-4 KPIs basados en los objetivos de aprendizaje o capacidades
+3. Usa nombres descriptivos y específicos, no genéricos
+4. Asegúrate que los evaluation_questions sean relevantes al KPI`;
 
       const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent', {
         method: 'POST',
@@ -235,36 +247,46 @@ Responde SOLO con JSON válido:
           'x-goog-api-key': apiKey
         },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
+          contents: [
+            {
+              parts: [{ text: prompt }]
+            }
+          ],
           generationConfig: {
             temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
             maxOutputTokens: 2048,
           }
         })
       });
 
       if (!response.ok) {
-        console.error(`❌ Error de Gemini: ${response.status}`);
+        const error = await response.text();
+        console.error(`❌ Error de Gemini (${response.status}):`, error);
         return this.extractCompetenciesAndKPIsBasic(content);
       }
 
       const data: any = await response.json();
       
-      if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+      if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
         console.error('❌ Respuesta vacía de Gemini');
         return this.extractCompetenciesAndKPIsBasic(content);
       }
 
       const responseText = data.candidates[0].content.parts[0].text;
+      console.log(`📝 Respuesta de Gemini (${responseText.length} caracteres)`);
+
+      // Parsear JSON de la respuesta
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      
       if (!jsonMatch) {
-        console.error('❌ No se encontró JSON en la respuesta');
+        console.error('❌ No se encontró JSON en la respuesta de Gemini');
         return this.extractCompetenciesAndKPIsBasic(content);
       }
 
       const parsedData = JSON.parse(jsonMatch[0]);
       
+      // Validar y asignar IDs si faltan
       const competencies: Competency[] = (parsedData.competencies || []).map((c: any, idx: number) => ({
         id: c.id || `comp-${idx + 1}`,
         name: c.name || `Competencia ${idx + 1}`,
@@ -284,26 +306,31 @@ Responde SOLO con JSON válido:
         evaluation_questions: k.evaluation_questions || [`¿Se logró ${k.name}?`]
       }));
 
-      console.log(`✅ Análisis exitoso: ${competencies.length} competencias, ${kpis.length} KPIs`);
+      console.log(`✅ Análisis de Gemini exitoso: ${competencies.length} competencias, ${kpis.length} KPIs`);
       return { competencies, kpis };
     } catch (err: any) {
-      console.error(`❌ Error con Gemini: ${err.message}`);
+      console.error(`❌ Error llamando a Gemini: ${err.message}`);
       return this.extractCompetenciesAndKPIsBasic(content);
     }
   }
 
   /**
-   * Fallback: análisis básico sin IA
+   * Fallback: Análisis básico si Gemini no está disponible
    */
-  private extractCompetenciesAndKPIsBasic(content: string): { competencies: Competency[]; kpis: KPIConfig[] } {
-    console.log('🔄 Usando análisis básico...');
+  private extractCompetenciesAndKPIsBasic(
+    content: string
+  ): { competencies: Competency[]; kpis: KPIConfig[] } {
+    console.log('🔄 Usando análisis básico (fallback)...');
+
     const competencies = this.extractCompetencies(content);
     const kpis = this.extractKPIs(content, competencies);
+
     return { competencies, kpis };
   }
 
   /**
-   * Extrae competencias del CONTENIDO REAL de la ficha técnica
+   * Extrae competencias del contenido usando palabras clave
+   */
    * Analiza texto del archivo/descripción usando palabras clave inteligentes
    */
   private extractCompetencies(
@@ -431,6 +458,7 @@ Responde SOLO con JSON válido:
   /**
    * Crea tareas automáticamente para cada KPI
    * ⚠️ IMPORTANTE: También persiste KPIs en la tabla kpis
+   * SIMPLIFICADO: Solo guarda KPIs, las tareas se crearán de forma simple
    */
   private async createTasksForKPIs(
     courseId: string,
@@ -445,7 +473,7 @@ Responde SOLO con JSON válido:
 
     for (const kpiConfig of kpis) {
       try {
-        // ✅ NUEVO: Crear KPI real en BD
+        // ✅ Crear KPI real en BD
         const kpiEntity = new KPI();
         kpiEntity.id = uuidv4();
         kpiEntity.course_id = courseId;
@@ -456,62 +484,38 @@ Responde SOLO con JSON válido:
         kpiEntity.target_value = kpiConfig.target_value;
         kpiEntity.minimum_pass_value = kpiConfig.minimum_pass_value;
         kpiEntity.is_active = true;
-        kpiEntity.tasks_count = 2; // 1 práctica + 1 evaluación
+        kpiEntity.tasks_count = 1;
 
         const savedKpi = await kpiRepo.save(kpiEntity);
         console.log(`✅ KPI creado: ${savedKpi.id} - ${savedKpi.name}`);
 
-        // Crear 2 tareas: 1 práctica + 1 evaluación por KPI
-        const taskDefs = [
-          { type: 'practice' as const, seq: 1, suffix: 'Práctica' },
-          { type: 'evaluation' as const, seq: 2, suffix: 'Evaluación' }
-        ];
+        // Crear 1 tarea simple por KPI
+        try {
+          const taskEntity = new Task();
+          taskEntity.id = uuidv4();
+          taskEntity.course_id = courseId;
+          taskEntity.kpi_id = savedKpi.id;
+          taskEntity.title = `${kpiConfig.name} - Evaluación`;
+          taskEntity.description = `Evaluación del KPI: ${kpiConfig.name}`;
+          taskEntity.type = 'evaluation' as any;
+          taskEntity.sequence_order = 1;
+          taskEntity.is_active = true;
 
-        for (const taskDef of taskDefs) {
-          try {
-            const taskEntity = new Task();
-            taskEntity.id = uuidv4();
-            taskEntity.course_id = courseId;
-            taskEntity.kpi_id = savedKpi.id;
-            // scenario_id es opcional
-            taskEntity.title = `${kpiConfig.name} - ${taskDef.suffix}`;
-            taskEntity.description = `${taskDef.type === 'practice' ? 'Practica el siguiente KPI' : 'Evaluación del KPI'}: ${kpiConfig.name}\n\nDescripción: ${kpiConfig.description}\n\nObjetivo: Alcanzar al menos ${kpiConfig[taskDef.type === 'practice' ? 'minimum_pass_value' : 'target_value']}% de desempeño.`;
-            taskEntity.type = taskDef.type;
-            taskEntity.sequence_order = taskDef.seq;
-            taskEntity.ai_prompt_config = {
-              system_prompt: `${taskDef.type === 'practice' ? 'Ayuda al estudiante a practicar' : 'Evalúa al estudiante en'}: ${kpiConfig.name}`,
-              temperature: taskDef.type === 'practice' ? 0.7 : 0.3,
-              give_hints: taskDef.type === 'practice',
-              max_attempts: taskDef.type === 'practice' ? 3 : 1
-            };
-            taskEntity.evaluation_criteria = {
-              accuracy_required: kpiConfig[taskDef.type === 'practice' ? 'minimum_pass_value' : 'target_value'],
-              time_limit_minutes: taskDef.type === 'practice' ? 15 : 20,
-              partial_credit_allowed: taskDef.type === 'practice',
-              auto_evaluation_rules: []
-            };
-            taskEntity.status = 'pending';
-            taskEntity.is_active = true;
-            taskEntity.students_completed = 0;
-            taskEntity.average_completion_rate = 0;
+          const savedTask = await taskRepo.save(taskEntity);
+          console.log(`  ✅ Task evaluación creada: ${savedTask.id}`);
 
-            const savedTask = await taskRepo.save(taskEntity);
-            console.log(`  ✅ Task ${taskDef.type} creada: ${savedTask.id}`);
-
-            tasks.push({
-              id: savedTask.id,
-              kpi_id: savedKpi.id,
-              type: taskDef.type,
-              title: taskEntity.title,
-              description: taskEntity.description,
-              difficulty: taskDef.type === 'practice' ? 'medium' : 'hard',
-              sequence: taskDef.seq,
-              expected_duration_minutes: taskDef.type === 'practice' ? 15 : 20,
-            });
-          } catch (taskErr: any) {
-            console.error(`  ❌ Error creando task ${taskDef.type}:`, taskErr.message);
-            console.error(`     Stack:`, taskErr.stack);
-          }
+          tasks.push({
+            id: savedTask.id,
+            kpi_id: savedKpi.id,
+            type: 'evaluation',
+            title: taskEntity.title,
+            description: taskEntity.description,
+            difficulty: 'hard',
+            sequence: 1,
+            expected_duration_minutes: 20,
+          });
+        } catch (taskErr: any) {
+          console.error(`  ⚠️ Task no creada:`, taskErr.message);
         }
       } catch (kpiErr: any) {
         console.error(`❌ Error creando KPI ${kpiConfig.name}:`, kpiErr.message);
