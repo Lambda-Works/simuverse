@@ -8,6 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import pdfParse from 'pdf-parse';
 import * as mammoth from 'mammoth';
+import * as XLSX from 'xlsx';
 
 export interface Competency {
   id: string;
@@ -153,7 +154,7 @@ export class TechSheetAnalysisService {
 
   /**
    * Lee el contenido real del archivo de la ficha técnica
-   * Soporta: TXT, DOCX, DOC, PDF, CSV, PNG
+   * Soporta: TXT, DOC, DOCX, PDF, XLS, XLSX, CSV, PNG, JPG
    */
   private async readTechSheetContent(sheet: TechSheet): Promise<string> {
     let content = '';
@@ -177,19 +178,44 @@ export class TechSheetAnalysisService {
             content += fileContent;
             console.log(`✅ Archivo TXT/CSV leído (${fileContent.length} caracteres)`);
           } 
-          else if (ext === '.docx') {
-            // Archivo DOCX con mammoth
+          else if (ext === '.docx' || ext === '.doc') {
+            // Archivo DOCX/DOC con mammoth (funciona para ambos)
             try {
               const buffer = fs.readFileSync(filePath);
               const result = await mammoth.extractRawText({ buffer });
               content += result.value;
-              console.log(`✅ Archivo DOCX leído (${result.value.length} caracteres)`);
+              console.log(`✅ Archivo DOCX/DOC leído (${result.value.length} caracteres)`);
             } catch (docxError: any) {
-              console.warn(`⚠️ Error extrayendo DOCX: ${docxError.message}`);
+              console.warn(`⚠️ Error extrayendo DOCX/DOC: ${docxError.message}`);
               // Fallback: leer como binario y buscar texto visible
+              try {
+                const buffer = fs.readFileSync(filePath);
+                const textContent = buffer.toString('utf-8', 0, Math.min(buffer.length, 10000));
+                content += textContent.replace(/[^\x20-\x7E\n\r\t]/g, ' ');
+                console.log(`✅ Fallback: Archivo ${ext} leído parcialmente (${textContent.length} caracteres)`);
+              } catch (fallbackError) {
+                console.warn(`⚠️ Fallback también falló para ${ext}`);
+              }
+            }
+          }
+          else if (ext === '.xlsx' || ext === '.xls') {
+            // Archivos Excel con xlsx
+            try {
               const buffer = fs.readFileSync(filePath);
-              const textContent = buffer.toString('utf-8', 0, Math.min(buffer.length, 10000));
-              content += textContent.replace(/[^\x20-\x7E\n\r\t]/g, ' ');
+              const workbook = XLSX.read(buffer, { type: 'buffer' });
+              let excelContent = '';
+              
+              // Iterar sobre todas las hojas
+              workbook.SheetNames.forEach((sheetName) => {
+                const worksheet = workbook.Sheets[sheetName];
+                const csvContent = XLSX.utils.sheet_to_csv(worksheet);
+                excelContent += `\n--- Hoja: ${sheetName} ---\n${csvContent}`;
+              });
+              
+              content += excelContent;
+              console.log(`✅ Archivo Excel (${ext}) leído (${excelContent.length} caracteres)`);
+            } catch (xlsxError: any) {
+              console.warn(`⚠️ Error extrayendo Excel: ${xlsxError.message}`);
             }
           }
           else if (ext === '.pdf') {
@@ -210,9 +236,13 @@ export class TechSheetAnalysisService {
           }
           else {
             // Otros formatos - intentar leer como texto
-            const fileContent = fs.readFileSync(filePath, 'utf-8');
-            content += fileContent;
-            console.log(`✅ Archivo ${ext} leído como texto (${fileContent.length} caracteres)`);
+            try {
+              const fileContent = fs.readFileSync(filePath, 'utf-8');
+              content += fileContent;
+              console.log(`✅ Archivo ${ext} leído como texto (${fileContent.length} caracteres)`);
+            } catch (textError) {
+              console.warn(`⚠️ No se puede leer ${ext} como texto`);
+            }
           }
         } else {
           console.warn(`⚠️ Archivo no encontrado: ${filePath}`);
