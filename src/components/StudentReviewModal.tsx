@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Award, MessageSquare, XCircle, CheckCircle2, Clock, TrendingUp, ExternalLink } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 
-const API = 'http://localhost:5000/api';
+import { API_BASE } from '@/lib/api';
+const API = API_BASE;
 
 interface ChatLog {
   id: number;
@@ -37,7 +38,7 @@ interface Props {
 }
 
 export function StudentReviewModal({ instanceId, studentId, courseTitle, open, onClose }: Props) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [data, setData] = useState<ReviewData | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -103,7 +104,7 @@ export function StudentReviewModal({ instanceId, studentId, courseTitle, open, o
                   </div>
                   {passed && (
                     <Button
-                      onClick={() => { onClose(); navigate(`/certificate/${instanceId}`); }}
+                      onClick={() => { onClose(); router.push(`/certificate/${instanceId}`); }}
                       className="gap-2 bg-yellow-500 hover:bg-yellow-600 text-white"
                     >
                       <Award className="w-4 h-4" /> Ver Certificado

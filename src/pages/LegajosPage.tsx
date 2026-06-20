@@ -4,7 +4,7 @@
  * Ruta: /legajos
  */
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { AppNavbar } from '@/components/AppNavbar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,7 +17,8 @@ import {
   CheckCircle2, XCircle, ChevronRight,
 } from 'lucide-react';
 
-const API = 'http://localhost:5000/api';
+import { API_BASE } from '@/lib/api';
+const API = API_BASE;
 
 interface StudentSummary {
   id: string;
@@ -35,7 +36,7 @@ interface StudentSummary {
 
 const LegajosPage = () => {
   const { user, loading, hasRole } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [students, setStudents] = useState<StudentSummary[]>([]);
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,9 +45,9 @@ const LegajosPage = () => {
 
   useEffect(() => {
     if (!loading && user && !hasRole('admin') && !hasRole('teacher') && !hasRole('ministerio')) {
-      navigate('/dashboard');
+      router.push('/dashboard');
     }
-  }, [user, loading, hasRole, navigate]);
+  }, [user, loading, hasRole, router]);
 
   useEffect(() => {
     if (!user) return;
@@ -105,7 +106,7 @@ const LegajosPage = () => {
           <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
           <p className="text-destructive font-semibold text-lg mb-2">Acceso denegado</p>
           <p className="text-muted-foreground mb-6">{error}</p>
-          <Button onClick={() => navigate('/dashboard')}>Volver al inicio</Button>
+          <Button onClick={() => router.push('/dashboard')}>Volver al inicio</Button>
         </div>
       </div>
     );
@@ -207,7 +208,7 @@ const LegajosPage = () => {
                 <Card
                   key={student.id}
                   className="hover:shadow-md transition-all duration-200 cursor-pointer group border hover:border-primary/30"
-                  onClick={() => navigate(`/student-ledger/${student.id}`)}
+                  onClick={() => router.push(`/student-ledger/${student.id}`)}
                 >
                   <CardContent className="pt-5 pb-4">
                     {/* Header */}

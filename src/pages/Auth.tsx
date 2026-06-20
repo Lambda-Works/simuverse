@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { apiClient } from '@/services/ApiClient';
 import { authChangeEvent } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { Shield, GraduationCap, Eye, EyeOff, Bot } from 'lucide-react';
 
 const Auth = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -55,7 +55,7 @@ const Auth = () => {
       
       // Esperar un bit para que el contexto se actualice
       setTimeout(() => {
-        navigate('/dashboard');
+        router.push('/dashboard');
       }, 100);
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Error al iniciar sesión');
@@ -92,7 +92,7 @@ const Auth = () => {
       
       // Esperar un poco para que el contexto se actualice
       setTimeout(() => {
-        navigate('/dashboard');
+        router.push('/dashboard');
       }, 100);
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Error al crear cuenta');

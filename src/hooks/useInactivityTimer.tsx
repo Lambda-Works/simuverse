@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 
 // ─── Configuración ────────────────────────────────────────────────────────────
@@ -29,13 +29,13 @@ export const useInactivity = () => {
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export const InactivityProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, signOut } = useAuth();
-  const location = useLocation();
+  const pathname = usePathname();
 
   const lastActivityRef = useRef<number>(Date.now());
   const [showWarning, setShowWarning] = useState(false);
   const [minutesLeft, setMinutesLeft] = useState(5);
 
-  const isOnSimulation = location.pathname.startsWith(SIMULATION_PATH_PREFIX);
+  const isOnSimulation = pathname.startsWith(SIMULATION_PATH_PREFIX);
 
   // Reiniciar el contador de actividad
   const resetTimer = useCallback(() => {

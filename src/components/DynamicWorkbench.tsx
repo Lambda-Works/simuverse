@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'next/navigation';
 import { msmApi } from '../services/MSMApiClient';
 import { useAuth } from '../hooks/useAuth';
 import { AlertCircle, Loader, CheckCircle } from 'lucide-react';

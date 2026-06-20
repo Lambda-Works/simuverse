@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
 import { AppNavbar } from '@/components/AppNavbar';
@@ -12,7 +12,8 @@ import { BookOpen, Play, Settings, BarChart3, LogOut, Shield, GraduationCap, Mai
 import { StudentReviewModal } from '@/components/StudentReviewModal';
 import { SimulationCalendar } from '@/components/SimulationCalendar';
 
-const API = 'http://localhost:5000/api';
+import { API_BASE } from '@/lib/api';
+const API = API_BASE;
 
 interface Course {
   id: string;
@@ -32,7 +33,7 @@ interface Assignment {
 
 const Dashboard = () => {
   const { user, signOut, loading, isAuthenticated, hasRole } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [enrichedAssignments, setEnrichedAssignments] = useState<any[]>([]);
@@ -47,8 +48,8 @@ const Dashboard = () => {
   const [sendError, setSendError] = useState('');
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) navigate('/auth');
-  }, [isAuthenticated, loading, navigate]);
+    if (!loading && !isAuthenticated) router.push('/auth');
+  }, [isAuthenticated, loading, router]);
 
   useEffect(() => {
     if (!user || !isAuthenticated) return;
@@ -161,7 +162,7 @@ const Dashboard = () => {
         title={isStudentOnly ? undefined : 'Panel de Control'}
         rightContent={
           hasRole('admin') ? (
-            <Button variant="outline" size="sm" onClick={() => navigate('/admin')} className="shrink-0 hidden md:flex">
+            <Button variant="outline" size="sm" onClick={() => router.push('/admin')} className="shrink-0 hidden md:flex">
               <Settings className="w-4 h-4 sm:mr-1" />
               <span className="hidden sm:inline">Admin</span>
             </Button>
@@ -399,7 +400,7 @@ const Dashboard = () => {
                     {hasRole('admin') ? 'Cree un nuevo curso desde el panel de administración.' : 'Contacte a su administrador.'}
                   </p>
                   {hasRole('admin') && (
-                    <Button className="mt-4" onClick={() => navigate('/admin')}>
+                    <Button className="mt-4" onClick={() => router.push('/admin')}>
                       <Settings className="w-4 h-4 mr-2" /> Crear Curso
                     </Button>
                   )}
@@ -419,7 +420,7 @@ const Dashboard = () => {
                     <Card
                       key={course.id}
                       className={`glass-card hover:shadow-xl transition-all duration-300 group cursor-pointer ${calStatus === 'expired' ? 'opacity-60' : ''}`}
-                      onClick={() => calStatus !== 'expired' && navigate(`/simulation/${course.id}`)}
+                      onClick={() => calStatus !== 'expired' && router.push(`/simulation/${course.id}`)}
                     >
                       <CardHeader>
                         <div className="flex items-center justify-between">
@@ -468,7 +469,7 @@ const Dashboard = () => {
                             className="flex-1"
                             variant="default"
                             disabled={calStatus === 'expired' || (attemptsLeft !== null && attemptsLeft === 0)}
-                            onClick={e => { e.stopPropagation(); navigate(`/simulation/${course.id}`); }}
+                            onClick={e => { e.stopPropagation(); router.push(`/simulation/${course.id}`); }}
                           >
                             <Play className="w-4 h-4 mr-2" /> {calStatus === 'completed' ? 'Re-intentar' : 'Iniciar'}
                           </Button>
@@ -490,7 +491,7 @@ const Dashboard = () => {
                               variant="outline"
                               title="Ver certificado"
                               className="text-yellow-600 border-yellow-300 hover:bg-yellow-50"
-                              onClick={e => { e.stopPropagation(); navigate(`/certificate/${enriched.instance_id}`); }}
+                              onClick={e => { e.stopPropagation(); router.push(`/certificate/${enriched.instance_id}`); }}
                             >
                               <Award className="w-4 h-4" />
                             </Button>

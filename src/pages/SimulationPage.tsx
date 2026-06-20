@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ interface Document {
 const SimulationPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const { user, isAuthenticated, loading } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   // State
   const [course, setCourse] = useState<any>(null);
@@ -48,11 +48,11 @@ const SimulationPage: React.FC = () => {
   // Load course and initialize simulation
   useEffect(() => {
     if (!loading && !isAuthenticated) {
-      navigate('/auth');
+      router.push('/auth');
       return;
     }
     if (!courseId) {
-      navigate('/dashboard');
+      router.push('/dashboard');
       return;
     }
 
@@ -107,7 +107,7 @@ const SimulationPage: React.FC = () => {
     };
 
     if (user) init();
-  }, [courseId, user, loading, isAuthenticated, navigate]);
+  }, [courseId, user, loading, isAuthenticated, router]);
 
   const loadModules = async (simId: string) => {
     try {
@@ -183,7 +183,7 @@ const SimulationPage: React.FC = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate('/dashboard')}
+            onClick={() => router.push('/dashboard')}
             className="gap-1 shrink-0"
           >
             <ArrowLeft className="w-4 h-4" />

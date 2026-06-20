@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
+import { API_BASE } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,7 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 const TemplatesPanel = () => {
   const { user, hasRole, loading } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const [templates, setTemplates] = useState<FlowTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<FlowTemplate | null>(null);
@@ -30,9 +31,9 @@ const TemplatesPanel = () => {
 
   useEffect(() => {
     if (!loading && (!user || !hasRole('administrador'))) {
-      navigate('/dashboard');
+      router.push('/dashboard');
     }
-  }, [user, loading, hasRole, navigate]);
+  }, [user, loading, hasRole, router]);
 
   useEffect(() => {
     loadTemplates();
@@ -40,7 +41,7 @@ const TemplatesPanel = () => {
 
   const loadTemplates = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/templates?active=true');
+      const response = await fetch(`${API_BASE}/templates?active=true`);
       if (response.ok) {
         const data = await response.json();
         if (Array.isArray(data) && data.length > 0) {
@@ -59,7 +60,7 @@ const TemplatesPanel = () => {
   const handleSyncToDB = async () => {
     const staticTemplates = getAllTemplates();
     try {
-      const response = await fetch('http://localhost:5000/api/templates/bulk-import', {
+      const response = await fetch(`${API_BASE}/templates/bulk-import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
         body: JSON.stringify({ templates: staticTemplates })
@@ -80,7 +81,7 @@ const TemplatesPanel = () => {
 
   const handleDuplicateTemplate = async (template: FlowTemplate) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/templates/${template.id}/duplicate`, {
+      const response = await fetch(`${API_BASE}/templates/${template.id}/duplicate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
         body: JSON.stringify({ title: `${template.title} (Copia)`, course_code: `${template.course_code}-COPIA` })
@@ -131,7 +132,7 @@ const TemplatesPanel = () => {
 
     try {
       const isNew = !templates.find(t => t.id === editingTemplate.id);
-      const url = isNew ? 'http://localhost:5000/api/templates' : `http://localhost:5000/api/templates/${editingTemplate.id}`;
+      const url = isNew ? `${API_BASE}/templates` : `${API_BASE}/templates/${editingTemplate.id}`;
       const method = isNew ? 'POST' : 'PUT';
 
       const response = await fetch(url, {
@@ -168,7 +169,7 @@ const TemplatesPanel = () => {
     if (!confirm('¿Eliminar esta plantilla? Esta acción no se puede deshacer.')) return;
     
     try {
-      await fetch(`http://localhost:5000/api/templates/${id}`, {
+      await fetch(`${API_BASE}/templates/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
@@ -191,7 +192,7 @@ const TemplatesPanel = () => {
       <header className="border-b bg-card/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/admin')}>
+            <Button variant="ghost" size="sm" onClick={() => router.push('/admin')}>
               <ArrowLeft className="w-4 h-4 mr-1" /> Volver
             </Button>
             <div>

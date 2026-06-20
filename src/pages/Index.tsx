@@ -1,11 +1,11 @@
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Shield, ArrowRight, BookOpen, BarChart3, Settings, Zap } from 'lucide-react';
 
 const Index = () => {
   const { user, loading } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -23,7 +23,7 @@ const Index = () => {
             Plataforma educativa inmersiva con IA. Simulaciones adaptables tipo Lego para cualquier curso — de seguros a oratoria, de contabilidad a RRHH.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button size="lg" onClick={() => navigate(user ? '/dashboard' : '/auth')} className="gap-2">
+            <Button size="lg" onClick={() => router.push(user ? '/dashboard' : '/auth')} className="gap-2">
               {user ? 'Ir al Dashboard' : 'Comenzar'} <ArrowRight className="w-4 h-4" />
             </Button>
           </div>

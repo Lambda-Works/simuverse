@@ -10,7 +10,7 @@
  * Acepta `children` para filas adicionales (ej: tabs de AdminPanel).
  */
 import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -98,8 +98,8 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
   children,
 }) => {
   const { user, signOut } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const role = (user?.role || 'student') as string;
   const roleConfig = ROLE_CONFIG[role] || ROLE_CONFIG.student;
@@ -108,8 +108,8 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
 
   // Detecta si un ítem está activo (coincidencia exacta o prefix para sub-rutas)
   const isActive = (to: string) => {
-    if (to === '/dashboard') return location.pathname === '/dashboard';
-    return location.pathname === to || location.pathname.startsWith(to + '/');
+    if (to === '/dashboard') return pathname === '/dashboard';
+    return pathname === to || pathname.startsWith(to + '/');
   };
 
   return (
@@ -123,7 +123,7 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate(backTo)}
+              onClick={() => router.push(backTo)}
               className="shrink-0 gap-1"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -131,7 +131,7 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
             </Button>
           ) : (
             <button
-              onClick={() => navigate('/dashboard')}
+              onClick={() => router.push('/dashboard')}
               className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity"
               aria-label="Ir al inicio"
             >
@@ -167,7 +167,7 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
                   key={item.to}
                   variant={active ? 'secondary' : 'ghost'}
                   size="sm"
-                  onClick={() => navigate(item.to)}
+                  onClick={() => router.push(item.to)}
                   className="gap-1.5 text-sm h-8"
                 >
                   <Icon className="w-4 h-4" />
@@ -221,7 +221,7 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
                 return (
                   <DropdownMenuItem
                     key={item.to}
-                    onClick={() => navigate(item.to)}
+                    onClick={() => router.push(item.to)}
                     className={active ? 'bg-accent font-medium' : ''}
                   >
                     <Icon className="w-4 h-4 mr-2" />

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
+import { API_BASE } from '@/lib/api';
 import { AppNavbar } from '@/components/AppNavbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -168,7 +169,7 @@ const emptyForm: CourseForm = {
 
 const AdminPanel = () => {
   const { user, hasRole, loading } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [courses, setCourses] = useState<any[]>([]);
   const [techSheets, setTechSheets] = useState<Array<{ id: number; name: string; processed: boolean }>>([]);
   const [simCompanies, setSimCompanies] = useState<Array<{ id: number; name: string; short_name?: string }>>([]);
@@ -198,8 +199,8 @@ const AdminPanel = () => {
   const [courseFilter, setCourseFilter] = useState<'all' | 'active' | 'inactive'>('all'); // Filtro de cursos
 
   useEffect(() => {
-    if (!loading && (!user || !hasRole('admin'))) navigate('/dashboard');
-  }, [user, loading, hasRole, navigate]);
+    if (!loading && (!user || !hasRole('admin'))) router.push('/dashboard');
+  }, [user, loading, hasRole, router]);
 
   const fetchCourses = async () => {
     try {
@@ -216,11 +217,11 @@ const AdminPanel = () => {
     if (user) {
       fetchCourses();
       // Cargar SOLO fichas técnicas válidas (con competencies o kpi_requirements)
-      fetch('http://localhost:5000/api/tech-sheets/valid/list')
+      fetch(`${API_BASE}/tech-sheets/valid/list`)
         .then(r => r.json())
         .then(d => setTechSheets(Array.isArray(d) ? d.map((s: any) => ({ id: s.id, name: s.name, processed: s.processed })) : []))
         .catch(() => {});
-      fetch('http://localhost:5000/api/simulated-companies')
+      fetch(`${API_BASE}/simulated-companies`)
         .then(r => r.json())
         .then(d => setSimCompanies(Array.isArray(d) ? d.map((c: any) => ({ id: c.id, name: c.name, short_name: c.short_name })) : []))
         .catch(() => {});

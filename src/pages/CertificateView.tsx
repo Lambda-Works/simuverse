@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Printer, Award, CheckCircle2, XCircle, BookOpen, Clock, Star } from 'lucide-react';
 
-const API = 'http://localhost:5000/api';
+import { API_BASE } from '@/lib/api';
+const API = API_BASE;
 
 interface CertificateData {
   certificate_id: string;
@@ -36,8 +37,9 @@ const KPI_DESCRIPTIONS: Record<string, string> = {
 };
 
 export default function CertificateView() {
-  const { instanceId } = useParams<{ instanceId: string }>();
-  const navigate = useNavigate();
+  const params = useParams<{ instanceId: string }>();
+  const instanceId = params.instanceId;
+  const router = useRouter();
   const [cert, setCert] = useState<CertificateData | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -65,7 +67,7 @@ export default function CertificateView() {
       <XCircle className="w-16 h-16 text-red-400" />
       <h2 className="text-xl font-bold text-red-600">No se puede generar el certificado</h2>
       <p className="text-muted-foreground text-sm max-w-sm text-center">{error}</p>
-      <Button onClick={() => navigate(-1)} variant="outline">
+      <Button onClick={() => router.back()} variant="outline">
         <ArrowLeft className="w-4 h-4 mr-2" /> Volver
       </Button>
     </div>
@@ -85,7 +87,7 @@ export default function CertificateView() {
     <>
       {/* Barra de acciones (no se imprime) */}
       <div className="print:hidden flex items-center justify-between px-6 py-3 bg-white border-b sticky top-0 z-10">
-        <Button variant="ghost" onClick={() => navigate(-1)}>
+        <Button variant="ghost" onClick={() => router.back()}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Volver
         </Button>
         <div className="flex items-center gap-2">

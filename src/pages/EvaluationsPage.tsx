@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
 import { AppNavbar } from '@/components/AppNavbar';
@@ -16,7 +16,7 @@ import { toast } from '@/hooks/use-toast';
 
 const EvaluationsPage = () => {
   const { user, hasRole, loading } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [simulations, setSimulations] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
@@ -26,9 +26,9 @@ const EvaluationsPage = () => {
 
   useEffect(() => {
     if (!loading && (!user || (!hasRole('teacher') && !hasRole('admin')))) {
-      navigate('/dashboard');
+      router.push('/dashboard');
     }
-  }, [user, loading, hasRole, navigate]);
+  }, [user, loading, hasRole, router]);
 
   useEffect(() => {
     const fetch = async () => {
@@ -170,7 +170,7 @@ const EvaluationsPage = () => {
                         <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                         <button
                           className="font-medium hover:text-primary hover:underline flex items-center gap-1 transition-colors"
-                          onClick={e => { e.stopPropagation(); navigate(`/student-ledger/${sim.user_id}`); }}
+                          onClick={e => { e.stopPropagation(); router.push(`/student-ledger/${sim.user_id}`); }}
                           title="Ver legajo del alumno"
                         >
                           {sim.user_name || sim.user_id?.slice(0, 8) || 'Alumno'}

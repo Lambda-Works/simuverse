@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
 import { AppNavbar } from '@/components/AppNavbar';
@@ -205,9 +205,10 @@ function KPIBars({ kpis }: { kpis: Record<string, number> }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const StudentLedger = () => {
-  const { userId } = useParams<{ userId: string }>();
+  const params = useParams<{ userId: string }>();
+  const userId = params.userId;
   const { user, hasRole, loading } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [data, setData] = useState<{ student: any; stats: any; simulations: SimulationRecord[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandedSim, setExpandedSim] = useState<string | null>(null);
@@ -215,9 +216,9 @@ const StudentLedger = () => {
 
   useEffect(() => {
     if (!loading && (!user || (user.role === 'student'))) {
-      navigate('/dashboard');
+      router.push('/dashboard');
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, router]);
 
   useEffect(() => {
     if (!userId || !user) return;
@@ -259,7 +260,7 @@ const StudentLedger = () => {
           <CardContent className="pt-6 text-center space-y-4">
             <Shield className="w-12 h-12 mx-auto text-red-500" />
             <p className="font-semibold text-red-700">{error}</p>
-            <Button variant="outline" onClick={() => navigate(-1)}>
+            <Button variant="outline" onClick={() => router.back()}>
               <ArrowLeft className="w-4 h-4 mr-1" /> Volver
             </Button>
           </CardContent>
