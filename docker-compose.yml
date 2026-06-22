@@ -9,8 +9,6 @@ services:
       MYSQL_USER: ${MYSQL_USER:-simuverse}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-SimuVerse2024secret}
     ports:
-      # 3306 y 3307 del host estan ocupados por otro proyecto (wymaq) + mysql local.
-      # Usamos 3309 en el host -> 3306 dentro del contenedor.
       - "${DB_PORT:-3309}:3306"
     volumes:
       - simuverse_mysql_data:/var/lib/mysql
@@ -23,7 +21,80 @@ services:
       timeout: 5s
       retries: 20
       start_period: 30s
+    networks:
+      - app-network
+
+  proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.proxy
+    container_name: simuverse-proxy
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PROXY_PORT: "5000"
+    ports:
+      - "${PROXY_PORT:-5000}:5000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/proxy/node_modules
+    depends_on:
+      - api-express
+    networks:
+      - app-network
+
+  api-express:
+    build:
+      context: .
+      dockerfile: Dockerfile.api-express
+    container_name: simuverse-api-express
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: "5000"
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_USERNAME: ${MYSQL_USER:-simuverse}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-SimuVerse2024secret}
+      DB_DATABASE: ${MYSQL_DATABASE:-simuverse}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret}
+    ports:
+      - "5001:5000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/api-express/node_modules
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: simuverse-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:${PROXY_PORT:-5000}/api
+    ports:
+      - "${WEB_PORT:-8080}:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/web/node_modules
+    depends_on:
+      - proxy
+    networks:
+      - app-network
 
 volumes:
   simuverse_mysql_data:
     name: simuverse_mysql_data
+
+networks:
+  app-network:
+    driver: bridge
