@@ -1,5 +1,8 @@
 'use client'
 import React, { useState, useEffect } from 'react';
+import { API_BASE } from '@/lib/api';
+
+const API = API_BASE;
 
 interface PromptTemplate {
   id: number;
@@ -46,7 +49,7 @@ export const PromptTemplatesABM: React.FC = () => {
 
   const fetchTemplates = async () => {
     try {
-      const response = await fetch('/api/prompt-templates');
+      const response = await fetch(`${API}/prompt-templates`);
       const data = await response.json();
       setTemplates(data);
     } catch (error) {
@@ -57,8 +60,8 @@ export const PromptTemplatesABM: React.FC = () => {
   const handleSave = async () => {
     try {
       const endpoint = editingId
-        ? `/api/prompt-templates/${editingId}`
-        : '/api/prompt-templates';
+        ? `${API}/prompt-templates/${editingId}`
+        : `${API}/prompt-templates`;
 
       const method = editingId ? 'PUT' : 'POST';
 
@@ -82,7 +85,7 @@ export const PromptTemplatesABM: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (window.confirm('¿Desactivar esta plantilla?')) {
       try {
-        await fetch(`/api/prompt-templates/${id}`, { method: 'DELETE' });
+        await fetch(`${API}/prompt-templates/${id}`, { method: 'DELETE' });
         fetchTemplates();
       } catch (error) {
         console.error('Error deleting template:', error);
@@ -94,7 +97,7 @@ export const PromptTemplatesABM: React.FC = () => {
     const newName = prompt('Nombre para la copia:', `${name} (Copia)`);
     if (newName) {
       try {
-        const response = await fetch(`/api/prompt-templates/${id}/duplicate`, {
+        const response = await fetch(`${API}/prompt-templates/${id}/duplicate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: newName })

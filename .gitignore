@@ -18,6 +18,7 @@ backend/node_modules
 dist
 server/dist
 backend/dist
+.next/
 
 # ============================================
 # Logs
