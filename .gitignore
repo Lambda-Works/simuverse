@@ -81,6 +81,10 @@ simuverse/
 *.sw?
 
 # ============================================
+# AI agent configuration (local, not shared)
+# ============================================
+.atl/
+
 # SDD / OpenSpec (spec files not tracked in git)
 # ============================================
 openspec/
