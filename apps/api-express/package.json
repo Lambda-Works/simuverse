@@ -1,5 +1,5 @@
 {
-  "name": "msm-backend",
+  "name": "api-express",
   "version": "2.0.0",
   "description": "Backend para el Motor de Simulación Modular (MSM) - FEPEI 360",
   "main": "dist/server.js",
@@ -10,7 +10,7 @@
     "seed": "tsx src/scripts/seedDatabase.ts",
     "seed-example": "tsx src/scripts/seedExampleData.ts",
     "seed-complete": "tsx src/scripts/seedCompleteSystem.ts",
-    "test": "vitest"
+    "test": "vitest run --passWithNoTests"
   },
   "keywords": [],
   "author": "FEPEI",
