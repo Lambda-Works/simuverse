@@ -1,3 +1,4 @@
+'use client'
 import React, { useState, useEffect } from 'react';
 import { msmApi } from '../services/MSMApiClient';
 import { useAuth } from '../hooks/useAuth';

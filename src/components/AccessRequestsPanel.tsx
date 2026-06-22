@@ -1,3 +1,4 @@
+'use client'
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CheckCircle2, XCircle, Clock, User, Phone, CreditCard, Mail, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
-const API = 'http://localhost:5000/api';
+import { API_BASE } from '@/lib/api';
+const API = API_BASE;
 
 interface AccessRequest {
   id: number;

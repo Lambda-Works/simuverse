@@ -1,3 +1,4 @@
+'use client'
 /**
  * TemplatesABM.tsx
  * Creador de Plantillas de Curso con Asistente IA
@@ -22,6 +23,12 @@ import {
   Bot, Send, Plus, Trash2, Edit2, Wand2, Save, RefreshCw,
   Layers, MessageSquare, FileText, Calculator, Mail, Zap, ChevronRight, Copy
 } from 'lucide-react';
+import { API_BASE } from '@/lib/api';
+
+const authHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem('token');
+  return token ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } : { 'Content-Type': 'application/json' };
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -171,7 +178,7 @@ export function TemplatesABM() {
   const loadTemplates = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/templates');
+      const res = await fetch(`${API_BASE}/templates`);
       const d = await res.json();
       setTemplates(Array.isArray(d) ? d : []);
     } catch { setTemplates([]); }
@@ -302,13 +309,14 @@ export function TemplatesABM() {
         }),
       };
       const url = editingId
-        ? `http://localhost:5000/api/templates/${editingId}`
-        : 'http://localhost:5000/api/templates';
-      await fetch(url, {
+        ? `${API_BASE}/templates/${editingId}`
+        : `${API_BASE}/templates`;
+      const res = await fetch(url, {
         method: editingId ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify(payload),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
       setEditDialogOpen(false);
       setEditingId(null);
       await loadTemplates();
@@ -318,15 +326,15 @@ export function TemplatesABM() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar esta plantilla?')) return;
-    await fetch(`http://localhost:5000/api/templates/${id}`, { method: 'DELETE' });
+    await fetch(`${API_BASE}/templates/${id}`, { method: 'DELETE', headers: authHeaders() });
     await loadTemplates();
   };
 
   const handleDuplicate = async (t: Template) => {
     const data = typeof t.template_data === 'string' ? JSON.parse(t.template_data || '{}') : (t.template_data || {});
-    await fetch('http://localhost:5000/api/templates', {
+    await fetch(`${API_BASE}/templates`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({
         id: t.course_code + '-COPIA-' + Date.now().toString().slice(-4),
         course_id: t.course_code + '-COPIA',

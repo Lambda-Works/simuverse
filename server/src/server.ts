@@ -1,7 +1,7 @@
 import 'reflect-metadata';
+import 'dotenv/config';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { AppDataSource } from './database/connection.js';
 import { createAuthRoutes } from './routes/AuthMiddleware.js';
 import coursesRouter from './routes/courses.js';
@@ -14,7 +14,6 @@ import legajoRouter from './routes/legajo.js';
 import promptTemplateRouter from './routes/prompt-template.router.js';
 import promptConfigRouter from './routes/prompt-config.router.js';
 
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;

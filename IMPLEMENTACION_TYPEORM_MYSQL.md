@@ -530,7 +530,7 @@ curl -X POST http://localhost:5000/api/auth/register \
 # Login
 curl -X POST http://localhost:5000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@msm-fepei.com","password":"AdminPassword123!"}'
+  -d '{"email":"admin@msm-fepei.com","password":"CHANGE_ME_ADMIN_PASSWORD"}'
 
 # Get current user (con token)
 curl -X GET http://localhost:5000/api/auth/me \

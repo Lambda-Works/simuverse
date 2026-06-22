@@ -1,9 +1,11 @@
+'use client'
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Trash2, Edit2, Plus } from 'lucide-react';
+import { API_BASE } from '@/lib/api';
 
 interface Category {
   id: number;
@@ -32,7 +34,7 @@ export function CategoriesABM() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/categories');
+      const response = await fetch(`${API_BASE}/categories`);
       const data = await response.json();
       setCategories(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -54,14 +56,14 @@ export function CategoriesABM() {
     try {
       if (editingId) {
         // Update
-        await fetch(`http://localhost:5000/api/categories/${editingId}`, {
+        await fetch(`${API_BASE}/categories/${editingId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData),
         });
       } else {
         // Create
-        await fetch('http://localhost:5000/api/categories', {
+        await fetch(`${API_BASE}/categories`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData),
@@ -85,7 +87,7 @@ export function CategoriesABM() {
     if (!confirm('¿Estás seguro de eliminar esta categoría?')) return;
 
     try {
-      await fetch(`http://localhost:5000/api/categories/${id}`, {
+      await fetch(`${API_BASE}/categories/${id}`, {
         method: 'DELETE',
       });
       await fetchCategories();

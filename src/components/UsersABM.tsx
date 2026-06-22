@@ -1,3 +1,4 @@
+'use client'
 /**
  * UsersABM.tsx — Gestión completa de usuarios del sistema
  * ABM: Alta/Baja/Modificación + asignación de roles
@@ -14,7 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Plus, Trash2, Settings, Users, Search, Mail, Shield, Eye, EyeOff } from 'lucide-react';
 
-const API = 'http://localhost:5000/api';
+import { API_BASE } from '@/lib/api';
+const API = API_BASE;
 
 interface UserRow {
   id: string;

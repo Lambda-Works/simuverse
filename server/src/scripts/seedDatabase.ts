@@ -8,7 +8,7 @@ import * as bcrypt from 'bcrypt';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const COURSES_DIR = path.join(process.cwd(), 'src', 'data', 'courses');
+const COURSES_DIR = path.join(process.cwd(), 'data');
 
 async function seedDatabase() {
   try {
@@ -142,10 +142,10 @@ async function seedDatabase() {
     console.log('📖 Seeding courses...');
 
     const courseFiles = [
-      'course-administrative-management.json',
-      'course-salary-liquidation.json',
-      'course-accounting-analysis.json',
-      'course-marketing-ecommerce.json'
+      'course-ADM3534-Seguros.json',
+      'course-ADM5536-Sueldos.json',
+      'course-INF28517B-IA.json',
+      'course-RH3657-Oratoria.json'
     ];
 
     const modules = await moduleRepo.find();

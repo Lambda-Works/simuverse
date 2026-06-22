@@ -1,8 +1,10 @@
+'use client'
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
+import { API_BASE } from '@/lib/api';
 import { Trash2, Edit2, Plus, FileText } from 'lucide-react';
 
 interface Document {
@@ -41,7 +43,7 @@ export function DocumentsABM() {
 
   const fetchDocuments = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/documents');
+      const response = await fetch(`${API_BASE}/documents`);
       const data = await response.json();
       setDocuments(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -54,7 +56,7 @@ export function DocumentsABM() {
 
   const fetchCourses = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/courses');
+      const response = await fetch(`${API_BASE}/courses`);
       const data = await response.json();
       setCourses(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -77,7 +79,7 @@ export function DocumentsABM() {
         uploaded_by: localStorage.getItem('userId') || 'system',
       };
 
-      await fetch('http://localhost:5000/api/documents', {
+      await fetch(`${API_BASE}/documents`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -104,7 +106,7 @@ export function DocumentsABM() {
     if (!confirm('¿Estás seguro de eliminar este documento?')) return;
 
     try {
-      await fetch(`http://localhost:5000/api/documents/${id}`, {
+      await fetch(`${API_BASE}/documents/${id}`, {
         method: 'DELETE',
       });
       await fetchDocuments();

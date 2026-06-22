@@ -1,3 +1,4 @@
+'use client'
 /**
  * AppNavbar — Barra de navegación compartida para todas las páginas
  *

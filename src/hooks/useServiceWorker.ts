@@ -1,3 +1,5 @@
+'use client'
+
 import { useEffect, useState } from 'react';
 
 interface ServiceWorkerStatus {
@@ -9,17 +11,23 @@ interface ServiceWorkerStatus {
 
 /**
  * Hook para registrar y manejar Service Worker
+ * SSR-safe: navigator access is guarded with typeof checks
  */
 export const useServiceWorker = () => {
   const [status, setStatus] = useState<ServiceWorkerStatus>({
     installed: false,
     active: false,
     updateAvailable: false,
-    isOnline: navigator.onLine,
+    isOnline: false, // SSR-safe default; updated in useEffect on client
   });
 
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) {
+    // Set isOnline from navigator (client-only)
+    if (typeof navigator !== 'undefined') {
+      setStatus((prev) => ({ ...prev, isOnline: navigator.onLine }));
+    }
+
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
       console.warn('[PWA] Service Worker not supported');
       return;
     }
@@ -64,12 +72,16 @@ export const useServiceWorker = () => {
       console.log('[PWA] Offline mode activated');
     };
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+    }
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      }
     };
   }, []);
 
@@ -77,7 +89,7 @@ export const useServiceWorker = () => {
    * Trigger background sync
    */
   const triggerSync = async () => {
-    if ('serviceWorker' in navigator && 'SyncManager' in window) {
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && typeof window !== 'undefined' && 'SyncManager' in window) {
       try {
         const registration = await navigator.serviceWorker.ready;
         await (registration.sync as any).register('sync-actions');
@@ -93,11 +105,13 @@ export const useServiceWorker = () => {
    * Skip waiting - Force update
    */
   const skipWaiting = () => {
-    if ('serviceWorker' in navigator) {
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistration().then((registration) => {
         if (registration?.waiting) {
           registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-          window.location.reload();
+          if (typeof window !== 'undefined') {
+            window.location.reload();
+          }
         }
       });
     }
@@ -107,7 +121,7 @@ export const useServiceWorker = () => {
    * Save data to IndexedDB
    */
   const saveToIndexedDB = (storeName: string, data: any) => {
-    if ('serviceWorker' in navigator) {
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
       navigator.serviceWorker.controller?.postMessage({
         type: 'SAVE_TO_INDEXEDDB',
         payload: { storeName, data },
@@ -119,7 +133,7 @@ export const useServiceWorker = () => {
    * Cache URLs
    */
   const cacheUrls = (urls: string[]) => {
-    if ('serviceWorker' in navigator) {
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
       navigator.serviceWorker.controller?.postMessage({
         type: 'CACHE_URLS',
         payload: { urls },

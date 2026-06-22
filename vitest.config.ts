@@ -1,16 +1,29 @@
 import { defineConfig } from "vitest/config";
-import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
 export default defineConfig({
-  plugins: [react()],
+  esbuild: {
+    jsx: 'automatic',
+    jsxImportSource: 'react',
+  },
   test: {
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
-    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    include: ["src/**/*.{test,spec}.{ts,tsx}", "app/**/*.{test,spec}.{ts,tsx}"],
+    exclude: ["**/node_modules/**", "**/dist/**", "**/.next/**"],
+    env: {
+      NEXT_PUBLIC_API_URL: "http://localhost:5001/api",
+      NEXT_PUBLIC_GEMINI_API_KEY: "test-key-for-testing",
+      NEXT_PUBLIC_SUPABASE_URL: "https://test.supabase.co",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "test-key",
+      NEXT_PUBLIC_CERTIFICATE_ISSUER_NAME: "Test Issuer",
+      NEXT_PUBLIC_PWA_ENABLED: "true",
+      NEXT_PUBLIC_DEBUG_LOG: "false",
+      NODE_ENV: "test",
+    },
   },
   resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
+    alias: { "@": path.resolve(__dirname, ".") },
   },
 });

@@ -20,7 +20,7 @@ cd /home/gaspi/Documentos/dev/000MAMA/simuverse-engine
 npm run dev
 
 # Terminal 3: Verificar BD
-mysql -h localhost -u simuverse -p"SimuVerse2024secret" simuverse
+mysql -h localhost -u simuverse -p"CHANGE_ME_PASSWORD" simuverse
 ```
 
 ---
@@ -28,7 +28,7 @@ mysql -h localhost -u simuverse -p"SimuVerse2024secret" simuverse
 ## TEST 1: Validar Cambios BD ✅
 
 ```bash
-mysql -h localhost -u simuverse -p"SimuVerse2024secret" simuverse << 'EOF'
+mysql -h localhost -u simuverse -p"CHANGE_ME_PASSWORD" simuverse << 'EOF'
 
 -- 1. Verificar tech_sheets.course_id es NOT NULL
 DESCRIBE tech_sheets;
@@ -102,7 +102,7 @@ TECH_SHEET_ID=32
 ### 3.2: Verificar BD ANTES (deben estar vacías)
 
 ```bash
-mysql -h localhost -u simuverse -p"SimuVerse2024secret" simuverse << 'EOF'
+mysql -h localhost -u simuverse -p"CHANGE_ME_PASSWORD" simuverse << 'EOF'
 SELECT COUNT(*) as kpis_antes FROM kpis;
 SELECT COUNT(*) as tasks_antes FROM tasks;
 -- Esperado: 0, 0
@@ -145,7 +145,7 @@ curl -X POST "http://localhost:5000/api/tech-sheets/$TECH_SHEET_ID/analyze" \
 ### 3.4: Verificar BD DESPUÉS (deben estar pobladas)
 
 ```bash
-mysql -h localhost -u simuverse -p"SimuVerse2024secret" simuverse << 'EOF'
+mysql -h localhost -u simuverse -p"CHANGE_ME_PASSWORD" simuverse << 'EOF'
 
 -- CRÍTICO: Verificar que existen KPIs reales
 SELECT COUNT(*) as kpis_despues FROM kpis WHERE course_id = 'dc3257e7-253f-4b0c-8087-9c930baa25c0';
@@ -177,7 +177,7 @@ EOF
 ### 3.5: Verificar Course Config guardada
 
 ```bash
-mysql -h localhost -u simuverse -p"SimuVerse2024secret" simuverse << 'EOF'
+mysql -h localhost -u simuverse -p"CHANGE_ME_PASSWORD" simuverse << 'EOF'
 
 -- Verificar que course_config tiene metadata con analyzed_kpis_config
 SELECT 
@@ -275,7 +275,7 @@ curl -X POST http://localhost:5000/api/tech-sheets \
 ## TEST 6: Validación de Data Consistency
 
 ```bash
-mysql -h localhost -u simuverse -p"SimuVerse2024secret" simuverse << 'EOF'
+mysql -h localhost -u simuverse -p"CHANGE_ME_PASSWORD" simuverse << 'EOF'
 
 -- 1. Verificar que TODAS las tech-sheets tienen course_id válido
 SELECT 
@@ -352,7 +352,7 @@ EOF
 
 ```bash
 # BD Rollback
-mysql -h localhost -u simuverse -p"SimuVerse2024secret" simuverse << 'EOF'
+mysql -h localhost -u simuverse -p"CHANGE_ME_PASSWORD" simuverse << 'EOF'
 -- Restaurar schema
 ALTER TABLE tech_sheets MODIFY course_id VARCHAR(36) NULLABLE;
 ALTER TABLE courses ADD COLUMN tech_sheet_id INT NULLABLE;

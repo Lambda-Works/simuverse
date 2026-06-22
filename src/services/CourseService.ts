@@ -19,5 +19,4 @@ export const createCourse = async (course: Omit<Course, 'id'>): Promise<Course |
     console.error('Error creating course:', error);
     return null;
   }
-};  return data as Course;
 };

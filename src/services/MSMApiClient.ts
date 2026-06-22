@@ -225,7 +225,7 @@ class MSMApiClient {
 
 // Export singleton instance
 export const msmApi = new MSMApiClient({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
 });
 
 export default MSMApiClient;

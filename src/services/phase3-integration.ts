@@ -53,7 +53,7 @@ export const initializeServiceWorker = async () => {
  * Call this in your app initialization
  */
 export const initializeLLMService = async () => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
   if (!apiKey) {
     console.warn('[LLM] No API key found. Using fallback mode.');
@@ -98,7 +98,7 @@ export const phase3IntegrationChecklist = {
     checks: [
       '✓ ChatService created',
       '? ChatIAModule updated to use ChatService',
-      '? VITE_GEMINI_API_KEY configured',
+      '? NEXT_PUBLIC_GEMINI_API_KEY configured',
       '? Fallback responses tested',
       '? Token tracking working'
     ]
@@ -162,27 +162,27 @@ export const validateEnvironment = (): {
   const warnings: string[] = [];
 
   // Required for LLM
-  if (!import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.VITE_OPENAI_API_KEY) {
+  if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY && !process.env.NEXT_PUBLIC_OPENAI_API_KEY) {
     warnings.push('No LLM API key configured - using fallback mode');
   }
 
   // Required for Certificates
-  if (!import.meta.env.VITE_CERTIFICATE_ISSUER_NAME) {
+  if (!process.env.NEXT_PUBLIC_CERTIFICATE_ISSUER_NAME) {
     warnings.push('Certificate issuer name not configured - using default');
   }
 
   // Required for PWA
-  if (!import.meta.env.VITE_PWA_ENABLED) {
+  if (!process.env.NEXT_PUBLIC_PWA_ENABLED) {
     warnings.push('PWA disabled in configuration');
   }
 
   // Required for Backend
-  if (!import.meta.env.VITE_API_BASE_URL) {
-    errors.push('VITE_API_BASE_URL not configured');
+  if (!process.env.NEXT_PUBLIC_API_URL) {
+    errors.push('NEXT_PUBLIC_API_URL not configured');
   }
 
   // Optional but recommended
-  if (import.meta.env.PROD && !import.meta.env.VITE_DEBUG_LOG === false) {
+  if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_DEBUG_LOG !== 'false') {
     warnings.push('Debug logging enabled in production - consider disabling');
   }
 

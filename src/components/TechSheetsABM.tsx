@@ -1,3 +1,4 @@
+'use client'
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trash2, Edit2, Plus, Zap, FileUp, Paperclip, Link, Settings, Check } from 'lucide-react';
 import { ConfigureTechSheetModal } from './ConfigureTechSheetModal';
+import { API_BASE } from '@/lib/api';
 
 interface TechSheet {
   id: number;
@@ -61,7 +63,7 @@ export function TechSheetsABM() {
 
   const fetchCourses = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/courses');
+      const response = await fetch(`${API_BASE}/courses`);
       const data = await response.json();
       setCourses(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -71,7 +73,7 @@ export function TechSheetsABM() {
 
   const fetchTechSheets = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/tech-sheets');
+      const response = await fetch(`${API_BASE}/tech-sheets`);
       const data = await response.json();
       setSheets(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -161,7 +163,7 @@ export function TechSheetsABM() {
 
         console.log(`📤 Archivo a enviar: ${hasFile.name} (${(hasFile.size / 1024).toFixed(2)} KB)`);
 
-        const response = await fetch('http://localhost:5000/api/tech-sheets', {
+        const response = await fetch(`${API_BASE}/tech-sheets`, {
           method: 'POST',
           body: formDataObj,
         });
@@ -184,7 +186,7 @@ export function TechSheetsABM() {
           uploaded_by: localStorage.getItem('userId') || 'system',
         };
 
-        const response = await fetch('http://localhost:5000/api/tech-sheets', {
+        const response = await fetch(`${API_BASE}/tech-sheets`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -257,7 +259,7 @@ export function TechSheetsABM() {
       }
 
       // Enviar el contenido REAL al backend para análisis
-      const response = await fetch(`http://localhost:5000/api/tech-sheets/${id}/analyze`, {
+      const response = await fetch(`${API_BASE}/tech-sheets/${id}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -300,7 +302,7 @@ export function TechSheetsABM() {
     if (!confirm('¿Estás seguro de eliminar esta ficha técnica?')) return;
 
     try {
-      await fetch(`http://localhost:5000/api/tech-sheets/${id}`, {
+      await fetch(`${API_BASE}/tech-sheets/${id}`, {
         method: 'DELETE',
       });
       await fetchTechSheets();
@@ -344,7 +346,7 @@ export function TechSheetsABM() {
         kpi_requirements: kpis.length > 0 ? kpis : sheet.kpi_requirements,
       };
 
-      const response = await fetch(`http://localhost:5000/api/tech-sheets/${id}`, {
+      const response = await fetch(`${API_BASE}/tech-sheets/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedSheet),

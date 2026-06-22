@@ -1,3 +1,4 @@
+'use client'
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -5,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Trash2, X, Edit2 } from 'lucide-react';
+import { API_BASE } from '@/lib/api';
 
 interface Competency {
   id: string;
@@ -77,7 +79,7 @@ export function ConfigureTechSheetModal({
     setLoading(true);
     try {
       const response = await fetch(
-        `http://localhost:5000/api/tech-sheets/${techSheetId}/config`
+        `${API_BASE}/tech-sheets/${techSheetId}/config`
       );
       if (response.ok) {
         const data = await response.json();
@@ -95,7 +97,7 @@ export function ConfigureTechSheetModal({
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/tech-sheets/${techSheetId}/config`,
+        `${API_BASE}/tech-sheets/${techSheetId}/config`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },

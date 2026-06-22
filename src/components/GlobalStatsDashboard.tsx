@@ -1,9 +1,11 @@
+'use client'
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Users, CheckCircle2, TrendingUp, Clock, BookOpen, AlertCircle, Star, BarChart3 } from 'lucide-react';
 
-const API = 'http://localhost:5000/api';
+import { API_BASE } from '@/lib/api';
+const API = API_BASE;
 
 interface GlobalStats {
   users: Array<{ role: string; count: number }>;

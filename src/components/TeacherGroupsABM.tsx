@@ -1,3 +1,4 @@
+'use client'
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Users, Plus, Trash2, BookOpen, GraduationCap, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
-const API = 'http://localhost:5000/api';
+import { API_BASE } from '@/lib/api';
+const API = API_BASE;
 
 interface GroupEntry {
   id: number;

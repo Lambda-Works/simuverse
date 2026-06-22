@@ -1,3 +1,3 @@
 'use client'
-import AdminPanel from '@/src/pages/AdminPanel'
+import AdminPanel from '@/views/AdminPanel'
 export default function AdminPage() { return <AdminPanel /> }

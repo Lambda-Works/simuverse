@@ -1,3 +1,4 @@
+'use client'
 import React, { useState, useMemo } from 'react';
 import { Mail, MessageSquare, Send, Archive } from 'lucide-react';
 

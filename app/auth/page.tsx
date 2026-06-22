@@ -1,3 +1,3 @@
 'use client'
-import Auth from '@/src/pages/Auth'
+import Auth from '@/views/Auth'
 export default function AuthPage() { return <Auth /> }

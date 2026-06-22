@@ -1,3 +1,4 @@
+'use client'
 /**
  * SimulationSessionViewer.tsx
  * Visor de sesiones de simulación para Profesor / Admin / Ministerio.
@@ -16,7 +17,8 @@ import {
   Info, ChevronDown, ChevronUp, Filter
 } from 'lucide-react';
 
-const API = 'http://localhost:5000/api';
+import { API_BASE } from '@/lib/api';
+const API = API_BASE;
 
 interface ChatLog {
   id: number;

@@ -1,3 +1,4 @@
+'use client'
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -5,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Trash2, Plus, Send, CheckSquare, Square } from 'lucide-react';
 import { toast } from 'sonner';
 
-const API = 'http://localhost:5000/api';
+import { API_BASE } from '@/lib/api';
+const API = API_BASE;
 interface Assignment {
   id: number;
   simulation_id: string;

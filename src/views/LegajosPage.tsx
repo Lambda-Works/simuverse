@@ -1,3 +1,4 @@
+'use client'
 /**
  * LegajosPage — Lista de alumnos con acceso a sus legajos individuales
  * Accesible para: admin, teacher, ministerio (con permiso)

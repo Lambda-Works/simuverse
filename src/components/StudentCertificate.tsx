@@ -1,3 +1,4 @@
+'use client'
 import React, { useState } from 'react';
 import { Download, Mail, Eye, Loader } from 'lucide-react';
 import { certificateService } from '../../services/CertificateService';

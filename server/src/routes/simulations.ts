@@ -16,7 +16,7 @@ const router = Router();
 router.post('/start', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { course_id, scenario_id } = req.body;
-    const user_id = (req as any).user?.user_id;
+    const user_id = (req as any).user?.userId || (req as any).user?.user_id;
 
     if (!user_id || !course_id) {
       return res.status(400).json({ error: 'user_id y course_id requeridos' });

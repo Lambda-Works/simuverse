@@ -1,3 +1,5 @@
+'use client'
+
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';

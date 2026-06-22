@@ -1,3 +1,5 @@
+'use client'
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { apiClient } from '@/services/ApiClient';
 
@@ -35,49 +37,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Función para cargar usuario desde localStorage
-  const loadAuthFromStorage = () => {
+  // Load auth state from localStorage — ONLY runs on client (useEffect)
+  // SSR-safe: initialState is {user:null, token:null, loading:true},
+  // so the server and first client render match (no hydration mismatch).
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') {
+      setLoading(false);
+      return;
+    }
+
     const storedToken = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
-
-    console.log('🔍 loadAuthFromStorage called:', { storedToken: storedToken?.substring(0, 20), storedUser });
 
     if (storedToken && storedUser) {
       try {
         const userData = JSON.parse(storedUser);
-        console.log('✅ Parsed user data:', userData);
         setToken(storedToken);
         setUser(userData);
-      } catch (error) {
-        console.error('❌ Error parsing stored user data:', error);
+      } catch {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         setToken(null);
         setUser(null);
       }
     } else {
-      console.log('⚠️  No stored token or user');
       setToken(null);
       setUser(null);
     }
     setLoading(false);
-  };
-
-  // Cargar usuario desde localStorage al montar
-  useEffect(() => {
-    loadAuthFromStorage();
   }, []);
 
-  // Escuchar cambios en localStorage
+  // Listen for localStorage changes (cross-tab sync)
   useEffect(() => {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+
     const handleStorageChange = () => {
-      loadAuthFromStorage();
+      const storedToken = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+
+      if (storedToken && storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          setToken(storedToken);
+          setUser(userData);
+        } catch {
+          setToken(null);
+          setUser(null);
+        }
+      } else {
+        setToken(null);
+        setUser(null);
+      }
     };
 
-    // Event listener para cambios de localStorage en la misma pestaña
     authChangeEvent.addEventListener('authChange', handleStorageChange);
-
-    // Event listener para cambios de localStorage desde otra pestaña
     window.addEventListener('storage', handleStorageChange);
 
     return () => {
@@ -89,11 +102,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('refreshToken');
-    // Redirigir a login
-    window.location.href = '/auth';
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('refreshToken');
+      window.location.href = '/auth';
+    }
   };
 
   const hasRole = (role: AppRole): boolean => {
@@ -111,5 +125,3 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
-
-

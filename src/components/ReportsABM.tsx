@@ -1,3 +1,4 @@
+'use client'
 /**
  * ReportsABM.tsx — Panel de Reportes con Historia del Alumno
  */
@@ -10,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart3, Download, Filter, GraduationCap, Clock, Calendar, CheckCircle2, XCircle, Target, Timer, Trophy, TrendingUp } from 'lucide-react';
 
-const API = 'http://localhost:5000/api';
+import { API_BASE } from '@/lib/api';
+const API = API_BASE;
 
 interface Evaluation {
   id: number; student_id: string; simulation_id: string; assignment_id: number;

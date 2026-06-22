@@ -39,7 +39,7 @@ npm start   # Puerto 5000
 npm run dev  # Puerto 5173
 
 # Acceso a BD
-mysql -u simuverse -p"SimuVerse2024secret" simuverse
+mysql -u simuverse -p"CHANGE_ME_PASSWORD" simuverse
 ```
 
 ---

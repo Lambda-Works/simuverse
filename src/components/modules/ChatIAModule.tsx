@@ -1,3 +1,4 @@
+'use client'
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, MessageCircle, Loader, AlertCircle, Zap } from 'lucide-react';
 import { chatService } from '../../services/ChatService';

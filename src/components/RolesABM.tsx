@@ -1,3 +1,4 @@
+'use client'
 /**
  * RolesABM.tsx — Gestión de Roles, Funcionalidades del Sistema y Permisos por Rol
  * Pestañas:
@@ -20,7 +21,8 @@ import {
   CheckCircle2, XCircle, LayoutGrid, FolderOpen
 } from 'lucide-react';
 
-const API = 'http://localhost:5000/api';
+import { API_BASE } from '@/lib/api';
+const API = API_BASE;
 
 interface Role {
   id: number;

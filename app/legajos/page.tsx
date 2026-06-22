@@ -1,3 +1,3 @@
 'use client'
-import LegajosPage from '@/src/pages/LegajosPage'
+import LegajosPage from '@/views/LegajosPage'
 export default function LegajosRoute() { return <LegajosPage /> }

@@ -33,9 +33,9 @@ describe('Route page files', () => {
       expect(content.startsWith("'use client'")).toBe(true)
     })
 
-    it('should import Auth from @/src/pages/Auth', () => {
+    it('should import Auth from @/views/Auth', () => {
       const content = readRouteFile(path)!
-      expect(content).toContain("import Auth from '@/src/pages/Auth'")
+      expect(content).toContain("import Auth from '@/views/Auth'")
     })
 
     it('should export default function AuthPage rendering <Auth />', () => {
@@ -59,9 +59,9 @@ describe('Route page files', () => {
       expect(content.startsWith("'use client'")).toBe(true)
     })
 
-    it('should import Dashboard from @/src/pages/Dashboard', () => {
+    it('should import Dashboard from @/views/Dashboard', () => {
       const content = readRouteFile(path)!
-      expect(content).toContain("import Dashboard from '@/src/pages/Dashboard'")
+      expect(content).toContain("import Dashboard from '@/views/Dashboard'")
     })
 
     it('should export default function DashboardPage rendering <Dashboard />', () => {
@@ -85,9 +85,9 @@ describe('Route page files', () => {
       expect(content.startsWith("'use client'")).toBe(true)
     })
 
-    it('should import AdminPanel from @/src/pages/AdminPanel', () => {
+    it('should import AdminPanel from @/views/AdminPanel', () => {
       const content = readRouteFile(path)!
-      expect(content).toContain("import AdminPanel from '@/src/pages/AdminPanel'")
+      expect(content).toContain("import AdminPanel from '@/views/AdminPanel'")
     })
 
     it('should export default function AdminPage rendering <AdminPanel />', () => {
@@ -116,9 +116,9 @@ describe('Route page files', () => {
       expect(content).toContain("import { useParams } from 'next/navigation'")
     })
 
-    it('should import SimulationPage from @/src/pages/SimulationPage', () => {
+    it('should import SimulationPage from @/views/SimulationPage', () => {
       const content = readRouteFile(path)!
-      expect(content).toContain("import SimulationPage from '@/src/pages/SimulationPage'")
+      expect(content).toContain("import SimulationPage from '@/views/SimulationPage'")
     })
 
     it('should extract courseId from params and pass to SimulationPage', () => {
@@ -142,9 +142,9 @@ describe('Route page files', () => {
       expect(content.startsWith("'use client'")).toBe(true)
     })
 
-    it('should import EvaluationsPage from @/src/pages/EvaluationsPage', () => {
+    it('should import EvaluationsPage from @/views/EvaluationsPage', () => {
       const content = readRouteFile(path)!
-      expect(content).toContain("import EvaluationsPage from '@/src/pages/EvaluationsPage'")
+      expect(content).toContain("import EvaluationsPage from '@/views/EvaluationsPage'")
     })
 
     it('should export default function EvaluationsRoute rendering <EvaluationsPage />', () => {
@@ -173,9 +173,9 @@ describe('Route page files', () => {
       expect(content).toContain("import { useParams } from 'next/navigation'")
     })
 
-    it('should import StudentLedger from @/src/pages/StudentLedger', () => {
+    it('should import StudentLedger from @/views/StudentLedger', () => {
       const content = readRouteFile(path)!
-      expect(content).toContain("import StudentLedger from '@/src/pages/StudentLedger'")
+      expect(content).toContain("import StudentLedger from '@/views/StudentLedger'")
     })
 
     it('should extract userId from params and pass to StudentLedger', () => {
@@ -199,9 +199,9 @@ describe('Route page files', () => {
       expect(content.startsWith("'use client'")).toBe(true)
     })
 
-    it('should import LegajosPage from @/src/pages/LegajosPage', () => {
+    it('should import LegajosPage from @/views/LegajosPage', () => {
       const content = readRouteFile(path)!
-      expect(content).toContain("import LegajosPage from '@/src/pages/LegajosPage'")
+      expect(content).toContain("import LegajosPage from '@/views/LegajosPage'")
     })
 
     it('should export default function LegajosRoute rendering <LegajosPage />', () => {
@@ -230,9 +230,9 @@ describe('Route page files', () => {
       expect(content).toContain("import { useParams } from 'next/navigation'")
     })
 
-    it('should import CertificateView from @/src/pages/CertificateView', () => {
+    it('should import CertificateView from @/views/CertificateView', () => {
       const content = readRouteFile(path)!
-      expect(content).toContain("import CertificateView from '@/src/pages/CertificateView'")
+      expect(content).toContain("import CertificateView from '@/views/CertificateView'")
     })
 
     it('should extract instanceId from params and pass to CertificateView', () => {
@@ -256,9 +256,9 @@ describe('Route page files', () => {
       expect(content.startsWith("'use client'")).toBe(true)
     })
 
-    it('should import NotFound from @/src/pages/NotFound', () => {
+    it('should import NotFound from @/views/NotFound', () => {
       const content = readRouteFile(path)!
-      expect(content).toContain("import NotFound from '@/src/pages/NotFound'")
+      expect(content).toContain("import NotFound from '@/views/NotFound'")
     })
 
     it('should export default function NotFoundPage rendering <NotFound />', () => {

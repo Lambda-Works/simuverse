@@ -2,7 +2,7 @@ import { defineConfig } from 'cypress';
 
 export default defineConfig({
   e2e: {
-    baseUrl: 'http://localhost:8081',
+    baseUrl: 'http://localhost:8080',
     viewportWidth: 1280,
     viewportHeight: 720,
     defaultCommandTimeout: 10000,
@@ -23,7 +23,7 @@ export default defineConfig({
     
     // Environment variables
     env: {
-      apiUrl: 'http://localhost:3000/api',
+      apiUrl: 'http://localhost:5001/api',
     },
     
     setupNodeEvents(on, config) {

@@ -1,3 +1,4 @@
+'use client'
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +12,7 @@ import {
   Trash2, Plus, Edit2, BookOpen, Target, Mail, FileText,
   ChevronRight, GraduationCap, Layers, Clock, CheckCircle, Copy
 } from 'lucide-react';
+import { API_BASE } from '@/lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -132,13 +134,13 @@ export function ScenariosABM() {
   }, []);
 
   const loadScenarios = async () => {
-    const res = await fetch('http://localhost:5000/api/scenarios');
+    const res = await fetch(`${API_BASE}/scenarios`);
     const d = await res.json();
     setScenarios(Array.isArray(d) ? d : []);
   };
 
   const loadCourses = async () => {
-    const res = await fetch('http://localhost:5000/api/courses');
+    const res = await fetch(`${API_BASE}/courses`);
     const d = await res.json();
     setCourses(Array.isArray(d) ? d : []);
   };
@@ -153,8 +155,8 @@ export function ScenariosABM() {
     setSaving(true);
     try {
       const url = editingId
-        ? `http://localhost:5000/api/scenarios/${editingId}`
-        : 'http://localhost:5000/api/scenarios';
+        ? `${API_BASE}/scenarios/${editingId}`
+        : `${API_BASE}/scenarios`;
       await fetch(url, {
         method: editingId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -199,7 +201,7 @@ export function ScenariosABM() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar este escenario?')) return;
-    await fetch(`http://localhost:5000/api/scenarios/${id}`, { method: 'DELETE' });
+    await fetch(`${API_BASE}/scenarios/${id}`, { method: 'DELETE' });
     await loadScenarios();
   };
 
@@ -214,7 +216,7 @@ export function ScenariosABM() {
       content: s.content,
       expected_outcomes: s.expected_outcomes,
     };
-    await fetch('http://localhost:5000/api/scenarios', {
+    await fetch(`${API_BASE}/scenarios`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

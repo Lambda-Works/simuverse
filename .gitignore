@@ -1,4 +1,27 @@
+# ============================================
+# Secrets & Environment
+# ============================================
+.env
+*.env
+!.env.example
+
+# ============================================
+# Dependencies
+# ============================================
+node_modules
+server/node_modules
+backend/node_modules
+
+# ============================================
+# Build output
+# ============================================
+dist
+server/dist
+backend/dist
+
+# ============================================
 # Logs
+# ============================================
 logs
 *.log
 npm-debug.log*
@@ -7,12 +30,45 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# ============================================
+# Database backups & dumps (contain real data)
+# ============================================
+backups/
+md/*.sql
+md/*.session.sql
 
-# Editor directories and files
+# ============================================
+# Reference docs directory (old documentation, not source code)
+# ============================================
+md/
+
+# ============================================
+# Uploads (user files, could be sensitive)
+# ============================================
+server/uploads/*
+!server/uploads/.gitkeep
+
+# ============================================
+# Legacy/abandoned code
+# ============================================
+supabaseold/
+
+# ============================================
+# Large binaries / documents (Keep in Drive, not git)
+# ============================================
+simuverse/
+*.docx
+*.pdf
+*.csv
+
+# ============================================
+# Backup/legacy files from refactors
+# ============================================
+.backup/
+
+# ============================================
+# Editor directories
+# ============================================
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -22,3 +78,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# ============================================
+# SDD / OpenSpec (spec files not tracked in git)
+# ============================================
+openspec/
+
+# ============================================
+# OS files
+# ============================================
+Thumbs.db
+Desktop.ini
