@@ -35,8 +35,8 @@ lerna-debug.log*
 # Database backups & dumps (contain real data)
 # ============================================
 backups/
-md/*.sql
-md/*.session.sql
+*.sql
+*.session.sql
 
 # ============================================
 # Reference docs directory (old documentation, not source code)

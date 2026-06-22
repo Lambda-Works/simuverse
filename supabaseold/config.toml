@@ -1,4 +1,0 @@
-project_id = "btljtiooxbrbhnizdqvx"
-
-[functions.simulation-chat]
-verify_jwt = false
