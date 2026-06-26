@@ -16,7 +16,7 @@ const clearAuthAndRedirect = () => {
 };
 
 // ── Demo mode flag (set via NEXT_PUBLIC_DEMO_MODE=true) ───────────────────
-const DEMO_MODE = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_DEMO_MODE === 'true';
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
 /** Wrap demo handler response so it looks like an Axios response */
 function demoResponse(method: string, url: string, data?: unknown) {
