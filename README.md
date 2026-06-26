@@ -2,107 +2,183 @@
 
 Plataforma de simulaciones educativas con evaluaciones dinámicas impulsadas por IA. Diseñada para escalar a 40+ cursos de educación profesionalizante.
 
+Diseñado para funcionar con el [Lambda Hub](https://github.com/anomalyco/lambda-hub) autodeploy system out of the box.
+
 ## Stack
 
 | Capa | Tecnología |
 |------|-----------|
-| **Frontend** | Next.js 15 (App Router), React 19, Tailwind CSS, shadcn/ui |
-| **Backend** | Node.js + Express, TypeORM, TypeScript |
-| **Base de datos** | MySQL 8.0 (vía Docker) |
-| **Testing** | Vitest (unit), Cypress (E2E) |
+| **Frontend** | Next.js 16 (standalone output), React 19, Tailwind CSS, shadcn/ui |
+| **Backend Express** | Node.js + Express + TypeORM + TypeScript |
+| **Backend NestJS** | NestJS (módulo complementario) |
+| **Proxy** | Express + http-proxy-middleware (enrutamiento interno) |
+| **Base de datos** | MySQL 8.0 |
+| **Package manager** | npm (workspaces) |
 
-## Requisitos
-
-- Node.js 18+
-- Docker + Docker Compose
-- npm
-
-## Setup rápido
+## Quick start
 
 ```bash
-# 1. Clonar e instalar dependencias
-git clone git@github.com:N1C0-P4Z/simuverse.git
-cd simuverse
-npm install
-cd server && npm install && cd ..
-
-# 2. Copiar config de entorno
-cp .env.example .env.local
-cp server/.env.example server/.env
-# Editar server/.env con tus credenciales de DB y APIs
-
-# 3. Levantar MySQL
-docker compose up -d
-
-# 4. Backend (terminal 1)
-cd server && npm run dev
-
-# 5. Frontend (terminal 2)
-npm run dev
+cp .env.example .env
+docker compose up -d --build
 ```
 
-Accedé a **http://localhost:8080**
+- Web: `http://localhost:8080`
+- API (vía proxy): `http://localhost:5000/api`
+- Health: `http://localhost:5000/api/health`
 
-## Comandos principales
+Los puertos son configurables via `PUERTO_FRONTEND`, `PUERTO_PROXY`, `PUERTO_BACKEND`, `PUERTO_BACKEND_NEST`, `PUERTO_MYSQL` en `.env`.
 
-### Frontend (raíz del proyecto)
+## Puertos
 
-| Comando | Descripción |
-|---------|-------------|
-| `npm run dev` | Dev server en puerto 8080 |
-| `npm run build` | Build de producción |
-| `npm run test` | Tests unitarios (Vitest) |
-| `npm run cypress:e2e` | Tests E2E |
+| Variable | Default | Descripción |
+|----------|---------|-------------|
+| `PUERTO_FRONTEND` | `8080` | Puerto del frontend Next.js |
+| `PUERTO_PROXY` | `5000` | Puerto del proxy (entrada unificada) |
+| `PUERTO_BACKEND` | `5001` | Puerto del API Express |
+| `PUERTO_BACKEND_NEST` | `5002` | Puerto del API NestJS |
+| `PUERTO_MYSQL` | `3309` | Puerto del MySQL (host) |
 
-### Backend (`server/`)
+El Hub asigna estos puertos automáticamente. Solo hay que asegurarse de que estén definidos como `PUERTO_*` en el `.env`.
 
-| Comando | Descripción |
-|---------|-------------|
-| `npm run dev` | Dev server con hot reload (puerto 5000) |
-| `npm run build` | Compilar TypeScript |
-| `npm start` | Producción |
-| `npm run seed` | Seed database |
+## Project structure
 
-## Rutas principales
+```
+├── docker-compose.prod.yml      # Producción (Lambda Hub lee este)
+├── docker-compose.yml           # Desarrollo (hot reload)
+├── .env.example
+├── package.json                 # npm workspaces
+├── proxy/                       # Proxy de entrada unificada
+│   ├── Dockerfile.dev
+│   ├── Dockerfile.prod
+│   ├── index.ts                 # Express + http-proxy-middleware
+│   └── routes.json              # Configuración de rutas
+├── apps/
+│   ├── web/                     # Next.js
+│   │   ├── Dockerfile.prod
+│   │   ├── Dockerfile.dev
+│   │   ├── next.config.ts       # output: "standalone"
+│   │   └── app/
+│   ├── api-express/             # Express + TypeORM
+│   │   ├── Dockerfile.prod
+│   │   ├── Dockerfile.dev
+│   │   ├── src/
+│   │   └── migrations/
+│   └── api-nest/                # NestJS (módulo complementario)
+│       ├── Dockerfile.prod
+│       ├── Dockerfile.dev
+│       └── src/
+```
 
-| Ruta | Descripción |
-|------|-------------|
-| `/auth` | Login / Registro |
-| `/dashboard` | Panel principal del estudiante |
-| `/admin` | Panel de administración |
-| `/simulation/[courseId]` | Simulación por curso |
-| `/evaluations` | Evaluaciones |
-| `/certificate/[instanceId]` | Certificados |
-| `/legajos` | Legajos de alumnos |
+## API endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/health` | No | Health check |
+| `GET` | `/api/me` | JWT | Current user info |
+| `POST` | `/api/auth/login` | No | Login |
+| `POST` | `/api/auth/register` | No | Register |
+
+Todos los requests pasan por el proxy (`proxy/index.ts`), que enruta al backend correspondiente.
+
+## Auth
+
+Autenticación via JWT. El frontend almacena el token y lo envía como `Authorization: Bearer <token>`.
+
+## Lambda Hub autodeploy
+
+El proyecto incluye un workflow de GitHub Actions para autodeploy al [Lambda Hub](https://github.com/anomalyco/lambda-hub).
+
+El Hub lee `docker-compose.prod.yml` y ejecuta:
+
+```bash
+docker compose -p {project}-{env} -f docker-compose.prod.yml build
+docker compose -p {project}-{env} -f docker-compose.prod.yml up -d
+```
+
+Los puertos usan variables de entorno (`PUERTO_BACKEND`, `PUERTO_FRONTEND`, `PUERTO_MYSQL`, etc.) para que el Hub pueda asignarlos automáticamente.
+
+### Setup para un fork
+
+1. Registrar el proyecto en el dashboard del Lambda Hub para obtener un **project UUID**.
+2. Agregar estos secrets en **Settings > Secrets and variables > Actions**:
+
+   | Secret | Description |
+   |---|---|
+   | `HUB_URL` | Base URL del Hub (ej. `https://hub.example.com`) |
+   | `HUB_PROJECT_ID` | UUID del proyecto en el Hub |
+   | `DEPLOY_WEBHOOK_SECRET` | Mismo secreto configurado en el `.env` del Hub |
+
+3. Pushear — el workflow se dispara automáticamente.
+
+### Branch behavior
+
+| Branch | Environment | Version bump |
+|--------|-------------|--------------|
+| `main` | `production` | Bumps tag via Conventional Commits (default: patch) |
+| `develop` | `development` | Usa short commit SHA (sin tag) |
+
+### Versioning (Conventional Commits)
+
+El workflow usa [github-tag-action](https://github.com/mathieudutour/github-tag-action) para bump versiones automáticamente basado en mensajes de commit:
+
+```bash
+fix: corrige validación de email vacío    # → patch
+feat: agrega endpoint de evaluaciones     # → minor
+feat!: cambia API de autenticación        # → major
+```
+
+Commits sin prefijo convencional default a **patch**. La versión del tag se envía al Hub y se guarda como `version.txt` dentro del release en el VPS.
+
+### Rollback
+
+Si el deploy falla, el Hub hace rollback automático al release anterior.
+
+## Comandos
+
+```bash
+# Desarrollo (hot reload)
+docker compose up -d --build
+
+# Producción
+docker compose -f docker-compose.prod.yml up -d --build
+
+# Logs
+docker compose -f docker-compose.prod.yml logs -f
+
+# Ver puertos activos
+docker compose ps
+```
+
+### Frontend
+
+```bash
+npm run dev          # Dev server standalone
+npm run build        # Build producción
+npm run test         # Tests unitarios (Vitest)
+npm run cypress:e2e  # Tests E2E
+```
+
+### Backend Express
+
+```bash
+npm run dev:api      # Dev server
+npm run build:api    # Compilar TypeScript
+npm run start:api    # Producción
+```
 
 ## Variables de entorno
 
-### Frontend (`.env.local`)
+Ver `.env.example` para la lista completa. Las esenciales:
 
 | Variable | Descripción | Default |
 |----------|-------------|---------|
-| `NEXT_PUBLIC_API_URL` | URL del backend API | `http://localhost:5000/api` |
-| `NEXT_PUBLIC_GEMINI_API_KEY` | API key de Gemini | — |
-| `NEXT_PUBLIC_ENV` | Entorno | `development` |
-
-### Backend (`server/.env`)
-
-| Variable | Descripción | Default |
-|----------|-------------|---------|
-| `PORT` | Puerto del backend | `5000` |
-| `DB_HOST` | Host MySQL | `localhost` |
-| `DB_PORT` | Puerto MySQL (host) | `3309` |
-| `DB_USER` | Usuario DB | `simuverse` |
-| `DB_PASSWORD` | Password DB | — |
-| `DB_NAME` | Nombre DB | `simuverse` |
-| `JWT_SECRET` | Secreto JWT | — |
+| `MYSQL_ROOT_PASSWORD` | Password root de MySQL | — |
+| `MYSQL_DATABASE` | Nombre de base de datos | `simuverse` |
+| `MYSQL_USER` | Usuario de MySQL | `simuverse` |
+| `MYSQL_PASSWORD` | Password del usuario MySQL | — |
+| `JWT_SECRET` | Secreto para firmar JWT | — |
+| `NEXT_PUBLIC_API_URL` | URL del API (vía proxy) | `http://localhost:5000/api` |
 | `GEMINI_API_KEY` | API key de Gemini | — |
-
-## Rama activa
-
-```bash
-desarrollo  # Rama principal de trabajo
-```
 
 ## Licencia
 
