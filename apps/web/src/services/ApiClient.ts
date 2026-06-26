@@ -1,6 +1,7 @@
 'use client'
 
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { routeDemoRequest } from '@/services/demoData';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -13,6 +14,21 @@ const clearAuthAndRedirect = () => {
   window.dispatchEvent(new Event('storage'));
   window.location.href = '/auth';
 };
+
+// ── Demo mode flag (set via NEXT_PUBLIC_DEMO_MODE=true) ───────────────────
+const DEMO_MODE = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_DEMO_MODE === 'true';
+
+/** Wrap demo handler response so it looks like an Axios response */
+function demoResponse(method: string, url: string, data?: unknown) {
+  const result = routeDemoRequest(method, url, data);
+  return Promise.resolve({
+    data: result.data,
+    status: result.status,
+    statusText: result.statusText,
+    headers: {},
+    config: {} as any,
+  });
+}
 
 class ApiClient {
   private client: AxiosInstance;
@@ -102,22 +118,27 @@ class ApiClient {
   }
 
   get<T = any>(url: string, config?: any) {
+    if (DEMO_MODE) return demoResponse('GET', url) as Promise<{ data: T }>;
     return this.client.get<T>(url, config);
   }
 
   post<T = any>(url: string, data?: any, config?: any) {
+    if (DEMO_MODE) return demoResponse('POST', url, data) as Promise<{ data: T }>;
     return this.client.post<T>(url, data, config);
   }
 
   put<T = any>(url: string, data?: any, config?: any) {
+    if (DEMO_MODE) return demoResponse('PUT', url, data) as Promise<{ data: T }>;
     return this.client.put<T>(url, data, config);
   }
 
   delete<T = any>(url: string, config?: any) {
+    if (DEMO_MODE) return demoResponse('DELETE', url) as Promise<{ data: T }>;
     return this.client.delete<T>(url, config);
   }
 
   patch<T = any>(url: string, data?: any, config?: any) {
+    if (DEMO_MODE) return demoResponse('PATCH', url, data) as Promise<{ data: T }>;
     return this.client.patch<T>(url, data, config);
   }
 }
