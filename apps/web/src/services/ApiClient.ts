@@ -15,8 +15,11 @@ const clearAuthAndRedirect = () => {
   window.location.href = '/auth';
 };
 
-// ── Demo mode flag (set via NEXT_PUBLIC_DEMO_MODE=true) ───────────────────
-const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+// ── Demo mode: auto-activa en Vercel o con NEXT_PUBLIC_DEMO_MODE=true ───
+const DEMO_MODE = typeof window !== 'undefined' && (
+  process.env.NEXT_PUBLIC_DEMO_MODE === 'true' ||
+  window.location.hostname.includes('vercel.app')
+);
 
 /** Wrap demo handler response so it looks like an Axios response */
 function demoResponse(method: string, url: string, data?: unknown) {

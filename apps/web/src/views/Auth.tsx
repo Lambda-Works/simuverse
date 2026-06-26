@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { apiClient } from '@/services/ApiClient';
 import { authChangeEvent } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { toast } from 'sonner';
 import { Shield, GraduationCap, Eye, EyeOff, Bot } from 'lucide-react';
 
 const Auth = () => {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,10 +54,10 @@ const Auth = () => {
       
       toast.success('Sesión iniciada exitosamente');
       
-      // Esperar un bit para que el contexto se actualice
+      // Forzar redirección después de un delay mínimo
       setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 100);
+        router.replace('/dashboard');
+      }, 150);
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Error al iniciar sesión');
       // Resetear robot check tras un error para volver a confirmar
@@ -89,10 +91,10 @@ const Auth = () => {
       
       toast.success('Cuenta creada exitosamente');
       
-      // Esperar un poco para que el contexto se actualice
+      // Forzar redirección después de un delay mínimo
       setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 100);
+        router.replace('/dashboard');
+      }, 150);
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Error al crear cuenta');
     }

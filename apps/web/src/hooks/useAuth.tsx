@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { apiClient } from '@/services/ApiClient';
+import { DEMO_USERS } from '@/services/demoData';
 
 type AppRole = 'student' | 'teacher' | 'admin' | 'ministerio';
 
@@ -54,16 +55,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const userData = JSON.parse(storedUser);
         setToken(storedToken);
         setUser(userData);
+        setLoading(false);
+        return;
       } catch {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        setToken(null);
-        setUser(null);
       }
-    } else {
-      setToken(null);
-      setUser(null);
     }
+
+    // ── Demo mode: auto-login as admin if no saved session ───────────────
+    if (typeof window !== 'undefined' &&
+        (process.env.NEXT_PUBLIC_DEMO_MODE === 'true' ||
+         window.location.hostname.includes('vercel.app'))) {
+      const demoUser = DEMO_USERS[0]; // admin@fepei.com
+      localStorage.setItem('token', 'demo-' + demoUser.id);
+      localStorage.setItem('user', JSON.stringify(demoUser));
+      setToken('demo-' + demoUser.id);
+      setUser(demoUser);
+    }
+
     setLoading(false);
   }, []);
 
