@@ -19,6 +19,7 @@ dist
 apps/*/dist
 proxy/dist
 .next/
+*.tsbuildinfo
 
 # ============================================
 # Logs
