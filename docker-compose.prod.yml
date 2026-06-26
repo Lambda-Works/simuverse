@@ -9,7 +9,7 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
-      - "${DB_PORT:-3309}:3306"
+      - "${PUERTO_MYSQL}:3306"
     volumes:
       - simuverse_mysql_data:/var/lib/mysql
     command: >
@@ -27,14 +27,14 @@ services:
   proxy:
     build:
       context: .
-      dockerfile: Dockerfile.proxy
+      dockerfile: proxy/Dockerfile.prod
     container_name: simuverse-proxy
     restart: unless-stopped
     environment:
       NODE_ENV: production
       PROXY_PORT: "5000"
     ports:
-      - "${PROXY_PORT:-5000}:5000"
+      - "${PUERTO_PROXY}:5000"
     depends_on:
       api-express:
         condition: service_healthy
@@ -50,7 +50,7 @@ services:
   api-express:
     build:
       context: .
-      dockerfile: Dockerfile.api-express
+      dockerfile: apps/api-express/Dockerfile.prod
     container_name: simuverse-api-express
     restart: unless-stopped
     environment:
@@ -58,12 +58,12 @@ services:
       PORT: "5000"
       DB_HOST: mysql
       DB_PORT: "3306"
-      DB_USERNAME: ${MYSQL_USER}
+      DB_USER: ${MYSQL_USER}
       DB_PASSWORD: ${MYSQL_PASSWORD}
-      DB_DATABASE: ${MYSQL_DATABASE}
+      DB_NAME: ${MYSQL_DATABASE}
       JWT_SECRET: ${JWT_SECRET}
     ports:
-      - "5001:5000"
+      - "${PUERTO_BACKEND}:5000"
     depends_on:
       mysql:
         condition: service_healthy
@@ -76,10 +76,29 @@ services:
       retries: 3
       start_period: 10s
 
+  api-nest:
+    build:
+      context: .
+      dockerfile: apps/api-nest/Dockerfile.prod
+    container_name: simuverse-api-nest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "5001"
+    ports:
+      - "${PUERTO_BACKEND_NEST}:5001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - app-network
+
   web:
     build:
       context: .
-      dockerfile: Dockerfile.web
+      dockerfile: apps/web/Dockerfile.prod
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     container_name: simuverse-web
     restart: unless-stopped
     environment:
@@ -88,7 +107,7 @@ services:
       PORT: "3000"
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     ports:
-      - "${WEB_PORT:-8080}:3000"
+      - "${PUERTO_FRONTEND}:3000"
     depends_on:
       proxy:
         condition: service_healthy

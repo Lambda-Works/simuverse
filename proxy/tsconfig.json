@@ -8,7 +8,8 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "declaration": false,
-    "skipLibCheck": false
+    "skipLibCheck": false,
+    "noEmit": false
   },
   "include": ["*.ts"],
   "exclude": ["node_modules", "dist"]

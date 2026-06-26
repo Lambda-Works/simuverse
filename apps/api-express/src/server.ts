@@ -50,10 +50,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// Health check
-app.get('/health', (req: Request, res: Response) => {
+// Health check (both root and /api paths — proxy mounts at /api)
+const healthHandler = (req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date(), message: 'Server is running' });
-});
+};
+app.get('/health', healthHandler);
+app.get('/api/health', healthHandler);
 
 // API Routes
 const authRoutes = createAuthRoutes();

@@ -1,0 +1,14 @@
+FROM node:22-alpine
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY apps/api-nest/package.json ./apps/api-nest/
+RUN npm install
+
+COPY . .
+
+WORKDIR /app/apps/api-nest
+
+EXPOSE 3002
+CMD ["npm", "run", "start:dev"]

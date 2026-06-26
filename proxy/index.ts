@@ -37,11 +37,14 @@ for (const route of activeRoutes) {
 }
 
 // Default fallback: forward all /api/* to defaultTarget
+// Express strips the /api prefix when mounted at '/api',
+// so we add it back via pathRewrite so the backend receives /api/courses
 app.use(
   '/api',
   createProxyMiddleware({
     target: config.defaultTarget,
     changeOrigin: true,
+    pathRewrite: { '^/': '/api/' },
   })
 );
 

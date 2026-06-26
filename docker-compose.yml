@@ -9,7 +9,7 @@ services:
       MYSQL_USER: ${MYSQL_USER:-simuverse}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-SimuVerse2024secret}
     ports:
-      - "${DB_PORT:-3309}:3306"
+      - "${PUERTO_MYSQL:-3309}:3306"
     volumes:
       - simuverse_mysql_data:/var/lib/mysql
     command: >
@@ -27,14 +27,14 @@ services:
   proxy:
     build:
       context: .
-      dockerfile: Dockerfile.proxy
+      dockerfile: proxy/Dockerfile.dev
     container_name: simuverse-proxy
     restart: unless-stopped
     environment:
       NODE_ENV: development
       PROXY_PORT: "5000"
     ports:
-      - "${PROXY_PORT:-5000}:5000"
+      - "${PUERTO_PROXY:-5000}:5000"
     volumes:
       - .:/app
       - /app/node_modules
@@ -47,7 +47,7 @@ services:
   api-express:
     build:
       context: .
-      dockerfile: Dockerfile.api-express
+      dockerfile: apps/api-express/Dockerfile.dev
     container_name: simuverse-api-express
     restart: unless-stopped
     environment:
@@ -55,12 +55,12 @@ services:
       PORT: "5000"
       DB_HOST: mysql
       DB_PORT: "3306"
-      DB_USERNAME: ${MYSQL_USER:-simuverse}
+      DB_USER: ${MYSQL_USER:-simuverse}
       DB_PASSWORD: ${MYSQL_PASSWORD:-SimuVerse2024secret}
-      DB_DATABASE: ${MYSQL_DATABASE:-simuverse}
+      DB_NAME: ${MYSQL_DATABASE:-simuverse}
       JWT_SECRET: ${JWT_SECRET:-dev-secret}
     ports:
-      - "5001:5000"
+      - "${PUERTO_BACKEND:-5001}:5000"
     volumes:
       - .:/app
       - /app/node_modules
@@ -71,17 +71,38 @@ services:
     networks:
       - app-network
 
+  api-nest:
+    build:
+      context: .
+      dockerfile: apps/api-nest/Dockerfile.dev
+    container_name: simuverse-api-nest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: "5001"
+    ports:
+      - "${PUERTO_BACKEND_NEST:-5002}:5001"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/api-nest/node_modules
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - app-network
+
   web:
     build:
       context: .
-      dockerfile: Dockerfile.web
+      dockerfile: apps/web/Dockerfile.dev
     container_name: simuverse-web
     restart: unless-stopped
     environment:
       NODE_ENV: development
-      NEXT_PUBLIC_API_URL: http://localhost:${PROXY_PORT:-5000}/api
+      NEXT_PUBLIC_API_URL: http://localhost:${PUERTO_PROXY:-5000}/api
     ports:
-      - "${WEB_PORT:-8080}:3000"
+      - "${PUERTO_FRONTEND:-8080}:3000"
     volumes:
       - .:/app
       - /app/node_modules
