@@ -43,12 +43,8 @@ export class KPI {
   minimum_pass_value!: number; // Mínimo para pasar (ej: 80%)
 
   // Umbrales de estado
-  @Column({ type: 'json', default: JSON.stringify({
-    excellent: 95,
-    good: 85,
-    acceptable: 75,
-    poor: 0
-  })})
+  // Nota: no usar default en JSON columns — MySQL 8.0 rechaza ER_BLOB_CANT_HAVE_DEFAULT
+  @Column({ type: 'json' })
   thresholds!: {
     excellent: number;
     good: number;

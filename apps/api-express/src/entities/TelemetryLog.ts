@@ -40,7 +40,7 @@ export class TelemetryLog {
   })
   action_type!: ActionType;
 
-  @CreateDateColumn({ type: 'timestamp', precision: 3 })
+  @CreateDateColumn({ type: 'timestamp' })
   created_at!: Date;
 
   @Column({ type: 'int' })

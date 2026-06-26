@@ -17,7 +17,7 @@ export class Course {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'varchar', length: 100, unique: true })
+  @Column({ type: 'varchar', length: 100 })
   course_id!: string;
 
   @Column({ type: 'varchar', length: 255 })

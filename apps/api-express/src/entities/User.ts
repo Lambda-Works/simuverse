@@ -22,10 +22,10 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'varchar', length: 255, unique: true })
+  @Column({ type: 'varchar', length: 255 })
   email!: string;
 
-  @Column({ type: 'varchar', length: 255, name: 'password' })  // Maps to 'password' column in DB
+  @Column({ type: 'varchar', length: 255, name: 'password_hash' })  // Maps to 'password_hash' column in DB (created by InitialMigration)
   password!: string;
 
   @Column({ type: 'varchar', length: 255 })

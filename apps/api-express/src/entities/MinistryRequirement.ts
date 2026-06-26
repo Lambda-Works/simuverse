@@ -22,8 +22,8 @@ export class MinistryRequirement {
   @Column({ type: 'uuid' })
   course_id!: string;
 
-  @Column({ type: 'uuid' })
-  uploaded_by_id!: string;
+  @Column({ type: 'uuid', nullable: true })
+  uploaded_by_id?: string;
 
   // Información del archivo
   @Column({ type: 'varchar', length: 255 })
