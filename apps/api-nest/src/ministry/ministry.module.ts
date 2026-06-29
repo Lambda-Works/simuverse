@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { MinistryController } from './ministry.controller';
 import { MinistryService } from './ministry.service';
+import { AIService } from '../simulations/ai/ai.service';
 
 @Module({
   controllers: [MinistryController],
-  providers: [MinistryService],
+  providers: [MinistryService, AIService],
   exports: [MinistryService],
 })
 export class MinistryModule {}

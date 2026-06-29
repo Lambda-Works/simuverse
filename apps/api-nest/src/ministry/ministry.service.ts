@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AIService } from '../simulations/ai/ai.service';
 import {
   CreateMinistryRequirementDto,
   UpdateMinistryRequirementDto,
@@ -9,7 +10,10 @@ import {
 
 @Injectable()
 export class MinistryService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private aiService: AIService,
+  ) {}
 
   private serialize<T>(obj: T): T {
     return JSON.parse(JSON.stringify(obj, (_key, value) =>
@@ -144,6 +148,75 @@ export class MinistryService {
       },
     });
     return { message: 'Requisito archivado correctamente' };
+  }
+
+  // ── KPI AI Extraction ───────────────────────────────────────────────
+
+  async extractKpisFromDocument(requirementId: string) {
+    const requirement = await this.prisma.ministryRequirement.findUnique({
+      where: { id: requirementId },
+    });
+    if (!requirement) throw new NotFoundException('Requirement not found');
+
+    // Set status to processing
+    await this.prisma.ministryRequirement.update({
+      where: { id: requirementId },
+      data: { status: 'processing' },
+    });
+
+    const prompt = `Extract KPIs from this ministry requirement document. Return a JSON array of KPI objects.
+Each KPI must have: name, description, category, weight, target_value, minimum_pass_value, trigger_event.
+Document text: ${requirement.raw_text || 'No text available'}`;
+
+    const systemPrompt = 'You are a KPI extraction expert. Return ONLY a valid JSON array, no explanations.';
+
+    const aiResult = await this.aiService.sendMessageToGemini(prompt, systemPrompt);
+
+    if (aiResult.mode === 'scripted') {
+      return { kpis: [], mode: 'scripted' as const, message: 'AI unavailable, manual extraction required' };
+    }
+
+    try {
+      const jsonMatch = aiResult.response.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        return { kpis: [], mode: 'scripted' as const, message: 'Could not parse AI response' };
+      }
+
+      const extractedKpis = JSON.parse(jsonMatch[0]);
+      const savedKpis = [];
+
+      for (const kpiData of extractedKpis) {
+        const kpi = await this.prisma.kPI.create({
+          data: {
+            course_id: requirement.course_id,
+            ministry_requirement_id: requirementId,
+            name: kpiData.name,
+            description: kpiData.description || '',
+            category: kpiData.category || 'general',
+            weight: kpiData.weight || 1.0,
+            target_value: kpiData.target_value || 100,
+            minimum_pass_value: kpiData.minimum_pass_value || 80,
+            thresholds: { excellent: 95, good: 85, acceptable: 75, poor: 0 },
+            prompt_instruction: kpiData.prompt_instruction || null,
+            trigger_event: kpiData.trigger_event || 'generic',
+            is_active: true,
+          },
+        });
+        savedKpis.push(kpi);
+      }
+
+      await this.prisma.ministryRequirement.update({
+        where: { id: requirementId },
+        data: {
+          kpis_generated: savedKpis.length,
+          status: 'extracted',
+        },
+      });
+
+      return { kpis: this.serialize(savedKpis), mode: 'live' as const };
+    } catch {
+      return { kpis: [], mode: 'scripted' as const, message: 'Failed to parse AI KPI extraction' };
+    }
   }
 
   // ── KPIs ────────────────────────────────────────────────────────────

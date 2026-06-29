@@ -73,6 +73,11 @@ export class MinistryController {
     return this.ministryService.archiveRequirement(id);
   }
 
+  @Post('requirements/:id/extract-kpis')
+  async extractKpis(@Param('id') id: string) {
+    return this.ministryService.extractKpisFromDocument(id);
+  }
+
   // ── KPIs ────────────────────────────────────────────────────────────
 
   @Get('kpis')

@@ -1,0 +1,59 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import { NotificationsService } from './notifications.service';
+import { CreateNotificationDto, UpdateNotificationDto } from './dto/notification.dto';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+
+@Controller('notifications')
+@UseGuards(JwtAuthGuard)
+export class NotificationsController {
+  constructor(private notificationsService: NotificationsService) {}
+
+  @Post()
+  async create(@Body() dto: CreateNotificationDto) {
+    return this.notificationsService.create(dto);
+  }
+
+  @Get()
+  async findAll(
+    @Query('recipient_id') recipient_id?: string,
+    @Query('unread') unread?: string,
+  ) {
+    return this.notificationsService.findAll({ recipient_id, unread });
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    return this.notificationsService.findOne(id);
+  }
+
+  @Put(':id')
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateNotificationDto,
+  ) {
+    return this.notificationsService.update(id, dto);
+  }
+
+  @Put(':id/read')
+  async markAsRead(@Param('id') id: string) {
+    return this.notificationsService.markAsRead(id);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  async remove(@Param('id') id: string) {
+    return this.notificationsService.remove(id);
+  }
+}
