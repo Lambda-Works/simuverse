@@ -56,6 +56,8 @@ describe('Catalog (e2e)', () => {
       },
       $connect: jest.fn(),
       $disconnect: jest.fn(),
+      $queryRawUnsafe: jest.fn(),
+      $executeRawUnsafe: jest.fn(),
     };
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -421,6 +423,102 @@ describe('Catalog (e2e)', () => {
           .expect(200);
 
         expect(Array.isArray(res.body)).toBe(true);
+      });
+    });
+  });
+
+  // ─── Query Service ($queryRaw) ─────────────────────────────────────────
+
+  describe('Catalog Queries', () => {
+    describe('GET /api/catalog/evaluations/student/all', () => {
+      it('should return evaluations with student and course data', async () => {
+        prismaMock.$queryRawUnsafe.mockResolvedValue([
+          { id: 1, student_name: 'Student', course_title: 'Course', overall_score: 85 },
+        ]);
+
+        const res = await request(app.getHttpServer())
+          .get('/api/catalog/evaluations/student/all')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+
+        expect(Array.isArray(res.body)).toBe(true);
+        expect(res.body[0]).toHaveProperty('student_name');
+      });
+    });
+
+    describe('GET /api/catalog/evaluations/:simulationId', () => {
+      it('should return evaluations for a simulation', async () => {
+        prismaMock.$queryRawUnsafe.mockResolvedValue([
+          { id: 1, simulation_id: 'sim1', overall_score: 90 },
+        ]);
+
+        const res = await request(app.getHttpServer())
+          .get('/api/catalog/evaluations/sim1')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+
+        expect(Array.isArray(res.body)).toBe(true);
+      });
+    });
+
+    describe('GET /api/catalog/students/:studentId/history', () => {
+      it('should return student history', async () => {
+        prismaMock.$queryRawUnsafe
+          .mockResolvedValueOnce([{ id: 's1', name: 'Student', email: 's@test.com', role: 'student', created_at: new Date() }])
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([]);
+
+        const res = await request(app.getHttpServer())
+          .get('/api/catalog/students/s1/history')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+
+        expect(res.body).toHaveProperty('student');
+        expect(res.body).toHaveProperty('assignments');
+      });
+
+      it('should return error for non-existent student', async () => {
+        prismaMock.$queryRawUnsafe.mockResolvedValueOnce([]);
+
+        const res = await request(app.getHttpServer())
+          .get('/api/catalog/students/nonexistent/history')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+
+        expect(res.body).toHaveProperty('error', 'Student not found');
+      });
+    });
+
+    describe('GET /api/catalog/role-permissions', () => {
+      it('should return role permissions', async () => {
+        prismaMock.$queryRawUnsafe.mockResolvedValue([
+          { functionality_id: 1, name: 'View Courses', enabled: true },
+        ]);
+
+        const res = await request(app.getHttpServer())
+          .get('/api/catalog/role-permissions?role_name=admin')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+
+        expect(Array.isArray(res.body)).toBe(true);
+      });
+    });
+
+    describe('PUT /api/catalog/role-permissions', () => {
+      it('should upsert role permissions', async () => {
+        prismaMock.$executeRawUnsafe.mockResolvedValue(1);
+
+        const res = await request(app.getHttpServer())
+          .put('/api/catalog/role-permissions')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            role_name: 'teacher',
+            permissions: [{ functionality_id: 1, enabled: true }],
+          })
+          .expect(200);
+
+        expect(res.body).toHaveProperty('updated', 1);
       });
     });
   });
