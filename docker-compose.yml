@@ -71,6 +71,27 @@ services:
     networks:
       - app-network
 
+  postgres:
+    image: postgres:15-alpine
+    container_name: simuverse-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-simuverse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-SimuVerse2024secret}
+      POSTGRES_DB: ${POSTGRES_DB:-simuverse}
+    ports:
+      - "${PUERTO_POSTGRES:-5433}:5432"
+    volumes:
+      - simuverse_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-simuverse}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      - app-network
+
   api-nest:
     build:
       context: .
@@ -80,6 +101,8 @@ services:
     environment:
       NODE_ENV: development
       PORT: "5001"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-simuverse}:${POSTGRES_PASSWORD:-SimuVerse2024secret}@postgres:5432/${POSTGRES_DB:-simuverse}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret}
     ports:
       - "${PUERTO_BACKEND_NEST:-5002}:5001"
     volumes:
@@ -87,7 +110,7 @@ services:
       - /app/node_modules
       - /app/apps/api-nest/node_modules
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
     networks:
       - app-network
@@ -115,6 +138,8 @@ services:
 volumes:
   simuverse_mysql_data:
     name: simuverse_mysql_data
+  simuverse_pg_data:
+    name: simuverse_pg_data
 
 networks:
   app-network:
