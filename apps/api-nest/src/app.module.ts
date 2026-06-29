@@ -10,9 +10,11 @@ import { AssessmentsModule } from './assessments/assessments.module';
 import { TemplatesModule } from './templates/templates.module';
 import { AdminModule } from './admin/admin.module';
 import { PracticeLogsModule } from './practice-logs/practice-logs.module';
+import { TelemetryLogsModule } from './telemetry-logs/telemetry-logs.module';
+import { MinistryModule } from './ministry/ministry.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, UsersModule, CoursesModule, ScenariosModule, SimulationsModule, CatalogModule, AssessmentsModule, TemplatesModule, AdminModule, PracticeLogsModule],
+  imports: [PrismaModule, AuthModule, UsersModule, CoursesModule, ScenariosModule, SimulationsModule, CatalogModule, AssessmentsModule, TemplatesModule, AdminModule, PracticeLogsModule, TelemetryLogsModule, MinistryModule],
   controllers: [],
   providers: [],
 })
