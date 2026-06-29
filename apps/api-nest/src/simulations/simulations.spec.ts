@@ -345,3 +345,100 @@ describe('Simulations (e2e)', () => {
     });
   });
 });
+
+// ─── T021: AI Service unit tests ─────────────────────────────────────────
+
+describe('AIService (unit)', () => {
+  let aiService: any;
+
+  beforeAll(async () => {
+    // Dynamic import to test in isolation
+    const mod = await import('./ai/ai.service');
+    aiService = new mod.AIService();
+  });
+
+  describe('buildSystemPrompt', () => {
+    it('should build a prompt with all fields', () => {
+      const prompt = aiService.buildSystemPrompt({
+        base_role: 'Sos un tutor de administracion',
+        course_context: 'Curso de liquidacion de sueldos',
+        knowledge_base: 'Leyes laborales argentinas',
+        personality_traits: ['amable', 'profesional'],
+        student_history: ['Tarea 1 completada'],
+      });
+
+      expect(typeof prompt).toBe('string');
+      expect(prompt).toContain('Sos un tutor de administracion');
+      expect(prompt).toContain('Curso de liquidacion de sueldos');
+      expect(prompt).toContain('Leyes laborales argentinas');
+      expect(prompt).toContain('amable, profesional');
+      expect(prompt).toContain('Tarea 1 completada');
+    });
+
+    it('should handle empty history', () => {
+      const prompt = aiService.buildSystemPrompt({
+        base_role: 'Tutor',
+        course_context: 'Context',
+        knowledge_base: 'KB',
+        personality_traits: [],
+        student_history: [],
+      });
+
+      expect(prompt).toContain('Principiante, sin interacciones previas');
+    });
+  });
+
+  describe('sendMessageToGemini (fallback mode)', () => {
+    it('should return scripted response when API key is missing', async () => {
+      // Ensure no key is set
+      const original = process.env.GEMINI_API_KEY;
+      delete process.env.GEMINI_API_KEY;
+
+      const result = await aiService.sendMessageToGemini(
+        'Hola, como estas?',
+        'Sos un tutor',
+        [],
+      );
+
+      expect(result).toHaveProperty('response');
+      expect(result).toHaveProperty('mode', 'scripted');
+      expect(typeof result.response).toBe('string');
+      expect(result.response.length).toBeGreaterThan(0);
+
+      // Restore
+      if (original) process.env.GEMINI_API_KEY = original;
+    });
+
+    it('should detect greeting intent', async () => {
+      const original = process.env.GEMINI_API_KEY;
+      delete process.env.GEMINI_API_KEY;
+
+      const result = await aiService.sendMessageToGemini(
+        'Hola profesor',
+        'Sos un tutor',
+        [],
+      );
+
+      expect(result.mode).toBe('scripted');
+      expect(result.response.length).toBeGreaterThan(0);
+
+      if (original) process.env.GEMINI_API_KEY = original;
+    });
+
+    it('should detect problem intent', async () => {
+      const original = process.env.GEMINI_API_KEY;
+      delete process.env.GEMINI_API_KEY;
+
+      const result = await aiService.sendMessageToGemini(
+        'Hay un problema urgente con el servidor',
+        'Sos un tutor',
+        [],
+      );
+
+      expect(result.mode).toBe('scripted');
+      expect(result.response.length).toBeGreaterThan(0);
+
+      if (original) process.env.GEMINI_API_KEY = original;
+    });
+  });
+});
