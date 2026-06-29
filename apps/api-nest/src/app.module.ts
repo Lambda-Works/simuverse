@@ -6,9 +6,10 @@ import { CoursesModule } from './courses/courses.module';
 import { ScenariosModule } from './scenarios/scenarios.module';
 import { SimulationsModule } from './simulations/simulations.module';
 import { CatalogModule } from './catalog/catalog.module';
+import { AssessmentsModule } from './assessments/assessments.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, UsersModule, CoursesModule, ScenariosModule, SimulationsModule, CatalogModule],
+  imports: [PrismaModule, AuthModule, UsersModule, CoursesModule, ScenariosModule, SimulationsModule, CatalogModule, AssessmentsModule],
   controllers: [],
   providers: [],
 })
