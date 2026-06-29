@@ -442,3 +442,279 @@ describe('AIService (unit)', () => {
     });
   });
 });
+
+// ─── T022: CrisisEngine unit tests ───────────────────────────────────────
+
+describe('CrisisEngine (unit)', () => {
+  let crisisEngine: any;
+
+  beforeAll(async () => {
+    const mod = await import('./engines/crisis-engine.service');
+    crisisEngine = new mod.CrisisEngine();
+  });
+
+  beforeEach(() => {
+    // Clear all active crises
+    crisisEngine.clearAll();
+  });
+
+  describe('getOrCreateCrisis', () => {
+    it('should create a crisis event for a simulation', () => {
+      const event = crisisEngine.getOrCreateCrisis('sim-1', 'administracion');
+
+      expect(event).toHaveProperty('id');
+      expect(event).toHaveProperty('simulationId', 'sim-1');
+      expect(event).toHaveProperty('title');
+      expect(event).toHaveProperty('description');
+      expect(event).toHaveProperty('severity');
+      expect(event).toHaveProperty('options');
+      expect(event.options.length).toBeGreaterThan(0);
+      expect(event).toHaveProperty('status', 'active');
+    });
+
+    it('should return existing crisis if already active', () => {
+      const first = crisisEngine.getOrCreateCrisis('sim-1', 'administracion');
+      const second = crisisEngine.getOrCreateCrisis('sim-1', 'administracion');
+
+      expect(first.id).toBe(second.id);
+    });
+
+    it('should use custom events when provided', () => {
+      const customEvents = [
+        {
+          title: 'Custom Crisis',
+          description: 'A custom event',
+          severity: 'low',
+          options: [{ text: 'Option A', score: 80, feedback: 'Good' }],
+        },
+      ];
+
+      const event = crisisEngine.getOrCreateCrisis('sim-1', 'administracion', customEvents);
+      expect(event.title).toBe('Custom Crisis');
+    });
+
+    it('should create different crises for different simulations', () => {
+      const event1 = crisisEngine.getOrCreateCrisis('sim-1', 'administracion');
+      const event2 = crisisEngine.getOrCreateCrisis('sim-2', 'rrhh');
+
+      expect(event1.id).not.toBe(event2.id);
+    });
+  });
+
+  describe('resolveCrisis', () => {
+    it('should resolve a crisis with the chosen option', () => {
+      crisisEngine.getOrCreateCrisis('sim-1', 'informatica');
+      const resolved = crisisEngine.resolveCrisis('sim-1', 'a');
+
+      expect(resolved).not.toBeNull();
+      expect(resolved.status).toBe('resolved');
+      expect(resolved.selectedOptionId).toBe('a');
+      expect(typeof resolved.score).toBe('number');
+      expect(resolved).toHaveProperty('feedback');
+      expect(resolved).toHaveProperty('resolvedAt');
+    });
+
+    it('should return null for non-existent simulation', () => {
+      const result = crisisEngine.resolveCrisis('nonexistent', 'a');
+      expect(result).toBeNull();
+    });
+
+    it('should return event for already resolved crisis', () => {
+      crisisEngine.getOrCreateCrisis('sim-1', 'emprendimiento');
+      crisisEngine.resolveCrisis('sim-1', 'a');
+      const second = crisisEngine.resolveCrisis('sim-1', 'b');
+      // Express returns the existing event when already resolved
+      expect(second).not.toBeNull();
+      expect(second!.status).toBe('resolved');
+    });
+  });
+
+  describe('clearCrisis', () => {
+    it('should clear crisis state for a simulation', () => {
+      crisisEngine.getOrCreateCrisis('sim-1', 'rrhh');
+      crisisEngine.clearCrisis('sim-1');
+
+      // Should create a new one
+      const newEvent = crisisEngine.getOrCreateCrisis('sim-1', 'rrhh');
+      expect(newEvent).toHaveProperty('status', 'active');
+    });
+  });
+});
+
+// ─── T023: RulesEngine unit tests ────────────────────────────────────────
+
+describe('RulesEngine (unit)', () => {
+  let rulesEngine: any;
+
+  beforeAll(async () => {
+    const mod = await import('./engines/rules-engine.service');
+    rulesEngine = new mod.RulesEngine();
+  });
+
+  describe('validate', () => {
+    it('should validate salary calculation for administracion', async () => {
+      const result = await rulesEngine.validate('administracion', 'socialCharges', {
+        base_salary: 500000,
+      });
+
+      expect(result).toHaveProperty('valid', true);
+    });
+
+    it('should reject invalid salary for administracion', async () => {
+      const result = await rulesEngine.validate('administracion', 'socialCharges', {
+        base_salary: 0,
+      });
+
+      expect(result).toHaveProperty('valid', false);
+      expect(result).toHaveProperty('error');
+    });
+
+    it('should validate communication for rrhh', async () => {
+      const result = await rulesEngine.validate('rrhh', 'communication', {
+        text: 'Además, considerando la situación, propongo una solución.',
+      });
+
+      expect(result).toHaveProperty('score');
+      expect(typeof result.score).toBe('number');
+    });
+
+    it('should validate python script for informatica', async () => {
+      const result = await rulesEngine.validate('informatica', 'pythonScript', {
+        code: 'def calculate():\n  return 42',
+      });
+
+      expect(result).toHaveProperty('valid');
+    });
+
+    it('should return error for unsupported family', async () => {
+      const result = await rulesEngine.validate('unknown', 'any', {});
+      expect(result).toHaveProperty('valid', false);
+    });
+  });
+
+  describe('execute', () => {
+    it('should execute salary rules for administracion', async () => {
+      const result = await rulesEngine.execute('administracion', 'socialCharges', {
+        base_salary: 500000,
+      });
+
+      expect(typeof result).toBe('number');
+      expect(result).toBeGreaterThan(0);
+    });
+
+    it('should throw for unsupported family execution', async () => {
+      await expect(rulesEngine.execute('rrhh', 'any', {})).rejects.toThrow();
+    });
+  });
+});
+
+// ─── T024: TelemetryLog integrity hash chain tests ──────────────────────
+
+describe('TelemetryService (unit)', () => {
+  let telemetryService: any;
+
+  beforeAll(async () => {
+    const mod = await import('./telemetry.service');
+    telemetryService = new mod.TelemetryService();
+  });
+
+  describe('computeIntegrityHash', () => {
+    it('should compute SHA-256 hash for a telemetry entry', () => {
+      const hash = telemetryService.computeIntegrityHash({
+        simulation_id: 'sim-1',
+        action: 'test_action',
+        action_type: 'user_input',
+        timestamp: 1234567890,
+        previous_hash: null,
+      });
+
+      expect(typeof hash).toBe('string');
+      expect(hash.length).toBe(64); // SHA-256 hex digest
+    });
+
+    it('should produce different hashes for different data', () => {
+      const hash1 = telemetryService.computeIntegrityHash({
+        simulation_id: 'sim-1',
+        action: 'action1',
+        action_type: 'user_input',
+        timestamp: 1234567890,
+        previous_hash: null,
+      });
+
+      const hash2 = telemetryService.computeIntegrityHash({
+        simulation_id: 'sim-1',
+        action: 'action2',
+        action_type: 'user_input',
+        timestamp: 1234567890,
+        previous_hash: null,
+      });
+
+      expect(hash1).not.toBe(hash2);
+    });
+
+    it('should include previous_hash in computation for chain integrity', () => {
+      const hash1 = telemetryService.computeIntegrityHash({
+        simulation_id: 'sim-1',
+        action: 'action1',
+        action_type: 'user_input',
+        timestamp: 1234567890,
+        previous_hash: null,
+      });
+
+      const hash2 = telemetryService.computeIntegrityHash({
+        simulation_id: 'sim-1',
+        action: 'action1',
+        action_type: 'user_input',
+        timestamp: 1234567890,
+        previous_hash: hash1,
+      });
+
+      // Same data but different previous_hash → different hash
+      expect(hash1).not.toBe(hash2);
+    });
+  });
+
+  describe('verifyChain', () => {
+    it('should verify a valid chain of hashes', () => {
+      const entries = [
+        { simulation_id: 'sim-1', action: 'a1', action_type: 'user_input', timestamp: 100 },
+        { simulation_id: 'sim-1', action: 'a2', action_type: 'system_action', timestamp: 200 },
+        { simulation_id: 'sim-1', action: 'a3', action_type: 'ai_response', timestamp: 300 },
+      ];
+
+      // Build chain iteratively
+      const chain: any[] = [];
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        const prevHash = i === 0 ? null : chain[i - 1].integrity_hash;
+        const hash = telemetryService.computeIntegrityHash({ ...entry, previous_hash: prevHash });
+        chain.push({ ...entry, integrity_hash: hash, previous_hash: prevHash });
+      }
+
+      const valid = telemetryService.verifyChain(chain);
+      expect(valid).toBe(true);
+    });
+
+    it('should detect tampered chain', () => {
+      const entries = [
+        { simulation_id: 'sim-1', action: 'a1', action_type: 'user_input', timestamp: 100 },
+        { simulation_id: 'sim-1', action: 'a2', action_type: 'system_action', timestamp: 200 },
+      ];
+
+      // Build chain iteratively
+      const chain: any[] = [];
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        const prevHash = i === 0 ? null : chain[i - 1].integrity_hash;
+        const hash = telemetryService.computeIntegrityHash({ ...entry, previous_hash: prevHash });
+        chain.push({ ...entry, integrity_hash: hash, previous_hash: prevHash });
+      }
+
+      // Tamper with second entry's hash
+      chain[1].integrity_hash = 'tampered';
+
+      const valid = telemetryService.verifyChain(chain);
+      expect(valid).toBe(false);
+    });
+  });
+});
