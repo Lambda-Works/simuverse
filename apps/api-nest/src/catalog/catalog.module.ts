@@ -8,9 +8,32 @@ import { AssignmentsService } from './assignments.service';
 import { CatalogQueryService } from './catalog-query.service';
 import { DocumentsController } from './documents.controller';
 import { AssignmentsController } from './assignments.controller';
+import { SimulatedCompaniesController } from './simulated-companies.controller';
+import { StudentAssignmentsController } from './student-assignments.controller';
+import {
+  FoundationConfigController,
+  EndorsersController,
+  CourseEndorsersController,
+  LegajoController,
+  SimulationSessionsController,
+  CertificatesController,
+} from './missing-controllers';
 
 @Module({
-  controllers: [CatalogController, DocumentsController, AssignmentsController, CatalogQueryController],
+  controllers: [
+    CatalogController,
+    DocumentsController,
+    AssignmentsController,
+    CatalogQueryController,
+    SimulatedCompaniesController,
+    StudentAssignmentsController,
+    FoundationConfigController,
+    EndorsersController,
+    CourseEndorsersController,
+    LegajoController,
+    SimulationSessionsController,
+    CertificatesController,
+  ],
   providers: [CategoriesService, TechSheetsService, DocumentsService, AssignmentsService, CatalogQueryService],
   exports: [CategoriesService, TechSheetsService, DocumentsService, AssignmentsService, CatalogQueryService],
 })

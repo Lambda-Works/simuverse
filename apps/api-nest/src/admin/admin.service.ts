@@ -162,4 +162,59 @@ export class AdminService {
     await this.prisma.systemFunctionality.delete({ where: { id } });
     return { message: 'Functionality deleted successfully' };
   }
+
+  // ── Role Permissions (ON CONFLICT upsert) ─────────────────────────
+
+  async getRolePermissions(roleName: string) {
+    return (this.prisma.rolePermission as any).findMany({
+      where: { role_name: roleName },
+      include: { functionality: true },
+    });
+  }
+
+  async upsertRolePermission(data: {
+    role_name: string;
+    functionality_id: number;
+    enabled: boolean;
+  }) {
+    return this.prisma.rolePermission.upsert({
+      where: {
+        role_name_functionality_id: {
+          role_name: data.role_name,
+          functionality_id: data.functionality_id,
+        },
+      },
+      update: { enabled: data.enabled },
+      create: {
+        role_name: data.role_name,
+        functionality_id: data.functionality_id,
+        enabled: data.enabled,
+      },
+    });
+  }
+
+  async bulkUpsertRolePermissions(
+    roleName: string,
+    permissions: Array<{ functionality_id: number; enabled: boolean }>,
+  ) {
+    const results: any[] = [];
+    for (const perm of permissions) {
+      const result = await this.prisma.rolePermission.upsert({
+        where: {
+          role_name_functionality_id: {
+            role_name: roleName,
+            functionality_id: perm.functionality_id,
+          },
+        },
+        update: { enabled: perm.enabled },
+        create: {
+          role_name: roleName,
+          functionality_id: perm.functionality_id,
+          enabled: perm.enabled,
+        },
+      });
+      results.push(result);
+    }
+    return results;
+  }
 }

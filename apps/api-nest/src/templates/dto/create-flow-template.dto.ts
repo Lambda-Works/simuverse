@@ -29,6 +29,10 @@ export class CreateFlowTemplateDto {
   @IsString()
   version?: string;
 
+  @IsOptional()
+  @IsString()
+  created_by?: string;
+
   @IsObject()
   template_data: any;
 }

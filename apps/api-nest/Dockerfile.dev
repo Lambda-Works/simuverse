@@ -11,4 +11,4 @@ COPY . .
 WORKDIR /app/apps/api-nest
 
 EXPOSE 3002
-CMD ["npm", "run", "start:dev"]
+CMD sh -c "rm -f tsconfig.tsbuildinfo && npm run build && npm run start:prod"

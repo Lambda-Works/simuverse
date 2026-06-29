@@ -245,4 +245,65 @@ describe('Admin (e2e)', () => {
       });
     });
   });
+
+  // ─── Role Permissions ───────────────────────────────────────────────────
+
+  describe('Role Permissions', () => {
+    describe('GET /api/admin/roles/:roleName/permissions', () => {
+      it('should return permissions for a role', async () => {
+        prismaMock.rolePermission = prismaMock.rolePermission || {};
+        prismaMock.rolePermission.findMany = jest.fn().mockResolvedValue([
+          { id: 1, role_name: 'teacher', functionality_id: 1, enabled: true, functionality: { id: 1, name: 'View Courses' } },
+        ]);
+
+        const res = await request(app.getHttpServer())
+          .get('/api/admin/roles/teacher/permissions')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+
+        expect(Array.isArray(res.body)).toBe(true);
+      });
+    });
+
+    describe('POST /api/admin/roles/:roleName/permissions', () => {
+      it('should upsert a role permission (ON CONFLICT)', async () => {
+        prismaMock.rolePermission = prismaMock.rolePermission || {};
+        prismaMock.rolePermission.upsert = jest.fn().mockResolvedValue({
+          id: 1, role_name: 'teacher', functionality_id: 1, enabled: true,
+        });
+
+        const res = await request(app.getHttpServer())
+          .post('/api/admin/roles/teacher/permissions')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ functionality_id: 1, enabled: true })
+          .expect(201);
+
+        expect(res.body).toHaveProperty('role_name', 'teacher');
+        expect(res.body).toHaveProperty('enabled', true);
+      });
+    });
+
+    describe('POST /api/admin/roles/:roleName/permissions/bulk', () => {
+      it('should bulk upsert role permissions', async () => {
+        prismaMock.rolePermission = prismaMock.rolePermission || {};
+        prismaMock.rolePermission.upsert = jest.fn()
+          .mockResolvedValueOnce({ id: 1, role_name: 'teacher', functionality_id: 1, enabled: true })
+          .mockResolvedValueOnce({ id: 2, role_name: 'teacher', functionality_id: 2, enabled: false });
+
+        const res = await request(app.getHttpServer())
+          .post('/api/admin/roles/teacher/permissions/bulk')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            permissions: [
+              { functionality_id: 1, enabled: true },
+              { functionality_id: 2, enabled: false },
+            ],
+          })
+          .expect(201);
+
+        expect(Array.isArray(res.body)).toBe(true);
+        expect(res.body).toHaveLength(2);
+      });
+    });
+  });
 });

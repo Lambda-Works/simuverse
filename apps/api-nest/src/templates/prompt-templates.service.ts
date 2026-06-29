@@ -72,7 +72,7 @@ export class PromptTemplatesService {
         category: original.category,
         base_role: original.base_role,
         course_context: original.course_context,
-        personality_traits: original.personality_traits,
+        personality_traits: original.personality_traits as any,
         knowledge_base_prompt: original.knowledge_base_prompt,
         is_active: true,
         created_by: createdBy,

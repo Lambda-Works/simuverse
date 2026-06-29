@@ -19,7 +19,7 @@ import { CreateTechSheetDto } from './dto/create-tech-sheet.dto';
 import { UpdateTechSheetDto } from './dto/update-tech-sheet.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
-@Controller('catalog')
+@Controller()
 @UseGuards(JwtAuthGuard)
 export class CatalogController {
   constructor(

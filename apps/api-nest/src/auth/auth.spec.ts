@@ -6,7 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 describe('Auth (e2e)', () => {
   let app: INestApplication;
-  let prismaMock: Record<string, jest.Mock>;
+  let prismaMock: any;
 
   beforeAll(async () => {
     prismaMock = {

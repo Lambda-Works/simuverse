@@ -75,7 +75,7 @@ describe('Assessments (e2e)', () => {
 
     beforeAll(async () => {
       const mod = await import('./assessments.service');
-      service = new mod.AssessmentsService();
+      service = new mod.AssessmentsService(null as any);
     });
 
     describe('scoreKPIs', () => {

@@ -78,8 +78,8 @@ export class AuthService {
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
 
     return {
-      access_token: accessToken,
-      refresh_token: refreshToken,
+      token: accessToken,
+      refreshToken: refreshToken,
       user: { id: userId, email, role },
     };
   }

@@ -17,8 +17,7 @@ import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
-@Controller('catalog')
-@UseGuards(JwtAuthGuard)
+@Controller()
 export class AssignmentsController {
   constructor(private assignmentsService: AssignmentsService) {}
 

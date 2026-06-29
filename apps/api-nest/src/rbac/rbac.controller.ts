@@ -22,7 +22,7 @@ import {
 } from './dto/rbac.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
-@Controller('rbac')
+@Controller()
 @UseGuards(JwtAuthGuard)
 export class RbacController {
   constructor(private rbacService: RbacService) {}

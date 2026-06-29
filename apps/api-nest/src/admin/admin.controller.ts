@@ -13,11 +13,28 @@ import {
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { CoursesService } from '../courses/courses.service';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard)
 export class AdminController {
-  constructor(private adminService: AdminService) {}
+  constructor(
+    private adminService: AdminService,
+    private coursesService: CoursesService,
+  ) {}
+
+  // ── Courses (admin view) ────────────────────────────────────────
+
+  @Get('courses')
+  async getCourses() {
+    return this.coursesService.findAll();
+  }
+
+  @Delete('courses/:id')
+  @HttpCode(HttpStatus.OK)
+  async deleteCourse(@Param('id') id: string) {
+    return this.coursesService.remove(id);
+  }
 
   // ── Teacher Permissions ────────────────────────────────────────
 
@@ -94,5 +111,32 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async removeFunctionality(@Param('id', ParseIntPipe) id: number) {
     return this.adminService.removeFunctionality(id);
+  }
+
+  // ── Role Permissions ──────────────────────────────────────────────
+
+  @Get('roles/:roleName/permissions')
+  async getRolePermissions(@Param('roleName') roleName: string) {
+    return this.adminService.getRolePermissions(roleName);
+  }
+
+  @Post('roles/:roleName/permissions')
+  async upsertRolePermission(
+    @Param('roleName') roleName: string,
+    @Body() body: { functionality_id: number; enabled: boolean },
+  ) {
+    return this.adminService.upsertRolePermission({
+      role_name: roleName,
+      functionality_id: body.functionality_id,
+      enabled: body.enabled,
+    });
+  }
+
+  @Post('roles/:roleName/permissions/bulk')
+  async bulkUpsertRolePermissions(
+    @Param('roleName') roleName: string,
+    @Body() body: { permissions: Array<{ functionality_id: number; enabled: boolean }> },
+  ) {
+    return this.adminService.bulkUpsertRolePermissions(roleName, body.permissions);
   }
 }

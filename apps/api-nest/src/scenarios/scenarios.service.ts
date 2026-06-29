@@ -122,6 +122,6 @@ export class ScenariosService {
       is_active: true,
     };
 
-    return this.create(clonedData);
+    return this.create(clonedData as any);
   }
 }

@@ -91,7 +91,7 @@ export class MinistryService {
     if (!requirement) throw new Error('Requirement not found');
 
     if (dto.extracted_kpis && Array.isArray(dto.extracted_kpis)) {
-      const savedKpis = [];
+      const savedKpis: any[] = [];
       for (const kpiData of dto.extracted_kpis) {
         const kpi = await this.prisma.kPI.create({
           data: {
@@ -183,7 +183,7 @@ Document text: ${requirement.raw_text || 'No text available'}`;
       }
 
       const extractedKpis = JSON.parse(jsonMatch[0]);
-      const savedKpis = [];
+      const savedKpis: any[] = [];
 
       for (const kpiData of extractedKpis) {
         const kpi = await this.prisma.kPI.create({
@@ -252,12 +252,12 @@ Document text: ${requirement.raw_text || 'No text available'}`;
         weight: dto.weight || 1.0,
         target_value: dto.target_value || 100,
         minimum_pass_value: dto.minimum_pass_value || 80,
-        thresholds: dto.thresholds || { excellent: 95, good: 85, acceptable: 75, poor: 0 },
+        thresholds: (dto.thresholds || { excellent: 95, good: 85, acceptable: 75, poor: 0 }) as any,
         prompt_instruction: dto.prompt_instruction,
         trigger_event: dto.trigger_event || 'generic',
         success_criteria: dto.success_criteria,
         is_active: true,
-      },
+      } as any,
     });
     return this.serialize(created);
   }

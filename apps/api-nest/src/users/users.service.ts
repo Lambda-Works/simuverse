@@ -14,7 +14,7 @@ export class UsersService {
   }
 
   async create(data: { email: string; password_hash: string; name: string; role?: string }) {
-    return this.prisma.user.create({ data });
+    return this.prisma.user.create({ data: data as any });
   }
 
   async findAll(role?: string) {
@@ -54,7 +54,7 @@ export class UsersService {
     try {
       return await this.prisma.user.update({
         where: { id },
-        data,
+        data: data as any,
         select: {
           id: true,
           name: true,

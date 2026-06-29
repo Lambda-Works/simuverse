@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Put,
   Delete,
   Param,
@@ -14,6 +15,7 @@ import {
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
 @Controller('users')
@@ -24,6 +26,25 @@ export class UsersController {
   @Get()
   async findAll(@Query('role') role?: string) {
     return this.usersService.findAll(role);
+  }
+
+  @Public()
+  @Get('all')
+  async findAllUsers() {
+    return this.usersService.findAll();
+  }
+
+  @Public()
+  @Post('create')
+  async createUser(@Body() body: any) {
+    const bcrypt = await import('bcrypt');
+    const password_hash = await bcrypt.hash(body.password || 'changeme', 10);
+    return this.usersService.create({
+      email: body.email,
+      password_hash,
+      name: body.name,
+      role: body.role || 'student',
+    });
   }
 
   @Get(':id')

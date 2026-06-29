@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -147,7 +148,7 @@ enum AssignmentStatus {
 // ── Models ─────────────────────────────────────────────────────────
 
 model User {
-  id            String    @id @default(uuid()) @db.Uuid
+  id            String    @id @default(uuid()) @db.VarChar(36)
   email         String    @unique @db.VarChar(255)
   password_hash String    @db.VarChar(255)
   name          String    @db.VarChar(255)
@@ -171,8 +172,8 @@ model User {
 }
 
 model Course {
-  id                   String    @id @default(uuid()) @db.Uuid
-  course_id            String    @unique @db.VarChar(100)
+  id                   String    @id @default(uuid()) @db.VarChar(36)
+  course_id            String    @unique @db.VarChar(36)
   title                String    @db.VarChar(255)
   description          String?   @db.Text
   category             String    @db.VarChar(100)
@@ -205,9 +206,9 @@ model Course {
 }
 
 model Simulation {
-  id                 String             @id @default(uuid()) @db.Uuid
-  student_id         String             @db.Uuid
-  course_id          String             @db.Uuid
+  id                 String             @id @default(uuid()) @db.VarChar(36)
+  student_id         String             @db.VarChar(36)
+  course_id          String             @db.VarChar(36)
   status             SimulationStatus   @default(active)
   current_state      Json?
   progress_percentage Int               @default(0)
@@ -230,8 +231,8 @@ model Simulation {
 }
 
 model Scenario {
-  id                String     @id @default(uuid()) @db.Uuid
-  course_id         String     @db.Uuid
+  id                String     @id @default(uuid()) @db.VarChar(36)
+  course_id         String     @db.VarChar(36)
   title             String     @db.VarChar(255)
   description       String?    @db.Text
   scenario_type     String?    @db.VarChar(100)
@@ -252,10 +253,10 @@ model Scenario {
 }
 
 model SimulationInstance {
-  id                  String                   @id @default(uuid()) @db.Uuid
-  student_id          String                   @db.Uuid
-  scenario_id         String                   @db.Uuid
-  course_id           String                   @db.Uuid
+  id                  String                   @id @default(uuid()) @db.VarChar(36)
+  student_id          String                   @db.VarChar(36)
+  scenario_id         String                   @db.VarChar(36)
+  course_id           String                   @db.VarChar(36)
   status              SimulationInstanceStatus @default(not_started)
   progress_percentage Int                      @default(0)
   score               Float?
@@ -275,10 +276,10 @@ model SimulationInstance {
 }
 
 model Assessment {
-  id                String   @id @default(uuid()) @db.Uuid
-  simulation_id     String   @db.Uuid
-  user_id           String   @db.Uuid
-  course_id         String   @db.Uuid
+  id                String   @id @default(uuid()) @db.VarChar(36)
+  simulation_id     String   @db.VarChar(36)
+  user_id           String   @db.VarChar(36)
+  course_id         String   @db.VarChar(36)
   created_at        DateTime @default(now())
   completed_at      DateTime?
   kpis              Json
@@ -299,10 +300,10 @@ model Assessment {
 }
 
 model PracticeLogs {
-  id                     String   @id @default(uuid()) @db.Uuid
-  student_id             String   @db.Uuid
-  course_id              String   @db.Uuid
-  simulation_instance_id String?  @db.Uuid
+  id                     String   @id @default(uuid()) @db.VarChar(36)
+  student_id             String   @db.VarChar(36)
+  course_id              String   @db.VarChar(36)
+  simulation_instance_id String?  @db.VarChar(36)
   action_type            ActionType
   description            String   @db.Text
   metadata               Json
@@ -325,10 +326,10 @@ model PracticeLogs {
 }
 
 model TelemetryLog {
-  id              String              @id @default(uuid()) @db.Uuid
-  simulation_id   String              @db.Uuid
-  user_id         String              @db.Uuid
-  course_id       String              @db.Uuid
+  id              String              @id @default(uuid()) @db.VarChar(36)
+  simulation_id   String              @db.VarChar(36)
+  user_id         String              @db.VarChar(36)
+  course_id       String              @db.VarChar(36)
   action          String              @db.VarChar(255)
   action_type     TelemetryActionType
   created_at      DateTime            @default(now())
@@ -410,9 +411,9 @@ model SimulationAssignment {
 }
 
 model MinistryRequirement {
-  id                String            @id @default(uuid()) @db.Uuid
-  course_id         String            @db.Uuid
-  uploaded_by_id    String?           @db.Uuid
+  id                String            @id @default(uuid()) @db.VarChar(36)
+  course_id         String            @db.VarChar(36)
+  uploaded_by_id    String?           @db.VarChar(36)
   file_name         String            @db.VarChar(255)
   file_type         FileType
   file_size_bytes   BigInt
@@ -440,9 +441,9 @@ model MinistryRequirement {
 }
 
 model KPI {
-  id                      String   @id @default(uuid()) @db.Uuid
-  course_id               String   @db.Uuid
-  ministry_requirement_id String   @db.Uuid
+  id                      String   @id @default(uuid()) @db.VarChar(36)
+  course_id               String   @db.VarChar(36)
+  ministry_requirement_id String   @db.VarChar(36)
   name                    String   @db.VarChar(255)
   description             String   @db.Text
   category                String   @db.VarChar(50)
@@ -469,10 +470,10 @@ model KPI {
 }
 
 model Task {
-  id                      String   @id @default(uuid()) @db.Uuid
-  course_id               String   @db.Uuid
-  kpi_id                  String   @db.Uuid
-  scenario_id             String?  @db.Uuid
+  id                      String   @id @default(uuid()) @db.VarChar(36)
+  course_id               String   @db.VarChar(36)
+  kpi_id                  String   @db.VarChar(36)
+  scenario_id             String?  @db.VarChar(36)
   title                   String   @db.VarChar(255)
   description             String   @db.Text
   type                    TaskType
@@ -499,10 +500,10 @@ model Task {
 }
 
 model Notification {
-  id                     String           @id @default(uuid()) @db.Uuid
-  recipient_id           String           @db.Uuid
-  actor_id               String?          @db.Uuid
-  simulation_instance_id String?          @db.Uuid
+  id                     String           @id @default(uuid()) @db.VarChar(36)
+  recipient_id           String           @db.VarChar(36)
+  actor_id               String?          @db.VarChar(36)
+  simulation_instance_id String?          @db.VarChar(36)
   type                   NotificationType
   title                  String           @db.VarChar(255)
   content                String           @db.Text
@@ -524,10 +525,10 @@ model Notification {
 }
 
 model FileUpload {
-  id                      String           @id @default(uuid()) @db.Uuid
-  uploaded_by_id          String           @db.Uuid
-  course_id               String?          @db.Uuid
-  ministry_requirement_id String?          @db.Uuid
+  id                      String           @id @default(uuid()) @db.VarChar(36)
+  uploaded_by_id          String           @db.VarChar(36)
+  course_id               String?          @db.VarChar(36)
+  ministry_requirement_id String?          @db.VarChar(36)
   file_name               String           @db.VarChar(255)
   file_type               String           @db.VarChar(50)
   upload_type             FileUploadType
@@ -550,9 +551,9 @@ model FileUpload {
 }
 
 model CourseModule {
-  id         String   @id @default(uuid()) @db.Uuid
-  course_id  String   @db.Uuid
-  module_id  String   @db.Uuid
+  id         String   @id @default(uuid()) @db.VarChar(36)
+  course_id  String   @db.VarChar(36)
+  module_id  String   @db.VarChar(36)
   order      Int      @default(0)
   created_at DateTime @default(now())
 
@@ -565,7 +566,7 @@ model CourseModule {
 }
 
 model Module {
-  id         String     @id @default(uuid()) @db.Uuid
+  id         String     @id @default(uuid()) @db.VarChar(36)
   name       String     @db.VarChar(255)
   type       ModuleType
   config     Json?
@@ -578,7 +579,7 @@ model Module {
 }
 
 model CourseConfig {
-  id                     String               @id @default(uuid()) @db.Uuid
+  id                     String               @id @default(uuid()) @db.VarChar(36)
   course_id              String               @unique @db.VarChar(36)
   config_data            Json
   base_role              String?              @db.Text

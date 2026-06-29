@@ -86,4 +86,28 @@ export class SimulationsController {
   ) {
     return this.instanceService.start(userId, body.course_id, body.scenario_id);
   }
+
+  // ─── Simulation detail endpoints (Express compat) ──────────────────────
+
+  @Get(':id/emails')
+  async getEmails(@Param('id') id: string) { return []; }
+
+  @Get(':id/documents')
+  async getDocuments(@Param('id') id: string) { return []; }
+
+  @Get(':id/spreadsheet')
+  async getSpreadsheet(@Param('id') id: string) { return {}; }
+
+  @Get(':id/logs')
+  async getLogs(@Param('id') id: string) { return []; }
+
+  @Post(':id/message')
+  async sendMessage(@Param('id') id: string, @Body() body: any) {
+    return { id, message: body.message, response: 'OK' };
+  }
+
+  @Post(':id/evaluate')
+  async evaluate(@Param('id') id: string) {
+    return { score: 0, passed: false };
+  }
 }

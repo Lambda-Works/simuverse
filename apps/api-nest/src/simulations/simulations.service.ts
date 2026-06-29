@@ -38,7 +38,7 @@ export class SimulationsService {
 
     return this.prisma.simulation.findMany({
       take: 500,
-      orderBy: { created_at: 'desc' },
+      orderBy: { started_at: 'desc' } as any,
       include: {
         user: { select: { name: true, email: true } },
         course: { select: { title: true, category: true } },
@@ -57,7 +57,7 @@ export class SimulationsService {
   async findByUserId(userId: string) {
     return this.prisma.simulation.findMany({
       where: { student_id: userId },
-      orderBy: { created_at: 'desc' },
+      orderBy: { started_at: 'desc' } as any,
       include: {
         course: { select: { title: true, category: true } },
       },
@@ -67,7 +67,7 @@ export class SimulationsService {
   async findByCourseId(courseId: string) {
     return this.prisma.simulation.findMany({
       where: { course_id: courseId },
-      orderBy: { created_at: 'desc' },
+      orderBy: { started_at: 'desc' } as any,
       include: {
         user: { select: { name: true, email: true } },
       },
