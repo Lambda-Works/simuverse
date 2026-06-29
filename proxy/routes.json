@@ -1,4 +1,4 @@
 {
-  "defaultTarget": "http://api-express:5000",
+  "defaultTarget": "http://api-nest:5001",
   "routes": []
 }

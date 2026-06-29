@@ -1,29 +1,4 @@
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: simuverse-mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-SimuVerseRoot2024secret}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-simuverse}
-      MYSQL_USER: ${MYSQL_USER:-simuverse}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-SimuVerse2024secret}
-    ports:
-      - "${PUERTO_MYSQL:-3309}:3306"
-    volumes:
-      - simuverse_mysql_data:/var/lib/mysql
-    command: >
-      --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pSimuVerseRoot2024secret"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-      start_period: 30s
-    networks:
-      - app-network
-
   proxy:
     build:
       context: .
@@ -40,34 +15,7 @@ services:
       - /app/node_modules
       - /app/proxy/node_modules
     depends_on:
-      - api-express
-    networks:
-      - app-network
-
-  api-express:
-    build:
-      context: .
-      dockerfile: apps/api-express/Dockerfile.dev
-    container_name: simuverse-api-express
-    restart: unless-stopped
-    environment:
-      NODE_ENV: development
-      PORT: "5000"
-      DB_HOST: mysql
-      DB_PORT: "3306"
-      DB_USER: ${MYSQL_USER:-simuverse}
-      DB_PASSWORD: ${MYSQL_PASSWORD:-SimuVerse2024secret}
-      DB_NAME: ${MYSQL_DATABASE:-simuverse}
-      JWT_SECRET: ${JWT_SECRET:-dev-secret}
-    ports:
-      - "${PUERTO_BACKEND:-5001}:5000"
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/apps/api-express/node_modules
-    depends_on:
-      mysql:
-        condition: service_healthy
+      - api-nest
     networks:
       - app-network
 
@@ -136,8 +84,6 @@ services:
       - app-network
 
 volumes:
-  simuverse_mysql_data:
-    name: simuverse_mysql_data
   simuverse_pg_data:
     name: simuverse_pg_data
 
