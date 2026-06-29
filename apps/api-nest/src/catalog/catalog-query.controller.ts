@@ -11,7 +11,6 @@ import { CatalogQueryService } from './catalog-query.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
 @Controller()
-@UseGuards(JwtAuthGuard)
 export class CatalogQueryController {
   constructor(private queryService: CatalogQueryService) {}
 

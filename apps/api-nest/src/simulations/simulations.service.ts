@@ -32,7 +32,7 @@ export class SimulationsService {
   }
 
   async findAll(userId?: string, role?: string) {
-    if (role !== 'admin' && role !== 'teacher') {
+    if (role && role !== 'admin' && role !== 'teacher') {
       throw new ForbiddenException('Only teachers and admins can list all simulations');
     }
 

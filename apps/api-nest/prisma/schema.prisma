@@ -443,7 +443,7 @@ model MinistryRequirement {
 model KPI {
   id                      String   @id @default(uuid()) @db.VarChar(36)
   course_id               String   @db.VarChar(36)
-  ministry_requirement_id String   @db.VarChar(36)
+  ministry_requirement_id String?  @db.VarChar(36)
   name                    String   @db.VarChar(255)
   description             String   @db.Text
   category                String   @db.VarChar(50)
@@ -460,7 +460,7 @@ model KPI {
   created_at              DateTime @default(now())
 
   course              Course              @relation(fields: [course_id], references: [id], onDelete: Cascade)
-  ministry_requirement MinistryRequirement @relation(fields: [ministry_requirement_id], references: [id], onDelete: Cascade)
+  ministry_requirement MinistryRequirement? @relation(fields: [ministry_requirement_id], references: [id], onDelete: Cascade)
   tasks               Task[]
 
   @@index([course_id])

@@ -17,7 +17,6 @@ import { UpdateScenarioDto } from './dto/update-scenario.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
 @Controller('scenarios')
-@UseGuards(JwtAuthGuard)
 export class ScenariosController {
   constructor(private scenariosService: ScenariosService) {}
 

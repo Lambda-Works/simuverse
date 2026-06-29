@@ -19,7 +19,6 @@ import { UpdateDocumentDto } from './dto/update-document.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
 @Controller()
-@UseGuards(JwtAuthGuard)
 export class DocumentsController {
   constructor(private documentsService: DocumentsService) {}
 

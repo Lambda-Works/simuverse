@@ -16,7 +16,6 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('simulations')
-@UseGuards(JwtAuthGuard)
 export class SimulationsController {
   constructor(
     private simulationsService: SimulationsService,
@@ -34,8 +33,8 @@ export class SimulationsController {
   }
 
   @Get()
-  async findAll(@CurrentUser() user: any) {
-    return this.simulationsService.findAll(user.sub, user.role);
+  async findAll(@CurrentUser() user?: any) {
+    return this.simulationsService.findAll(user?.sub, user?.role);
   }
 
   @Get('user/:userId')
