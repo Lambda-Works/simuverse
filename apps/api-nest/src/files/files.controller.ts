@@ -1,0 +1,85 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  Res,
+  HttpCode,
+  HttpStatus,
+  StreamableFile,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
+import { createReadStream } from 'fs';
+import { FilesService } from './files.service';
+import { UpdateFileDto } from './dto/file.dto';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+
+@Controller('files')
+@UseGuards(JwtAuthGuard)
+export class FilesController {
+  constructor(private filesService: FilesService) {}
+
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file'))
+  async upload(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('uploaded_by_id') uploaded_by_id: string,
+    @Body('upload_type') upload_type: string,
+    @Body('course_id') course_id?: string,
+    @Body('ministry_requirement_id') ministry_requirement_id?: string,
+    @Body('description') description?: string,
+  ) {
+    return this.filesService.upload(file, {
+      uploaded_by_id,
+      upload_type,
+      course_id,
+      ministry_requirement_id,
+      description,
+    });
+  }
+
+  @Get()
+  async findAll(
+    @Query('uploaded_by_id') uploaded_by_id?: string,
+    @Query('course_id') course_id?: string,
+  ) {
+    return this.filesService.findAll({ uploaded_by_id, course_id });
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    return this.filesService.findOne(id);
+  }
+
+  @Get(':id/download')
+  async download(@Param('id') id: string, @Res() res: Response) {
+    const { filePath, fileName } = await this.filesService.getFilePath(id);
+    const { readFileSync } = require('fs');
+    const fileBuffer = readFileSync(filePath);
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.end(fileBuffer);
+  }
+
+  @Put(':id')
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateFileDto,
+  ) {
+    return this.filesService.update(id, dto);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  async remove(@Param('id') id: string) {
+    return this.filesService.remove(id);
+  }
+}

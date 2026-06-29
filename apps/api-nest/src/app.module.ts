@@ -14,9 +14,10 @@ import { TelemetryLogsModule } from './telemetry-logs/telemetry-logs.module';
 import { MinistryModule } from './ministry/ministry.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { RbacModule } from './rbac/rbac.module';
+import { FilesModule } from './files/files.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, UsersModule, CoursesModule, ScenariosModule, SimulationsModule, CatalogModule, AssessmentsModule, TemplatesModule, AdminModule, PracticeLogsModule, TelemetryLogsModule, MinistryModule, NotificationsModule, RbacModule],
+  imports: [PrismaModule, AuthModule, UsersModule, CoursesModule, ScenariosModule, SimulationsModule, CatalogModule, AssessmentsModule, TemplatesModule, AdminModule, PracticeLogsModule, TelemetryLogsModule, MinistryModule, NotificationsModule, RbacModule, FilesModule],
   controllers: [],
   providers: [],
 })
