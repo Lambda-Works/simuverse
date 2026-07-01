@@ -4,6 +4,7 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY apps/api-nest/package.json ./apps/api-nest/
+RUN apk add --no-cache openssl1.1-compat
 RUN npm install
 
 COPY . .
