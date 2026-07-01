@@ -30,7 +30,7 @@ services:
       NODE_ENV: production
       PROXY_PORT: "5000"
     ports:
-      - "${PUERTO_PROXY}:5000"
+      - "${PUERTO_BACKEND}:5000"
     depends_on:
       api-nest:
         condition: service_healthy
@@ -59,7 +59,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "${PUERTO_BACKEND_NEST}:5001"
+      - "${PUERTO_BACKEND_INTERNAL}:5001"
     depends_on:
       postgres:
         condition: service_healthy

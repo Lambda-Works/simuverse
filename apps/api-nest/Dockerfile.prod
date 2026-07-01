@@ -25,10 +25,12 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api-nest/dist ./apps/api-nest/dist
 COPY --from=builder /app/apps/api-nest/package.json ./apps/api-nest/
 COPY --from=builder /app/apps/api-nest/prisma ./apps/api-nest/prisma/
+COPY apps/api-nest/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 RUN mkdir -p /app/apps/api-nest/uploads && chown nestjs:nodejs /app/apps/api-nest/uploads
 
 USER nestjs
 WORKDIR /app/apps/api-nest
 EXPOSE 5001
-CMD ["node", "dist/main"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
