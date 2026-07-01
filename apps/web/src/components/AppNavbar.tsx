@@ -55,6 +55,8 @@ interface AppNavbarProps {
   rightContent?: React.ReactNode;
   /** Filas adicionales renderizadas dentro del <header> (ej: tabs de AdminPanel) */
   children?: React.ReactNode;
+  /** Si es false, oculta la fila de children (tabs, breadcrumbs, etc.) */
+  showChildren?: boolean;
 }
 
 // ─── Configuración por rol ────────────────────────────────────────────────────
@@ -97,6 +99,7 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
   backLabel = 'Volver',
   rightContent,
   children,
+  showChildren = true,
 }) => {
   const { user, signOut } = useAuth();
   const router = useRouter();
@@ -257,7 +260,7 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
       </div>
 
       {/* ── Fila adicional (tabs, breadcrumbs, etc.) ────────────────────────── */}
-      {children && (
+      {showChildren && children && (
         <div className="border-t bg-muted/30">
           {children}
         </div>

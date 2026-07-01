@@ -71,7 +71,7 @@ describe('Route page files', () => {
     })
   })
 
-  // 2.3 — /admin
+  // 2.3 — /admin (server component — layout handles 'use client')
   describe('app/admin/page.tsx', () => {
     const path = 'admin/page.tsx'
 
@@ -80,9 +80,9 @@ describe('Route page files', () => {
       expect(content).not.toBeNull()
     })
 
-    it('should have use client directive', () => {
+    it('should NOT have use client directive (layout handles it)', () => {
       const content = readRouteFile(path)!
-      expect(content.startsWith("'use client'")).toBe(true)
+      expect(content.startsWith("'use client'")).toBe(false)
     })
 
     it('should import AdminPanel from @/views/AdminPanel', () => {
