@@ -50,6 +50,7 @@ md/
 # ============================================
 apps/api-express/uploads/*
 !apps/api-express/uploads/.gitkeep
+apps/api-nest/uploads/
 
 # ============================================
 # Legacy/abandoned code
