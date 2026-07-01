@@ -41,6 +41,7 @@ export class CatalogQueryService {
       ORDER BY se.evaluated_at DESC
     `;
 
+    // Dynamic WHERE requires $queryRawUnsafe; params are bound via placeholders ($1, $2)
     return this.prisma.$queryRawUnsafe(query, ...params);
   }
 
@@ -49,14 +50,13 @@ export class CatalogQueryService {
    * Ported from Express: GET /evaluations/:simulation_id
    */
   async findEvaluationsBySimulation(simulationId: string) {
-    const query = `
+    return this.prisma.$queryRaw`
       SELECT se.*, u.name AS student_name
       FROM simulation_evaluations se
       LEFT JOIN users u ON u.id = se.student_id
-      WHERE se.simulation_id = $1
+      WHERE se.simulation_id = ${simulationId}
       ORDER BY se.evaluated_at DESC
     `;
-    return this.prisma.$queryRawUnsafe(query, simulationId);
   }
 
   /**
@@ -64,15 +64,14 @@ export class CatalogQueryService {
    * Ported from Express: GET /students/:id/history
    */
   async findStudentHistory(studentId: string) {
-    const [student] = await this.prisma.$queryRawUnsafe<any[]>(
-      `SELECT id, name, email, role, created_at FROM users WHERE id = $1`,
-      studentId,
-    );
+    const [student] = await this.prisma.$queryRaw<any[]>`
+      SELECT id, name, email, role, created_at FROM users WHERE id = ${studentId}
+    `;
 
     if (!student) return null;
 
-    const assignments = await this.prisma.$queryRawUnsafe(
-      `SELECT
+    const assignments = await this.prisma.$queryRaw`
+      SELECT
         sa.id, sa.simulation_id AS scenario_id, sa.course_id,
         sa.start_date, sa.end_date, sa.max_attempts, sa.attempts_used,
         sa.status AS assignment_status, sa.created_at,
@@ -81,29 +80,26 @@ export class CatalogQueryService {
       FROM simulation_assignments sa
       LEFT JOIN courses c ON c.id = sa.course_id
       LEFT JOIN scenarios sc ON sc.id = sa.simulation_id
-      WHERE sa.student_id = $1
-      ORDER BY sa.created_at DESC`,
-      studentId,
-    );
+      WHERE sa.student_id = ${studentId}
+      ORDER BY sa.created_at DESC
+    `;
 
-    const instances = await this.prisma.$queryRawUnsafe(
-      `SELECT si.*, sc.title AS scenario_title
+    const instances = await this.prisma.$queryRaw`
+      SELECT si.*, sc.title AS scenario_title
       FROM simulation_instances si
       LEFT JOIN scenarios sc ON sc.id = si.scenario_id
-      WHERE si.student_id = $1
-      ORDER BY si.started_at DESC`,
-      studentId,
-    );
+      WHERE si.student_id = ${studentId}
+      ORDER BY si.started_at DESC
+    `;
 
-    const evaluations = await this.prisma.$queryRawUnsafe(
-      `SELECT se.*, c.title AS course_title
+    const evaluations = await this.prisma.$queryRaw`
+      SELECT se.*, c.title AS course_title
       FROM simulation_evaluations se
       LEFT JOIN simulation_assignments sa ON sa.id = se.assignment_id
       LEFT JOIN courses c ON c.id = sa.course_id
-      WHERE se.student_id = $1
-      ORDER BY se.evaluated_at DESC`,
-      studentId,
-    );
+      WHERE se.student_id = ${studentId}
+      ORDER BY se.evaluated_at DESC
+    `;
 
     return { student, assignments, instances, evaluations };
   }
@@ -116,15 +112,12 @@ export class CatalogQueryService {
     const results: any[] = [];
 
     for (const p of permissions) {
-      const result = await this.prisma.$executeRawUnsafe(
-        `INSERT INTO role_permissions (role_name, functionality_id, enabled)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (role_name, functionality_id)
-         DO UPDATE SET enabled = $3`,
-        roleName,
-        p.functionality_id,
-        p.enabled,
-      );
+      const result = await this.prisma.$executeRaw`
+        INSERT INTO role_permissions (role_name, functionality_id, enabled)
+        VALUES (${roleName}, ${p.functionality_id}, ${p.enabled})
+        ON CONFLICT (role_name, functionality_id)
+        DO UPDATE SET enabled = ${p.enabled}
+      `;
       results.push(result);
     }
 
@@ -136,14 +129,13 @@ export class CatalogQueryService {
    * Ported from Express: GET /role-permissions
    */
   async getRolePermissions(roleName: string) {
-    const query = `
+    return this.prisma.$queryRaw`
       SELECT sf.id AS functionality_id, sf.name, sf.description, sf.module, sf.icon,
              COALESCE(rp.enabled, false) AS enabled
       FROM system_functionalities sf
-      LEFT JOIN role_permissions rp ON rp.functionality_id = sf.id AND rp.role_name = $1
+      LEFT JOIN role_permissions rp ON rp.functionality_id = sf.id AND rp.role_name = ${roleName}
       WHERE sf.is_active = true
       ORDER BY sf.module ASC, sf.name ASC
     `;
-    return this.prisma.$queryRawUnsafe(query, roleName);
   }
 }

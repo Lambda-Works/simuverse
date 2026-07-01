@@ -6,15 +6,57 @@ export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   async findByEmail(email: string) {
-    return this.prisma.user.findUnique({ where: { email } });
+    return this.prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        created_at: true,
+        updated_at: true,
+      },
+    });
+  }
+
+  /** Internal use only — returns password_hash for auth verification. */
+  async findByEmailForAuth(email: string) {
+    return this.prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        password_hash: true,
+      },
+    });
   }
 
   async findById(id: string) {
-    return this.prisma.user.findUnique({ where: { id } });
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        created_at: true,
+        updated_at: true,
+      },
+    });
   }
 
   async create(data: { email: string; password_hash: string; name: string; role?: string }) {
-    return this.prisma.user.create({ data: data as any });
+    return this.prisma.user.create({
+      data: data as any,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        created_at: true,
+      },
+    });
   }
 
   async findAll(role?: string) {

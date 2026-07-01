@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import * as crypto from 'crypto';
 
-const HMAC_SECRET = process.env.ASSESSMENT_HMAC_SECRET || 'simuverse-assessment-secret';
+const HMAC_SECRET = process.env.ASSESSMENT_HMAC_SECRET;
 
 @Injectable()
 export class AssessmentsService {

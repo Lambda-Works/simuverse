@@ -12,6 +12,7 @@ import {
 import { SimulationsService } from './simulations.service';
 import { SimulationInstanceService } from './simulation-instance.service';
 import { CreateSimulationDto } from './dto/create-simulation.dto';
+import { SendMessageDto } from './dto/send-message.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
@@ -101,8 +102,8 @@ export class SimulationsController {
   async getLogs(@Param('id') id: string) { return []; }
 
   @Post(':id/message')
-  async sendMessage(@Param('id') id: string, @Body() body: any) {
-    return { id, message: body.message, response: 'OK' };
+  async sendMessage(@Param('id') id: string, @Body() dto: SendMessageDto) {
+    return { id, message: dto.message, response: 'OK' };
   }
 
   @Post(':id/evaluate')

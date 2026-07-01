@@ -13,6 +13,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
+import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
@@ -34,16 +35,15 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
-  @Public()
   @Post('create')
-  async createUser(@Body() body: any) {
+  async createUser(@Body() dto: CreateUserDto) {
     const bcrypt = await import('bcrypt');
-    const password_hash = await bcrypt.hash(body.password || 'changeme', 10);
+    const password_hash = await bcrypt.hash(dto.password, 10);
     return this.usersService.create({
-      email: body.email,
+      email: dto.email,
       password_hash,
-      name: body.name,
-      role: body.role || 'student',
+      name: dto.name,
+      role: dto.role || 'student',
     });
   }
 

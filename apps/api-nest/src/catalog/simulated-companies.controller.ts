@@ -1,6 +1,38 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
+import { IsString, IsOptional, IsBoolean } from 'class-validator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
+
+class CreateSimulatedCompanyDto {
+  @IsString()
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  industry?: string;
+}
+
+class UpdateSimulatedCompanyDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  industry?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  is_active?: boolean;
+}
 
 @Controller('simulated-companies')
 @UseGuards(JwtAuthGuard)
@@ -18,13 +50,13 @@ export class SimulatedCompaniesController {
   }
 
   @Post()
-  async create(@Body() body: any) {
-    return (this.prisma as any).simulatedCompany.create({ data: body });
+  async create(@Body() dto: CreateSimulatedCompanyDto) {
+    return (this.prisma as any).simulatedCompany.create({ data: dto });
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() body: any) {
-    return (this.prisma as any).simulatedCompany.update({ where: { id }, data: body });
+  async update(@Param('id') id: string, @Body() dto: UpdateSimulatedCompanyDto) {
+    return (this.prisma as any).simulatedCompany.update({ where: { id }, data: dto });
   }
 
   @Delete(':id')

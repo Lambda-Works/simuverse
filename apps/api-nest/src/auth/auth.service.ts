@@ -15,7 +15,7 @@ export class AuthService {
   ) {}
 
   async login(email: string, password: string) {
-    const user = await this.usersService.findByEmail(email);
+    const user = await this.usersService.findByEmailForAuth(email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -48,7 +48,7 @@ export class AuthService {
   async refresh(refreshToken: string) {
     try {
       const payload = this.jwtService.verify(refreshToken, {
-        secret: process.env.JWT_SECRET || 'dev-secret',
+        secret: process.env.JWT_SECRET,
       });
 
       const user = await this.usersService.findById(payload.sub);
@@ -67,8 +67,7 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
-    const { password_hash, ...result } = user as any;
-    return result;
+    return user;
   }
 
   private generateTokens(userId: string, email: string, role: string) {
