@@ -17,9 +17,6 @@
     "test": "npm run test -w apps/web",
     "test:watch": "npm run test:watch -w apps/web",
     "cypress:open": "npm run cypress:open -w apps/web",
-    "cypress:e2e": "npm run cypress:e2e -w apps/web",
-    "dev:api": "npm run dev -w apps/api-express",
-    "build:api": "npm run build -w apps/api-express",
-    "start:api": "npm run start -w apps/api-express"
+    "cypress:e2e": "npm run cypress:e2e -w apps/web"
   }
 }
