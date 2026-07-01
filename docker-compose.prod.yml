@@ -1,22 +1,18 @@
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: simuverse-mysql
+  postgres:
+    image: postgres:15-alpine
+    container_name: simuverse-postgres
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "${PUERTO_MYSQL}:3306"
+      - "${PUERTO_POSTGRES}:5432"
     volumes:
-      - simuverse_mysql_data:/var/lib/mysql
-    command: >
-      --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
+      - simuverse_pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -36,41 +32,12 @@ services:
     ports:
       - "${PUERTO_PROXY}:5000"
     depends_on:
-      api-express:
+      api-nest:
         condition: service_healthy
     networks:
       - app-network
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:5000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})\" || exit 1"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
-
-  api-express:
-    build:
-      context: .
-      dockerfile: apps/api-express/Dockerfile.prod
-    container_name: simuverse-api-express
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      PORT: "5000"
-      DB_HOST: mysql
-      DB_PORT: "3306"
-      DB_USER: ${MYSQL_USER}
-      DB_PASSWORD: ${MYSQL_PASSWORD}
-      DB_NAME: ${MYSQL_DATABASE}
-      JWT_SECRET: ${JWT_SECRET}
-    ports:
-      - "${PUERTO_BACKEND}:5000"
-    depends_on:
-      mysql:
-        condition: service_healthy
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:5000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})\" || exit 1"]
       interval: 30s
       timeout: 3s
       retries: 3
@@ -85,11 +52,23 @@ services:
     environment:
       NODE_ENV: production
       PORT: "5001"
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      PRISMA_QUERY_ENGINE_LIBRARY: /app/node_modules/.prisma/client/libquery_engine-linux-musl-openssl-3.0.x.so.node
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "${PUERTO_BACKEND_NEST}:5001"
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5001/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     networks:
       - app-network
 
@@ -121,8 +100,8 @@ services:
       start_period: 10s
 
 volumes:
-  simuverse_mysql_data:
-    name: simuverse_mysql_data
+  simuverse_pg_data:
+    name: simuverse_pg_data
 
 networks:
   app-network:

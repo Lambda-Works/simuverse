@@ -18,7 +18,7 @@ RUN addgroup -g 1001 nodejs && \
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/proxy/dist ./proxy/dist
-COPY --from=builder /app/proxy/routes.json ./proxy/
+COPY --from=builder /app/proxy/routes.json ./proxy/dist/
 COPY --from=builder /app/proxy/package.json ./proxy/
 
 USER proxyuser

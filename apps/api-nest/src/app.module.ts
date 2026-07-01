@@ -15,9 +15,10 @@ import { MinistryModule } from './ministry/ministry.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { RbacModule } from './rbac/rbac.module';
 import { FilesModule } from './files/files.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, UsersModule, CoursesModule, ScenariosModule, SimulationsModule, CatalogModule, AssessmentsModule, TemplatesModule, AdminModule, PracticeLogsModule, TelemetryLogsModule, MinistryModule, NotificationsModule, RbacModule, FilesModule],
+  imports: [PrismaModule, AuthModule, UsersModule, CoursesModule, ScenariosModule, SimulationsModule, CatalogModule, AssessmentsModule, TemplatesModule, AdminModule, PracticeLogsModule, TelemetryLogsModule, MinistryModule, NotificationsModule, RbacModule, FilesModule, HealthModule],
   controllers: [],
   providers: [],
 })
