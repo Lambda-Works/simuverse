@@ -1,73 +1,46 @@
 services:
   postgres:
-    image: postgres:15-alpine
-    container_name: simuverse-postgres
+    image: postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "${PUERTO_POSTGRES}:5432"
+      - "${PUERTO_POSTGRES:-5432}:5432"
     volumes:
-      - simuverse_pg_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
-    networks:
-      - app-network
-
-  proxy:
-    build:
-      context: .
-      dockerfile: proxy/Dockerfile.prod
-    container_name: simuverse-proxy
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      PROXY_PORT: "5000"
-    ports:
-      - "${PUERTO_BACKEND}:5000"
-    depends_on:
-      api-nest:
-        condition: service_healthy
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:5000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})\" || exit 1"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
       start_period: 10s
+    networks:
+      - app-network
 
   api-nest:
     build:
       context: .
       dockerfile: apps/api-nest/Dockerfile.prod
-    container_name: simuverse-api-nest
     restart: unless-stopped
     environment:
       NODE_ENV: production
       PORT: "5001"
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      CORS_ORIGIN: ${CORS_ORIGIN}
       JWT_SECRET: ${JWT_SECRET}
       PRISMA_QUERY_ENGINE_LIBRARY: /app/node_modules/.prisma/client/libquery_engine-linux-musl-openssl-3.0.x.so.node
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "${PUERTO_BACKEND_INTERNAL}:5001"
+      - "${PUERTO_BACKEND:-5000}:5001"
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:5001/api/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:5001/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})\" || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
       start_period: 15s
     networks:
       - app-network
@@ -78,7 +51,6 @@ services:
       dockerfile: apps/web/Dockerfile.prod
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-    container_name: simuverse-web
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -86,10 +58,9 @@ services:
       PORT: "3000"
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     ports:
-      - "${PUERTO_FRONTEND}:3000"
+      - "${PUERTO_FRONTEND:-3000}:3000"
     depends_on:
-      proxy:
-        condition: service_healthy
+      - api-nest
     networks:
       - app-network
     healthcheck:
@@ -100,8 +71,8 @@ services:
       start_period: 10s
 
 volumes:
-  simuverse_pg_data:
-    name: simuverse_pg_data
+  postgres_data:
+    driver: local
 
 networks:
   app-network:
