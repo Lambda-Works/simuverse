@@ -2,7 +2,7 @@ name: Deploy to Hub
 
 on:
   push:
-    branches: [main, desarrollo]
+    branches: [main, develop]
 
 permissions:
   contents: write
@@ -37,12 +37,12 @@ jobs:
           else
             echo "environment=development" >> $GITHUB_OUTPUT
             echo "version=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
-            echo "branch=desarrollo" >> $GITHUB_OUTPUT
+            echo "branch=develop" >> $GITHUB_OUTPUT
           fi
 
       - name: Deploy al Hub
         run: |
-          curl -sS -X POST "${{ secrets.HUB_URL }}/projects/${{ secrets.HUB_PROJECT_ID }}/deploy-webhook" \
+          curl -sSL -w "\nHTTP %{http_code}\n" -X POST "${{ secrets.HUB_URL }}/projects/${{ secrets.HUB_PROJECT_ID }}/deploy-webhook" \
             -H "Content-Type: application/json" \
             -H "x-deploy-secret: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}" \
             -d "{\"environment\":\"${{ steps.vars.outputs.environment }}\",\"version\":\"${{ steps.vars.outputs.version }}\",\"branch\":\"${{ steps.vars.outputs.branch }}\"}"
