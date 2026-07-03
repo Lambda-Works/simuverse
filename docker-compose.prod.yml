@@ -22,7 +22,7 @@ services:
   seed:
     build:
       context: .
-      dockerfile: apps/api-nest/Dockerfile.prod
+      dockerfile: apps/api-nest/Dockerfile.seed
     restart: "no"
     environment:
       NODE_ENV: production
@@ -35,7 +35,7 @@ services:
         echo 'Running migrations...' &&
         npx prisma migrate deploy &&
         echo 'Running seed...' &&
-        node dist/prisma/seed.js &&
+        npx ts-node src/prisma/seed.ts &&
         echo 'Seed completed!'
       "
     networks:
