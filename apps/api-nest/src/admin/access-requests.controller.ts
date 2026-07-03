@@ -35,7 +35,7 @@ export class AccessRequestsController {
     );
     // If approved, create a simulation assignment
     if (body.status === 'approved') {
-      const req = await this.prisma.$queryRawUnsafe<any[]>(
+      const req: any[] = await this.prisma.$queryRawUnsafe(
         `SELECT * FROM access_requests WHERE id = $1`, parseInt(id),
       );
       if (req?.[0]) {
@@ -49,7 +49,7 @@ export class AccessRequestsController {
         );
       }
     }
-    const result = await this.prisma.$queryRawUnsafe<any[]>(
+    const result: any[] = await this.prisma.$queryRawUnsafe(
       `SELECT * FROM access_requests WHERE id = $1`, parseInt(id),
     );
     return result?.[0] || { id, ...body };

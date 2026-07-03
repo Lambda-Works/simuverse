@@ -8,8 +8,9 @@ RUN apk add --no-cache openssl
 RUN npm install
 
 COPY . .
+RUN mkdir -p /app/apps/api-nest/uploads
 
 WORKDIR /app/apps/api-nest
 
 EXPOSE 3002
-CMD sh -c "rm -f tsconfig.tsbuildinfo && npm run build && npm run start:prod"
+CMD sh -c "rm -f tsconfig.tsbuildinfo && npx prisma generate && npm run build && npm run start:prod"

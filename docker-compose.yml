@@ -51,7 +51,7 @@ services:
       PORT: "5001"
       DATABASE_URL: postgresql://${POSTGRES_USER:-simuverse}:${POSTGRES_PASSWORD:-SimuVerse2024secret}@postgres:5432/${POSTGRES_DB:-simuverse}
       JWT_SECRET: ${JWT_SECRET:-dev-secret}
-      PRISMA_QUERY_ENGINE_LIBRARY: /app/node_modules/.prisma/client/libquery_engine-linux-musl-openssl-3.0.x.so.node
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
     ports:
       - "${PUERTO_BACKEND_INTERNAL:-5002}:5001"
     volumes:
@@ -61,6 +61,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5001/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - app-network
 
@@ -73,14 +79,17 @@ services:
     environment:
       NODE_ENV: development
       NEXT_PUBLIC_API_URL: http://localhost:${PUERTO_BACKEND:-5000}/api
+      CHOKIDAR_USEPOLLING: "true"
     ports:
       - "${PUERTO_FRONTEND:-8080}:3000"
     volumes:
       - .:/app
       - /app/node_modules
       - /app/apps/web/node_modules
+      - /app/apps/web/.next
     depends_on:
-      - proxy
+      api-nest:
+        condition: service_healthy
     networks:
       - app-network
 

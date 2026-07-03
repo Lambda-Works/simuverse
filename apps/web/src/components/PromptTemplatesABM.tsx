@@ -1,8 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react';
-import { API_BASE } from '@/lib/api';
-
-const API = API_BASE;
+import { apiClient } from '@/services/ApiClient';
 
 interface PromptTemplate {
   id: number;
@@ -49,9 +47,9 @@ export const PromptTemplatesABM: React.FC = () => {
 
   const fetchTemplates = async () => {
     try {
-      const response = await fetch(`${API}/prompt-templates`);
-      const data = await response.json();
-      setTemplates(data);
+      const response = await apiClient.get('/prompt-templates');
+      const data = response.data;
+      setTemplates(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching templates:', error);
     }
@@ -59,23 +57,15 @@ export const PromptTemplatesABM: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      const endpoint = editingId
-        ? `${API}/prompt-templates/${editingId}`
-        : `${API}/prompt-templates`;
-
-      const method = editingId ? 'PUT' : 'POST';
-
-      const response = await fetch(endpoint, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-
-      if (response.ok) {
-        fetchTemplates();
-        resetForm();
-        alert(editingId ? 'Plantilla actualizada' : 'Plantilla creada');
+      if (editingId) {
+        await apiClient.put(`/prompt-templates/${editingId}`, formData);
+      } else {
+        await apiClient.post('/prompt-templates', formData);
       }
+
+      fetchTemplates();
+      resetForm();
+      alert(editingId ? 'Plantilla actualizada' : 'Plantilla creada');
     } catch (error) {
       console.error('Error saving template:', error);
       alert('Error guardando plantilla');
@@ -85,7 +75,7 @@ export const PromptTemplatesABM: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (window.confirm('¿Desactivar esta plantilla?')) {
       try {
-        await fetch(`${API}/prompt-templates/${id}`, { method: 'DELETE' });
+        await apiClient.delete(`/prompt-templates/${id}`);
         fetchTemplates();
       } catch (error) {
         console.error('Error deleting template:', error);
@@ -97,16 +87,10 @@ export const PromptTemplatesABM: React.FC = () => {
     const newName = prompt('Nombre para la copia:', `${name} (Copia)`);
     if (newName) {
       try {
-        const response = await fetch(`${API}/prompt-templates/${id}/duplicate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: newName })
-        });
+        await apiClient.post(`/prompt-templates/${id}/duplicate`, { name: newName });
 
-        if (response.ok) {
-          fetchTemplates();
-          alert('Plantilla duplicada exitosamente');
-        }
+        fetchTemplates();
+        alert('Plantilla duplicada exitosamente');
       } catch (error) {
         console.error('Error duplicating template:', error);
       }

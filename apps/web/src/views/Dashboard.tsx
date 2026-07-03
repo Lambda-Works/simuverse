@@ -67,7 +67,7 @@ const Dashboard = () => {
 
         // Para alumnos: verificar asignaciones primero
         const [assignRes, coursesRes] = await Promise.all([
-          fetch(`${API}/assignments?student_id=${user.id}`).then(r => r.json()),
+          apiClient.get(`/assignments?student_id=${user.id}`).then(r => r.data),
           apiClient.get('/courses'),
         ]);
 
@@ -89,7 +89,8 @@ const Dashboard = () => {
 
         // Fetch enriched assignments (con intentos, fechas, score, instance_id)
         try {
-          const enriched = await fetch(`${API}/student-assignments/${user.id}`).then(r => r.json());
+          const enrichedRes = await apiClient.get(`/student-assignments/${user.id}`);
+          const enriched = enrichedRes.data;
           if (Array.isArray(enriched)) setEnrichedAssignments(enriched);
         } catch { /* silent */ }
 
@@ -138,16 +139,10 @@ const Dashboard = () => {
     setSending(true);
     setSendError('');
     try {
-      const res = await fetch(`${API}/request-access`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, user_id: user?.id }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al enviar');
+      const res = await apiClient.post('/request-access', { ...form, user_id: user?.id });
       setSent(true);
     } catch (err: any) {
-      setSendError(err.message || 'No se pudo enviar la solicitud. Intente nuevamente.');
+      setSendError(err.response?.data?.error || err.message || 'No se pudo enviar la solicitud. Intente nuevamente.');
     } finally {
       setSending(false);
     }

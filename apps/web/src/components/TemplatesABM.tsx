@@ -23,12 +23,7 @@ import {
   Bot, Send, Plus, Trash2, Edit2, Wand2, Save, RefreshCw,
   Layers, MessageSquare, FileText, Calculator, Mail, Zap, ChevronRight, Copy
 } from 'lucide-react';
-import { API_BASE } from '@/lib/api';
-
-const authHeaders = (): Record<string, string> => {
-  const token = localStorage.getItem('token');
-  return token ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } : { 'Content-Type': 'application/json' };
-};
+import { apiClient } from '@/services/ApiClient';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -178,8 +173,8 @@ export function TemplatesABM() {
   const loadTemplates = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/templates`);
-      const d = await res.json();
+      const res = await apiClient.get('/templates/flow');
+      const d = res.data;
       setTemplates(Array.isArray(d) ? d : []);
     } catch { setTemplates([]); }
     finally { setLoading(false); }
@@ -302,21 +297,17 @@ export function TemplatesABM() {
         family: form.family,
         description: form.description,
         version: '1.0',
-        template_data: JSON.stringify({
+        template_data: {
           modules: form.modules,
           ai_config: form.ai_config,
           eval_criteria: form.eval_criteria,
-        }),
+        },
       };
-      const url = editingId
-        ? `${API_BASE}/templates/${editingId}`
-        : `${API_BASE}/templates`;
-      const res = await fetch(url, {
-        method: editingId ? 'PUT' : 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+      if (editingId) {
+        await apiClient.put(`/templates/flow/${editingId}`, payload);
+      } else {
+        await apiClient.post('/templates/flow', payload);
+      }
       setEditDialogOpen(false);
       setEditingId(null);
       await loadTemplates();
@@ -326,25 +317,21 @@ export function TemplatesABM() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar esta plantilla?')) return;
-    await fetch(`${API_BASE}/templates/${id}`, { method: 'DELETE', headers: authHeaders() });
+    await apiClient.delete(`/templates/flow/${id}`);
     await loadTemplates();
   };
 
   const handleDuplicate = async (t: Template) => {
     const data = typeof t.template_data === 'string' ? JSON.parse(t.template_data || '{}') : (t.template_data || {});
-    await fetch(`${API_BASE}/templates`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({
-        id: t.course_code + '-COPIA-' + Date.now().toString().slice(-4),
-        course_id: t.course_code + '-COPIA',
-        course_code: t.course_code + '-COPIA',
-        title: t.title + ' (Copia)',
-        family: t.family,
-        description: t.description,
-        version: t.version,
-        template_data: JSON.stringify(data),
-      }),
+    await apiClient.post('/templates/flow', {
+      id: t.course_code + '-COPIA-' + Date.now().toString().slice(-4),
+      course_id: t.course_code + '-COPIA',
+      course_code: t.course_code + '-COPIA',
+      title: t.title + ' (Copia)',
+      family: t.family,
+      description: t.description,
+      version: t.version,
+      template_data: JSON.stringify(data),
     });
     await loadTemplates();
   };

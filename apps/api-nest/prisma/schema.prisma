@@ -718,3 +718,12 @@ model SimulationChatLog {
   @@index([ref_number])
   @@map("simulation_chat_logs")
 }
+
+model SimulatedCompany {
+  id         Int      @id @default(autoincrement())
+  name       String   @db.VarChar(255)
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @default(now()) @db.Timestamptz
+
+  @@map("simulated_companies")
+}

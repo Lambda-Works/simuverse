@@ -39,7 +39,7 @@ export class PromptTemplatesCompatController {
 
   @Post(':id/duplicate')
   duplicate(@Param('id') id: string, @Body() body?: any) {
-    return (this.promptTemplates as any).duplicate(Number(id) || id, body?.created_by);
+    return (this.promptTemplates as any).duplicate(Number(id) || id, body?.name || body?.created_by);
   }
 }
 

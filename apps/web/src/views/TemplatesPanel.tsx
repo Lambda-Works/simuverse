@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
-import { API_BASE } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,13 +41,11 @@ const TemplatesPanel = () => {
 
   const loadTemplates = async () => {
     try {
-      const response = await fetch(`${API_BASE}/templates?active=true`);
-      if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setTemplates(data);
-          return;
-        }
+      const response = await apiClient.get('/templates/prompt?active=true');
+      const data = response.data;
+      if (Array.isArray(data) && data.length > 0) {
+        setTemplates(data);
+        return;
       }
     } catch {
       // Si falla la API, cargar estáticas
@@ -61,13 +58,8 @@ const TemplatesPanel = () => {
   const handleSyncToDB = async () => {
     const staticTemplates = getAllTemplates();
     try {
-      const response = await fetch(`${API_BASE}/templates/bulk-import`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ templates: staticTemplates })
-      });
-      const result = await response.json();
-      toast.success(`Sincronizado: ${result.created} creadas, ${result.updated} actualizadas`);
+      const result = await apiClient.post('/templates/flow/bulk-import', { templates: staticTemplates });
+      toast.success(`Sincronizado: ${result.data.created} creadas, ${result.data.updated} actualizadas`);
       await loadTemplates();
     } catch (err: any) {
       toast.error(`Error al sincronizar: ${err.message}`);
@@ -82,26 +74,18 @@ const TemplatesPanel = () => {
 
   const handleDuplicateTemplate = async (template: FlowTemplate) => {
     try {
-      const response = await fetch(`${API_BASE}/templates/${template.id}/duplicate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ title: `${template.title} (Copia)`, course_code: `${template.course_code}-COPIA` })
+      const copy = await apiClient.post(`/templates/flow/${template.id}/duplicate`, {
+        name: `${template.title} (Copia)`,
+        course_code: `${template.course_code}-COPIA`,
       });
-      if (response.ok) {
-        const copy = await response.json();
-        setTemplates(prev => [...prev, copy]);
-        toast.success('Plantilla duplicada correctamente');
-      } else {
-        // Fallback: abrir en editor
-        const newTemplate = { ...template, id: `${template.id}-copia-${Date.now()}`, course_code: `${template.course_code}-COPIA` };
-        setEditingTemplate(newTemplate);
-        setDialogOpen(true);
-        toast.success('Plantilla duplicada. Edita los campos necesarios.');
-      }
+      setTemplates(prev => [...prev, copy.data]);
+      toast.success('Plantilla duplicada correctamente');
     } catch {
+      // Fallback: abrir en editor
       const newTemplate = { ...template, id: `${template.id}-copia-${Date.now()}`, course_code: `${template.course_code}-COPIA` };
       setEditingTemplate(newTemplate);
       setDialogOpen(true);
+      toast.success('Plantilla duplicada. Edita los campos necesarios.');
     }
   };
 
@@ -133,36 +117,47 @@ const TemplatesPanel = () => {
 
     try {
       const isNew = !templates.find(t => t.id === editingTemplate.id);
-      const url = isNew ? `${API_BASE}/templates` : `${API_BASE}/templates/${editingTemplate.id}`;
-      const method = isNew ? 'POST' : 'PUT';
 
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ ...editingTemplate, template_data: editingTemplate })
-      });
+      // Mapear FlowTemplate a formato del backend
+      const payload = {
+        id: editingTemplate.id,
+        course_id: editingTemplate.course_id,
+        title: editingTemplate.title,
+        course_code: editingTemplate.course_code,
+        family: editingTemplate.family,
+        description: editingTemplate.description,
+        version: editingTemplate.version,
+        created_by: editingTemplate.created_by || user?.id,
+        template_data: editingTemplate // Guardar el objeto completo como metadata
+      };
 
-      if (response.ok) {
-        const saved = await response.json();
-        setTemplates(prev => {
-          const existing = prev.findIndex(t => t.id === saved.id);
-          if (existing >= 0) { const updated = [...prev]; updated[existing] = saved; return updated; }
-          return [...prev, saved];
-        });
-        toast.success('Plantilla guardada en base de datos');
+      let saved;
+      if (isNew) {
+        const response = await apiClient.post('/templates/flow', payload);
+        saved = response.data;
       } else {
-        // Fallback local
-        setTemplates(prev => {
-          const existing = prev.findIndex(t => t.id === editingTemplate.id);
-          if (existing >= 0) { const updated = [...prev]; updated[existing] = editingTemplate as FlowTemplate; return updated; }
-          return [...prev, editingTemplate as FlowTemplate];
-        });
-        toast.success('Plantilla guardada localmente (sin conexión a BD)');
+        const response = await apiClient.put(`/templates/flow/${editingTemplate.id}`, payload);
+        saved = response.data;
       }
+
+      setTemplates(prev => {
+        const existing = prev.findIndex(t => t.id === saved.id);
+        if (existing >= 0) { const updated = [...prev]; updated[existing] = saved; return updated; }
+        return [...prev, saved];
+      });
+      toast.success('Plantilla guardada en base de datos');
       setDialogOpen(false);
       setEditingTemplate(null);
     } catch (err: any) {
-      toast.error(err.message);
+      // Fallback local
+      setTemplates(prev => {
+        const existing = prev.findIndex(t => t.id === editingTemplate.id);
+        if (existing >= 0) { const updated = [...prev]; updated[existing] = editingTemplate as FlowTemplate; return updated; }
+        return [...prev, editingTemplate as FlowTemplate];
+      });
+      toast.success('Plantilla guardada localmente (sin conexión a BD)');
+      setDialogOpen(false);
+      setEditingTemplate(null);
     }
   };
 
@@ -170,10 +165,7 @@ const TemplatesPanel = () => {
     if (!confirm('¿Eliminar esta plantilla? Esta acción no se puede deshacer.')) return;
     
     try {
-      await fetch(`${API_BASE}/templates/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      await apiClient.delete(`/templates/flow/${id}`);
       setTemplates(prev => prev.filter(t => t.id !== id));
       toast.success('Plantilla eliminada');
     } catch (err: any) {
