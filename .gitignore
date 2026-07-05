@@ -40,6 +40,9 @@ backups/
 *.sql
 *.session.sql
 
+# Allow Prisma migrations (safe SQL, no data)
+!apps/api-nest/prisma/migrations/**/*.sql
+
 # ============================================
 # Reference docs directory (old documentation, not source code)
 # ============================================
