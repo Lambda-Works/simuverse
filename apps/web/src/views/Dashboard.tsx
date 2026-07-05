@@ -3,13 +3,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
-import { AppNavbar } from '@/components/AppNavbar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BookOpen, Play, Settings, BarChart3, LogOut, Shield, GraduationCap, Mail, Clock, CheckCircle2, User, Phone, CreditCard, Award, CalendarDays, Eye, HelpCircle, Sparkles, MessageSquare } from 'lucide-react';
+import { BookOpen, Play, Settings, Shield, GraduationCap, Mail, Clock, CheckCircle2, User, Phone, CreditCard, Award, CalendarDays, Eye, HelpCircle, Sparkles, MessageSquare } from 'lucide-react';
 import { StudentReviewModal } from '@/components/StudentReviewModal';
 import { SimulationCalendar } from '@/components/SimulationCalendar';
 
@@ -153,19 +152,6 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header unificado con navegación por rol */}
-      <AppNavbar
-        title={isStudentOnly ? undefined : 'Panel de Control'}
-        rightContent={
-          hasRole('admin') ? (
-            <Button variant="outline" size="sm" onClick={() => router.push('/admin')} className="shrink-0 hidden md:flex">
-              <Settings className="w-4 h-4 sm:mr-1" />
-              <span className="hidden sm:inline">Admin</span>
-            </Button>
-          ) : undefined
-        }
-      />
-
       {/* Main content */}
       <main className="container mx-auto px-4 py-8">
 

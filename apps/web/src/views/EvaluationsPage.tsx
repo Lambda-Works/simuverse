@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
-import { AppNavbar } from '@/components/AppNavbar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -91,10 +90,13 @@ const EvaluationsPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <AppNavbar
-        title="Evaluaciones"
-        subtitle="Telemetría y calificaciones"
-        rightContent={
+      <main className="container mx-auto px-4 py-8">
+        {/* Header with filter */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">Evaluaciones</h1>
+            <p className="text-muted-foreground text-sm">Telemetría y calificaciones</p>
+          </div>
           <Select value={selectedCourse} onValueChange={setSelectedCourse}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Filtrar curso" />
@@ -104,10 +106,7 @@ const EvaluationsPage = () => {
               {courses.map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
             </SelectContent>
           </Select>
-        }
-      />
-
-      <main className="container mx-auto px-4 py-8">
+        </div>
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <Card className="glass-card">
