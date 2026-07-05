@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
-import { AppNavbar } from '@/components/AppNavbar';
+import { useSidebarHeader } from '@/lib/sidebar-header-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -210,10 +210,16 @@ const StudentLedger = () => {
   const userId = params.userId;
   const { user, hasRole, loading } = useAuth();
   const router = useRouter();
+  const { setBackTo } = useSidebarHeader();
   const [data, setData] = useState<{ student: any; stats: any; simulations: SimulationRecord[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandedSim, setExpandedSim] = useState<string | null>(null);
   const [loadingData, setLoadingData] = useState(true);
+
+  useEffect(() => {
+    setBackTo('/legajos', 'Legajos');
+    return () => setBackTo(null, null);
+  }, [setBackTo]);
 
   useEffect(() => {
     if (!loading && (!user || (user.role === 'student'))) {
@@ -276,18 +282,6 @@ const StudentLedger = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <AppNavbar
-        title="Legajo del Alumno"
-        subtitle={student.name}
-        backTo="/legajos"
-        backLabel="Legajos"
-        rightContent={
-          <Badge variant="outline" className="text-xs text-muted-foreground gap-1 hidden sm:flex">
-            <Shield className="w-3 h-3" /> Acceso restringido
-          </Badge>
-        }
-      />
-
       <main className="container mx-auto px-4 py-8 space-y-8 max-w-5xl">
 
         {/* Student info card */}

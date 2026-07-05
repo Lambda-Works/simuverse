@@ -38,20 +38,20 @@ Chain strategy: stacked-to-main
 
 ## Phase 2: Migration
 
-- [ ] 2.1 Move pages: dashboard, admin, evaluations, legajos, student-ledger into `(authenticated)/` group
-- [ ] 2.2 `Dashboard.tsx` — remove `AppNavbar` import + JSX; remove admin `rightContent` button
-- [ ] 2.3 `EvaluationsPage.tsx` — remove `AppNavbar` import + JSX
-- [ ] 2.4 `LegajosPage.tsx` — remove 3 `AppNavbar` instances (loading/error/normal states)
-- [ ] 2.5 `StudentLedger.tsx` — remove `AppNavbar`; add breadcrumb row via `useSidebarHeader().setBackTo()`
-- [ ] 2.6 `AdminPanel.tsx` — strip `AppNavbar` + 19-tab strip (~190 lines removed); consume `useAdminContext()` for tab state
+- [x] 2.1 Move pages: dashboard, admin, evaluations, legajos, student-ledger into `(authenticated)/` group
+- [x] 2.2 `Dashboard.tsx` — remove `AppNavbar` import + JSX; remove admin `rightContent` button
+- [x] 2.3 `EvaluationsPage.tsx` — remove `AppNavbar` import + JSX
+- [x] 2.4 `LegajosPage.tsx` — remove 3 `AppNavbar` instances (loading/error/normal states)
+- [x] 2.5 `StudentLedger.tsx` — remove `AppNavbar`; add breadcrumb row via `useSidebarHeader().setBackTo()`
+- [x] 2.6 `AdminPanel.tsx` — strip `AppNavbar` + 19-tab strip (~190 lines removed); consume `useAdminContext()` for tab state
 
 ## Phase 3: Cleanup
 
-- [ ] 3.1 Delete `components/AppNavbar.tsx`
-- [ ] 3.2 Verify zero `AppNavbar` imports across all files — `rg "from.@/components/AppNavbar"` returns nothing
+- [x] 3.1 Delete `components/AppNavbar.tsx`
+- [x] 3.2 Verify zero `AppNavbar` imports across all files — `rg "from.@/components/AppNavbar"` returns nothing
 
 ## Phase 4: Verify
 
-- [ ] 4.1 Run full vitest suite — all unit + integration tests pass
+- [x] 4.1 Run full vitest suite — all unit + integration tests pass
 - [ ] 4.2 Verify manual scenarios: mobile Sheet overlay, Ctrl+B toggle, role badge + logout in footer
 - [ ] 4.3 Verify simulation, certificate, auth pages load full-screen (no sidebar)
