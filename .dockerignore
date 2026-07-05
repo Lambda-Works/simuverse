@@ -29,6 +29,11 @@ README*
 .DS_Store
 Thumbs.db
 
+# Shell scripts (except entrypoints)
+*.sh
+!apps/api-nest/docker-entrypoint.dev.sh
+!apps/api-nest/docker-entrypoint.sh
+
 # Logs
 *.log
 npm-debug.log*

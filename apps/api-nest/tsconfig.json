@@ -19,6 +19,12 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
+  "watchOptions": {
+    "watchFile": "useFsEvents",
+    "watchDirectory": "useFsEvents",
+    "fallbackPolling": "dynamicPriority",
+    "excludeDirectories": ["**/node_modules", "dist", "**/prisma", "**/.git"]
+  },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

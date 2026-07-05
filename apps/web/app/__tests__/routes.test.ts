@@ -45,9 +45,9 @@ describe('Route page files', () => {
     })
   })
 
-  // 2.2 — /dashboard
-  describe('app/dashboard/page.tsx', () => {
-    const path = 'dashboard/page.tsx'
+  // 2.2 — /dashboard (now in (authenticated) route group)
+  describe('app/(authenticated)/dashboard/page.tsx', () => {
+    const path = '(authenticated)/dashboard/page.tsx'
 
     it('should exist', () => {
       const content = readRouteFile(path)
@@ -71,9 +71,9 @@ describe('Route page files', () => {
     })
   })
 
-  // 2.3 — /admin
-  describe('app/admin/page.tsx', () => {
-    const path = 'admin/page.tsx'
+  // 2.3 — /admin (now in (authenticated) route group)
+  describe('app/(authenticated)/admin/page.tsx', () => {
+    const path = '(authenticated)/admin/page.tsx'
 
     it('should exist', () => {
       const content = readRouteFile(path)
@@ -128,9 +128,9 @@ describe('Route page files', () => {
     })
   })
 
-  // 2.5 — /evaluations
-  describe('app/evaluations/page.tsx', () => {
-    const path = 'evaluations/page.tsx'
+  // 2.5 — /evaluations (now in (authenticated) route group)
+  describe('app/(authenticated)/evaluations/page.tsx', () => {
+    const path = '(authenticated)/evaluations/page.tsx'
 
     it('should exist', () => {
       const content = readRouteFile(path)
@@ -154,9 +154,9 @@ describe('Route page files', () => {
     })
   })
 
-  // 2.6 — /student-ledger/[userId] (dynamic route)
-  describe('app/student-ledger/[userId]/page.tsx', () => {
-    const path = 'student-ledger/[userId]/page.tsx'
+  // 2.6 — /student-ledger/[userId] (now in (authenticated) route group)
+  describe('app/(authenticated)/student-ledger/[userId]/page.tsx', () => {
+    const path = '(authenticated)/student-ledger/[userId]/page.tsx'
 
     it('should exist', () => {
       const content = readRouteFile(path)
@@ -168,26 +168,21 @@ describe('Route page files', () => {
       expect(content.startsWith("'use client'")).toBe(true)
     })
 
-    it('should import useParams from next/navigation', () => {
-      const content = readRouteFile(path)!
-      expect(content).toContain("import { useParams } from 'next/navigation'")
-    })
-
     it('should import StudentLedger from @/views/StudentLedger', () => {
       const content = readRouteFile(path)!
       expect(content).toContain("import StudentLedger from '@/views/StudentLedger'")
     })
 
-    it('should extract userId from params and pass to StudentLedger', () => {
+    it('should render <StudentLedger />', () => {
       const content = readRouteFile(path)!
-      expect(content).toContain('params.userId as string')
-      expect(content).toContain('<StudentLedger')
+      expect(content).toContain('export default function StudentLedgerRoute')
+      expect(content).toContain('<StudentLedger />')
     })
   })
 
-  // 2.7 — /legajos
-  describe('app/legajos/page.tsx', () => {
-    const path = 'legajos/page.tsx'
+  // 2.7 — /legajos (now in (authenticated) route group)
+  describe('app/(authenticated)/legajos/page.tsx', () => {
+    const path = '(authenticated)/legajos/page.tsx'
 
     it('should exist', () => {
       const content = readRouteFile(path)
@@ -285,7 +280,6 @@ describe('Navigation migration — react-router-dom replaced with next/navigatio
     'pages/NotFound.tsx',
     'pages/Index.tsx',
     'pages/TemplatesPanel.tsx',
-    'components/AppNavbar.tsx',
     'components/NavLink.tsx',
     'components/DynamicWorkbench.tsx',
     'components/StudentReviewModal.tsx',
@@ -351,7 +345,6 @@ describe('Navigation API migration verification', () => {
       'pages/CertificateView.tsx',
       'pages/Index.tsx',
       'pages/TemplatesPanel.tsx',
-      'components/AppNavbar.tsx',
       'components/StudentReviewModal.tsx',
     ]
 
@@ -385,7 +378,6 @@ describe('Navigation API migration verification', () => {
 
   it('usePathname should be used instead of useLocation().pathname', () => {
     const files = [
-      'components/AppNavbar.tsx',
       'hooks/useInactivityTimer.tsx',
     ]
 

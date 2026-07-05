@@ -1,0 +1,247 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+jobs:
+  build-dev:
+    name: Build & Verify Dev Environment
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' || github.base_ref == 'develop'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup environment variables
+        run: |
+          cp .env.example .env
+          mkdir -p apps/web/.next && chmod 777 apps/web/.next
+          mkdir -p apps/api-nest/uploads && chmod 777 apps/api-nest/uploads
+
+      - name: Build and start Docker Compose services
+        run: docker compose up -d --build
+
+      - name: Wait for PostgreSQL to be healthy
+        run: |
+          echo "Waiting for postgres to be healthy..."
+          for i in {1..30}; do
+            status=$(docker inspect --format='{{.State.Health.Status}}' simuverse-postgres 2>/dev/null || echo "starting")
+            if [ "$status" = "healthy" ]; then
+              echo "Postgres is healthy!"
+              break
+            fi
+            echo "  ($i/30) Postgres status: $status"
+            sleep 2
+          done
+          if [ "$status" != "healthy" ]; then
+            echo "ERROR: Postgres did not become healthy in time"
+            docker compose logs postgres
+            exit 1
+          fi
+
+      - name: Wait for API to be ready
+        run: |
+          echo "Waiting up to 3 minutes for API to be ready..."
+          for i in {1..36}; do
+            if curl -f -s --max-time 5 http://localhost:5002/api/health > /dev/null 2>&1; then
+              echo "API is ready!"
+              break
+            fi
+            echo "  ($i/36) API not ready yet, waiting 5s..."
+            sleep 5
+          done
+          if ! curl -f -s --max-time 5 http://localhost:5002/api/health > /dev/null 2>&1; then
+            echo "ERROR: API did not become ready in time"
+            docker compose logs api-nest
+            exit 1
+          fi
+
+      - name: Wait for Web to be ready
+        run: |
+          echo "Waiting up to 3 minutes for Web to be ready..."
+          for i in {1..36}; do
+            if curl -L -f -s --max-time 5 -o /dev/null http://localhost:8080 2>/dev/null; then
+              echo "Web is ready!"
+              break
+            fi
+            echo "  ($i/36) Web not ready yet, waiting 5s..."
+            sleep 5
+          done
+          if ! curl -L -f -s --max-time 5 -o /dev/null http://localhost:8080 2>/dev/null; then
+            echo "ERROR: Web did not become ready in time"
+            docker compose logs web
+            exit 1
+          fi
+
+      - name: Verify API is running
+        run: |
+          echo "Checking API at http://localhost:5002/api/health ..."
+          curl -f -s --max-time 30 \
+            -o /dev/null \
+            -w "API Response: HTTP %{http_code}\n" \
+            http://localhost:5002/api/health
+
+      - name: Verify Web is running
+        run: |
+          echo "Checking Web at http://localhost:8080 ..."
+          curl -L -f -s --max-time 30 \
+            -o /dev/null \
+            -w "Web Response: HTTP %{http_code}\n" \
+            http://localhost:8080
+
+      - name: Print logs on failure
+        if: failure()
+        run: |
+          echo "========== DOCKER COMPOSE LOGS =========="
+          docker compose logs --tail 100
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
+
+  build-prod:
+    name: Build & Verify Prod Environment
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup environment variables
+        run: |
+          cat > .env << 'EOF'
+          POSTGRES_USER=simuverse
+          POSTGRES_PASSWORD=SimuVerse2024secret
+          POSTGRES_DB=simuverse
+          JWT_SECRET=ci-test-jwt-secret-32-chars-min
+          CORS_ORIGIN=http://localhost:3000
+          NEXT_PUBLIC_API_URL=http://localhost:5000/api
+          PUERTO_BACKEND=5000
+          PUERTO_FRONTEND=3000
+          PUERTO_POSTGRES=5433
+          EOF
+
+      - name: Verify Web production build
+        run: |
+          echo "Building Web with Dockerfile.prod to verify no compile errors..."
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL=http://localhost:5000/api \
+            -f apps/web/Dockerfile.prod -t web-build-check .
+          echo "✓ Web production build successful"
+
+      - name: Build and start Docker Compose services
+        run: docker compose -f docker-compose.prod.yml up -d --build
+
+      - name: Wait for PostgreSQL to be healthy
+        run: |
+          echo "Waiting for postgres to be healthy..."
+          for i in {1..30}; do
+            cid=$(docker compose -f docker-compose.prod.yml ps -q postgres 2>/dev/null || true)
+            status=$(docker inspect --format='{{.State.Health.Status}}' "$cid" 2>/dev/null || echo "starting")
+            if [ "$status" = "healthy" ]; then
+              echo "Postgres is healthy!"
+              break
+            fi
+            echo "  ($i/30) Postgres status: $status"
+            sleep 2
+          done
+          if [ "$status" != "healthy" ]; then
+            echo "ERROR: Postgres did not become healthy in time"
+            docker compose -f docker-compose.prod.yml logs postgres
+            exit 1
+          fi
+
+      - name: Wait for seed to complete
+        run: |
+          echo "Waiting for seed to complete..."
+          for i in {1..36}; do
+            cid=$(docker compose -f docker-compose.prod.yml ps -q -a seed 2>/dev/null || true)
+            if [ -z "$cid" ]; then
+              echo "  ($i/36) Seed container not found yet, waiting 5s..."
+              sleep 5
+              continue
+            fi
+            code=$(docker inspect --format='{{.State.ExitCode}}' "$cid" 2>/dev/null || echo "-1")
+            if [ "$code" = "0" ]; then
+              echo "Seed completed successfully!"
+              break
+            fi
+            if [ "$code" != "0" ] && [ "$code" != "-1" ]; then
+              echo "ERROR: Seed exited with code $code"
+              docker logs "$cid"
+              exit 1
+            fi
+            echo "  ($i/36) Seed still running, waiting 5s..."
+            sleep 5
+          done
+          if [ "$code" != "0" ]; then
+            echo "ERROR: Seed did not complete in time"
+            cid=$(docker compose -f docker-compose.prod.yml ps -q -a seed 2>/dev/null || true)
+            [ -n "$cid" ] && docker logs "$cid"
+            exit 1
+          fi
+
+      - name: Wait for API to be ready
+        run: |
+          echo "Waiting up to 3 minutes for API to be ready..."
+          for i in {1..36}; do
+            if curl -f -s --max-time 5 http://localhost:5000/api/health > /dev/null 2>&1; then
+              echo "API is ready!"
+              break
+            fi
+            echo "  ($i/36) API not ready yet, waiting 5s..."
+            sleep 5
+          done
+          if ! curl -f -s --max-time 5 http://localhost:5000/api/health > /dev/null 2>&1; then
+            echo "ERROR: API did not become ready in time"
+            docker compose -f docker-compose.prod.yml logs api-nest
+            exit 1
+          fi
+
+      - name: Wait for Web to be ready
+        run: |
+          echo "Waiting up to 3 minutes for Web to be ready..."
+          for i in {1..36}; do
+            if curl -L -f -s --max-time 5 -o /dev/null http://localhost:3000 2>/dev/null; then
+              echo "Web is ready!"
+              break
+            fi
+            echo "  ($i/36) Web not ready yet, waiting 5s..."
+            sleep 5
+          done
+          if ! curl -L -f -s --max-time 5 -o /dev/null http://localhost:3000 2>/dev/null; then
+            echo "ERROR: Web did not become ready in time"
+            docker compose -f docker-compose.prod.yml logs web
+            exit 1
+          fi
+
+      - name: Verify API is running
+        run: |
+          echo "Checking API at http://localhost:5000/api/health ..."
+          curl -f -s --max-time 30 \
+            -o /dev/null \
+            -w "API Response: HTTP %{http_code}\n" \
+            http://localhost:5000/api/health
+
+      - name: Verify Web is running
+        run: |
+          echo "Checking Web at http://localhost:3000 ..."
+          curl -L -f -s --max-time 30 \
+            -o /dev/null \
+            -w "Web Response: HTTP %{http_code}\n" \
+            http://localhost:3000
+
+      - name: Print logs on failure
+        if: failure()
+        run: |
+          echo "========== DOCKER COMPOSE LOGS =========="
+          docker compose -f docker-compose.prod.yml logs --tail 100
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down -v

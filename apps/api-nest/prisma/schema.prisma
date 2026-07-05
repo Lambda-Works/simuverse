@@ -208,6 +208,7 @@ model Course {
   eval_criteria        Json?
   crisis_events        Json?
   simulated_company_id Int?
+  tech_sheet_id        Int?
   is_active            Boolean  @default(true)
   created_by           String?  @db.VarChar(36)
   created_at           DateTime @default(now())
@@ -793,10 +794,18 @@ model SimulationChatLog {
 }
 
 model SimulatedCompany {
-  id         Int      @id @default(autoincrement())
-  name       String   @db.VarChar(255)
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @default(now()) @db.Timestamptz
+  id            Int      @id @default(autoincrement())
+  name          String   @db.VarChar(255)
+  short_name    String?  @db.VarChar(50)
+  description   String?  @db.Text
+  industry      String?  @db.VarChar(100)
+  logo_url      String?  @db.Text
+  is_fictional  Boolean  @default(false)
+  city          String?  @db.VarChar(100)
+  country       String?  @db.VarChar(100)
+  website       String?  @db.Text
+  created_at    DateTime @default(now()) @db.Timestamptz
+  updated_at    DateTime @default(now()) @db.Timestamptz
 
   @@map("simulated_companies")
 }

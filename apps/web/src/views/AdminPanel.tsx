@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
 import { API_BASE } from '@/lib/api';
-import { AppNavbar } from '@/components/AppNavbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { useAdmin } from '@/lib/admin-context';
 import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield, FolderOpen, FileUp, UserCheck, BarChart3, ClipboardList, Wand2, Copy, MessageSquare, Bell, CalendarDays, Users2, Building2, GraduationCap, Handshake, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { GlobalStatsDashboard } from '@/components/GlobalStatsDashboard';
 import { CompaniesABM } from '@/components/CompaniesABM';
@@ -135,10 +135,10 @@ interface CourseForm {
   category: string;
   modules: string[];
   ai_config: {
-    base_role: string;
+    base_role?: string;
     course_context: string;
-    personality_traits: string[];
-    knowledge_base_prompt: string;
+    personality_traits?: string[];
+    knowledge_base_prompt?: string;
   };
   eval_criteria: string[];
   crisis_events: CrisisEventConfig[];
@@ -154,12 +154,7 @@ const emptyForm: CourseForm = {
   description: '',
   category: 'general',
   modules: ['chat_ia'],
-  ai_config: {
-    base_role: '',
-    course_context: '',
-    personality_traits: [],
-    knowledge_base_prompt: '',
-  },
+  ai_config: { course_context: '' },
   eval_criteria: [],
   crisis_events: [],
   is_active: true,
@@ -194,7 +189,7 @@ const AdminPanel = () => {
     ],
   };
   const [newCrisis, setNewCrisis] = useState<CrisisEventConfig>({ ...emtpyCrisisEvent, options: [...emtpyCrisisEvent.options] as CrisisEventConfig['options'] });
-  const [currentTab, setCurrentTab] = useState<'courses' | 'categories' | 'documents' | 'techsheets' | 'assignments' | 'reports' | 'scenarios' | 'templates' | 'prompt-templates' | 'sessions' | 'users' | 'roles' | 'stats' | 'requests' | 'groups' | 'calendar' | 'companies' | 'foundation' | 'endorsers'>('courses');
+  const { currentTab, setCurrentTab } = useAdmin();
   const [showPromptConfigModal, setShowPromptConfigModal] = useState(false);
   const [selectedCourseForPromptConfig, setSelectedCourseForPromptConfig] = useState<any>(null);
   const [courseFilter, setCourseFilter] = useState<'all' | 'active' | 'inactive'>('all'); // Filtro de cursos
@@ -276,14 +271,14 @@ const AdminPanel = () => {
       category: course.category || 'general',
       categories: Array.isArray(course.categories) ? course.categories : (course.category ? [course.category] : ['general']),
       modules: course.modules || [],
-      ai_config: course.ai_config || emptyForm.ai_config,
+      ai_config: course.ai_config || { course_context: '' },
       eval_criteria: course.eval_criteria || [],
       crisis_events: course.crisis_events || [],
       is_active: course.is_active,
       tech_sheet_id: course.tech_sheet_id || null,
       simulated_company_id: course.simulated_company_id || null,
     });
-    setEditingId(course.id);
+    setEditingId(course.course_id);
     setDialogOpen(true);
   };
 
@@ -325,7 +320,7 @@ const AdminPanel = () => {
       category: course.category,
       categories: Array.isArray(course.categories) ? course.categories : (course.category ? [course.category] : []),
       modules: course.modules || [],
-      ai_config: course.ai_config || emptyForm.ai_config,
+      ai_config: course.ai_config || { course_context: '' },
       eval_criteria: course.eval_criteria || [],
       crisis_events: course.crisis_events || [],
       is_active: false, // Las copias comienzan como inactivas
@@ -351,183 +346,6 @@ const AdminPanel = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <AppNavbar title="Administración SimuVerse 3.0">
-        {/* Tab navigation row */}
-        <div className="px-4 container mx-auto flex gap-1 overflow-x-auto py-1">
-            <Button
-              variant={currentTab === 'courses' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentTab('courses')}
-              className="rounded-b-none"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Cursos
-            </Button>
-            <Button
-              variant={currentTab === 'categories' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentTab('categories')}
-              className="rounded-b-none"
-            >
-              <FolderOpen className="w-4 h-4 mr-2" />
-              Categorías
-            </Button>
-            <Button
-              variant={currentTab === 'documents' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentTab('documents')}
-              className="rounded-b-none"
-            >
-              <FileUp className="w-4 h-4 mr-2" />
-              Documentos
-            </Button>
-            <Button
-              variant={currentTab === 'techsheets' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentTab('techsheets')}
-              className="rounded-b-none"
-            >
-              <FileUp className="w-4 h-4 mr-2" />
-              Fichas Técnicas
-            </Button>
-            <Button
-              variant={currentTab === 'assignments' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentTab('assignments')}
-              className="rounded-b-none"
-            >
-              <UserCheck className="w-4 h-4 mr-2" />
-              Asignaciones
-            </Button>
-            <Button
-              variant={currentTab === 'reports' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentTab('reports')}
-              className="rounded-b-none"
-            >
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Reportes
-            </Button>
-            <Button
-              variant={currentTab === 'scenarios' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentTab('scenarios')}
-              className="rounded-b-none"
-            >
-              <ClipboardList className="w-4 h-4 mr-2" />
-              Escenarios
-            </Button>
-            <Button
-              variant={currentTab === 'templates' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentTab('templates')}
-              className="rounded-b-none"
-            >
-              <Wand2 className="w-4 h-4 mr-2" />
-              Plantillas
-            </Button>
-            <Button
-              variant={currentTab === 'prompt-templates' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentTab('prompt-templates')}
-              className="rounded-b-none"
-            >
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Prompts IA
-            </Button>
-            <Button
-              variant={currentTab === 'sessions' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentTab('sessions')}
-              className="rounded-b-none"
-            >
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Sesiones
-            </Button>
-            <Button
-              variant={currentTab === 'users' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentTab('users')}
-              className="rounded-b-none"
-            >
-              <Users className="w-4 h-4 mr-2" />
-              Usuarios
-            </Button>
-            <Button
-              variant={currentTab === 'roles' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentTab('roles')}
-              className="rounded-b-none"
-            >
-              <Shield className="w-4 h-4 mr-2" />
-              Roles y Permisos
-            </Button>
-            <Button
-              variant={currentTab === 'stats' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentTab('stats')}
-              className="rounded-b-none"
-            >
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Estadísticas
-            </Button>
-            <Button
-              variant={currentTab === 'requests' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentTab('requests')}
-              className="rounded-b-none"
-            >
-              <Bell className="w-4 h-4 mr-2" />
-              Solicitudes
-            </Button>
-            <Button
-              variant={currentTab === 'groups' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentTab('groups')}
-              className="rounded-b-none"
-            >
-              <Users2 className="w-4 h-4 mr-2" />
-              Grupos
-            </Button>
-            <Button
-              variant={currentTab === 'calendar' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentTab('calendar')}
-              className="rounded-b-none"
-            >
-              <CalendarDays className="w-4 h-4 mr-2" />
-              Calendario
-            </Button>
-            <Button
-              variant={currentTab === 'companies' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentTab('companies')}
-              className="rounded-b-none"
-            >
-              <Building2 className="w-4 h-4 mr-2" />
-              Empresas
-            </Button>
-            <Button
-              variant={currentTab === 'foundation' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentTab('foundation')}
-              className="rounded-b-none"
-            >
-              <GraduationCap className="w-4 h-4 mr-2" />
-              Fundación
-            </Button>
-            <Button
-              variant={currentTab === 'endorsers' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentTab('endorsers')}
-              className="rounded-b-none"
-            >
-              <Handshake className="w-4 h-4 mr-2" />
-              Avaladores
-            </Button>
-          </div>
-        </AppNavbar>
-
       <main className="container mx-auto px-4 py-8">
         {/* Courses Tab */}
         {currentTab === 'courses' && (
@@ -657,10 +475,10 @@ const AdminPanel = () => {
                       <div className="space-y-2">
                         <Label className="text-sm">Rasgos de Personalidad</Label>
                         <div className="flex gap-2">
-                          <Input value={newTrait} onChange={e => setNewTrait(e.target.value)} placeholder="impaciente" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (newTrait.trim()) { setForm(p => ({ ...p, ai_config: { ...p.ai_config, personality_traits: [...p.ai_config.personality_traits, newTrait.trim()] } })); setNewTrait(''); } } }} />
-                          <Button type="button" variant="outline" size="sm" onClick={() => { if (newTrait.trim()) { setForm(p => ({ ...p, ai_config: { ...p.ai_config, personality_traits: [...p.ai_config.personality_traits, newTrait.trim()] } })); setNewTrait(''); } }}>+</Button>
+                          <Input value={newTrait} onChange={e => setNewTrait(e.target.value)} placeholder="impaciente" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (newTrait.trim()) { setForm(p => ({ ...p, ai_config: { ...p.ai_config, personality_traits: [...(p.ai_config.personality_traits || []), newTrait.trim()] } })); setNewTrait(''); } } }} />
+                          <Button type="button" variant="outline" size="sm" onClick={() => { if (newTrait.trim()) { setForm(p => ({ ...p, ai_config: { ...p.ai_config, personality_traits: [...(p.ai_config.personality_traits || []), newTrait.trim()] } })); setNewTrait(''); } }}>+</Button>
                         </div>
-                        <div className="flex flex-wrap gap-1">{form.ai_config.personality_traits.map((t, i) => <Badge key={i} variant="secondary" className="cursor-pointer" onClick={() => setForm(p => ({ ...p, ai_config: { ...p.ai_config, personality_traits: p.ai_config.personality_traits.filter((_, j) => j !== i) } }))}>{t} ×</Badge>)}</div>
+                        <div className="flex flex-wrap gap-1">{(form.ai_config.personality_traits || []).map((t, i) => <Badge key={i} variant="secondary" className="cursor-pointer" onClick={() => setForm(p => ({ ...p, ai_config: { ...p.ai_config, personality_traits: (p.ai_config.personality_traits || []).filter((_, j) => j !== i) } }))}>{t} ×</Badge>)}</div>
                       </div>
                     </div>
 

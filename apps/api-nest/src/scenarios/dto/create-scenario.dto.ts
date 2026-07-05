@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsBoolean, IsObject, MinLength } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsBoolean, MinLength } from 'class-validator';
 
 export class CreateScenarioDto {
   @IsString()
@@ -22,19 +22,15 @@ export class CreateScenarioDto {
   difficulty?: string;
 
   @IsOptional()
-  @IsObject()
   content?: any;
 
   @IsOptional()
-  @IsObject()
   expected_outcomes?: any;
 
   @IsOptional()
-  @IsObject()
   categories?: any;
 
   @IsOptional()
-  @IsObject()
   config?: any;
 
   @IsOptional()

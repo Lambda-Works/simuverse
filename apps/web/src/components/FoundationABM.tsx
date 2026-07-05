@@ -10,9 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from 'sonner';
 import { Plus, Settings, GraduationCap } from 'lucide-react';
 
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
-
+import { apiClient } from '@/services/ApiClient';
 interface FoundationConfig {
   id: number;
   name: string;
@@ -62,9 +60,8 @@ export function FoundationABM() {
 
   const fetchFoundations = async () => {
     try {
-      const r = await fetch(`${API}/foundation-config`);
-      const d = await r.json();
-      setFoundations(Array.isArray(d) ? d : []);
+      const r = await apiClient.get('/foundation-config');
+      setFoundations(Array.isArray(r.data) ? r.data : []);
     } catch { setFoundations([]); }
     setLoading(false);
   };
@@ -75,19 +72,17 @@ export function FoundationABM() {
     if (!form.name.trim()) { toast.error('El nombre es obligatorio'); return; }
     setSaving(true);
     try {
-      const url = editingId ? `${API}/foundation-config/${editingId}` : `${API}/foundation-config`;
-      const r = await fetch(url, {
-        method: editingId ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      if (!r.ok) { const d = await r.json(); throw new Error(d.error || 'Error al guardar'); }
+      if (editingId) {
+        await apiClient.put(`/foundation-config/${editingId}`, form);
+      } else {
+        await apiClient.post('/foundation-config', form);
+      }
       toast.success(editingId ? 'Institución actualizada' : 'Institución creada');
       setDialogOpen(false);
       setForm(emptyForm());
       setEditingId(null);
       fetchFoundations();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { toast.error(e?.response?.data?.message || 'Error al guardar'); }
     setSaving(false);
   };
 

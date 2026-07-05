@@ -1,6 +1,10 @@
-import { IsString, IsOptional, IsEnum, IsBoolean, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsBoolean } from 'class-validator';
 
 export class UpdateScenarioDto {
+  @IsOptional()
+  @IsString()
+  course_id?: string;
+
   @IsOptional()
   @IsString()
   title?: string;
@@ -18,19 +22,15 @@ export class UpdateScenarioDto {
   difficulty?: string;
 
   @IsOptional()
-  @IsObject()
   content?: any;
 
   @IsOptional()
-  @IsObject()
   expected_outcomes?: any;
 
   @IsOptional()
-  @IsObject()
   categories?: any;
 
   @IsOptional()
-  @IsObject()
   config?: any;
 
   @IsOptional()
