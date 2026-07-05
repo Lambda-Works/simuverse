@@ -9,8 +9,6 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Performance: use SWC for minification (faster than default terser)
-  swcMinify: true,
   // Performance: reduce webpack file-watching overhead in Docker bind mounts.
   // The monorepo root is mounted as /app — without broad ignores, webpack scans
   // everything (api-nest dist, prisma, openspec, proxy, etc.) every poll cycle.
