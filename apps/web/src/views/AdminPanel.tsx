@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { useAdmin } from '@/lib/admin-context';
 import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield, FolderOpen, FileUp, UserCheck, BarChart3, ClipboardList, Wand2, Copy, MessageSquare, Bell, CalendarDays, Users2, Building2, GraduationCap, Handshake, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { GlobalStatsDashboard } from '@/components/GlobalStatsDashboard';
 import { CompaniesABM } from '@/components/CompaniesABM';
@@ -188,7 +189,7 @@ const AdminPanel = () => {
     ],
   };
   const [newCrisis, setNewCrisis] = useState<CrisisEventConfig>({ ...emtpyCrisisEvent, options: [...emtpyCrisisEvent.options] as CrisisEventConfig['options'] });
-  const [currentTab, setCurrentTab] = useState<'courses' | 'categories' | 'documents' | 'techsheets' | 'assignments' | 'reports' | 'scenarios' | 'templates' | 'prompt-templates' | 'sessions' | 'users' | 'roles' | 'stats' | 'requests' | 'groups' | 'calendar' | 'companies' | 'foundation' | 'endorsers'>('courses');
+  const { currentTab, setCurrentTab } = useAdmin();
   const [showPromptConfigModal, setShowPromptConfigModal] = useState(false);
   const [selectedCourseForPromptConfig, setSelectedCourseForPromptConfig] = useState<any>(null);
   const [courseFilter, setCourseFilter] = useState<'all' | 'active' | 'inactive'>('all'); // Filtro de cursos
