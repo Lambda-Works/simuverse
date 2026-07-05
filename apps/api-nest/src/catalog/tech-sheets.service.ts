@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTechSheetDto } from './dto/create-tech-sheet.dto';
 import { UpdateTechSheetDto } from './dto/update-tech-sheet.dto';
+import { UpdateTechSheetConfigDto } from './dto/update-tech-sheet-config.dto';
 
 @Injectable()
 export class TechSheetsService {
@@ -128,5 +129,47 @@ export class TechSheetsService {
         tasks_count: analyzedConfig.tasks.length,
       },
     };
+  }
+
+  async getConfig(id: number) {
+    const sheet = await this.findOne(id);
+    const extractedData = sheet.extracted_data as Record<string, any> | null;
+    const config = extractedData?.analyzed_config;
+
+    if (config) {
+      return config;
+    }
+
+    // Return empty skeleton when no config exists yet
+    return {
+      competencies: [],
+      kpis: [],
+      tasks: [],
+      prompts: {},
+    };
+  }
+
+  async updateConfig(id: number, dto: UpdateTechSheetConfigDto) {
+    const sheet = await this.findOne(id);
+    const extractedData = (sheet.extracted_data as Record<string, any>) || {};
+
+    // Merge config into extracted_data.analyzed_config, preserving other keys
+    const mergedConfig = {
+      ...extractedData.analyzed_config,
+      ...(dto.competencies !== undefined && { competencies: dto.competencies }),
+      ...(dto.kpis !== undefined && { kpis: dto.kpis }),
+      ...(dto.tasks !== undefined && { tasks: dto.tasks }),
+      ...(dto.prompts !== undefined && { prompts: dto.prompts }),
+    };
+
+    const updatedExtractedData = {
+      ...extractedData,
+      analyzed_config: mergedConfig,
+    };
+
+    return (this.prisma as any).techSheet.update({
+      where: { id },
+      data: { extracted_data: updatedExtractedData },
+    });
   }
 }

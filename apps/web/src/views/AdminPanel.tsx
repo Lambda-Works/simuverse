@@ -135,10 +135,10 @@ interface CourseForm {
   category: string;
   modules: string[];
   ai_config: {
-    base_role: string;
+    base_role?: string;
     course_context: string;
-    personality_traits: string[];
-    knowledge_base_prompt: string;
+    personality_traits?: string[];
+    knowledge_base_prompt?: string;
   };
   eval_criteria: string[];
   crisis_events: CrisisEventConfig[];
@@ -154,12 +154,7 @@ const emptyForm: CourseForm = {
   description: '',
   category: 'general',
   modules: ['chat_ia'],
-  ai_config: {
-    base_role: '',
-    course_context: '',
-    personality_traits: [],
-    knowledge_base_prompt: '',
-  },
+  ai_config: { course_context: '' },
   eval_criteria: [],
   crisis_events: [],
   is_active: true,
@@ -276,14 +271,14 @@ const AdminPanel = () => {
       category: course.category || 'general',
       categories: Array.isArray(course.categories) ? course.categories : (course.category ? [course.category] : ['general']),
       modules: course.modules || [],
-      ai_config: course.ai_config || emptyForm.ai_config,
+      ai_config: course.ai_config || { course_context: '' },
       eval_criteria: course.eval_criteria || [],
       crisis_events: course.crisis_events || [],
       is_active: course.is_active,
       tech_sheet_id: course.tech_sheet_id || null,
       simulated_company_id: course.simulated_company_id || null,
     });
-    setEditingId(course.id);
+    setEditingId(course.course_id);
     setDialogOpen(true);
   };
 
@@ -325,7 +320,7 @@ const AdminPanel = () => {
       category: course.category,
       categories: Array.isArray(course.categories) ? course.categories : (course.category ? [course.category] : []),
       modules: course.modules || [],
-      ai_config: course.ai_config || emptyForm.ai_config,
+      ai_config: course.ai_config || { course_context: '' },
       eval_criteria: course.eval_criteria || [],
       crisis_events: course.crisis_events || [],
       is_active: false, // Las copias comienzan como inactivas
@@ -657,10 +652,10 @@ const AdminPanel = () => {
                       <div className="space-y-2">
                         <Label className="text-sm">Rasgos de Personalidad</Label>
                         <div className="flex gap-2">
-                          <Input value={newTrait} onChange={e => setNewTrait(e.target.value)} placeholder="impaciente" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (newTrait.trim()) { setForm(p => ({ ...p, ai_config: { ...p.ai_config, personality_traits: [...p.ai_config.personality_traits, newTrait.trim()] } })); setNewTrait(''); } } }} />
-                          <Button type="button" variant="outline" size="sm" onClick={() => { if (newTrait.trim()) { setForm(p => ({ ...p, ai_config: { ...p.ai_config, personality_traits: [...p.ai_config.personality_traits, newTrait.trim()] } })); setNewTrait(''); } }}>+</Button>
+                          <Input value={newTrait} onChange={e => setNewTrait(e.target.value)} placeholder="impaciente" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (newTrait.trim()) { setForm(p => ({ ...p, ai_config: { ...p.ai_config, personality_traits: [...(p.ai_config.personality_traits || []), newTrait.trim()] } })); setNewTrait(''); } } }} />
+                          <Button type="button" variant="outline" size="sm" onClick={() => { if (newTrait.trim()) { setForm(p => ({ ...p, ai_config: { ...p.ai_config, personality_traits: [...(p.ai_config.personality_traits || []), newTrait.trim()] } })); setNewTrait(''); } }}>+</Button>
                         </div>
-                        <div className="flex flex-wrap gap-1">{form.ai_config.personality_traits.map((t, i) => <Badge key={i} variant="secondary" className="cursor-pointer" onClick={() => setForm(p => ({ ...p, ai_config: { ...p.ai_config, personality_traits: p.ai_config.personality_traits.filter((_, j) => j !== i) } }))}>{t} ×</Badge>)}</div>
+                        <div className="flex flex-wrap gap-1">{(form.ai_config.personality_traits || []).map((t, i) => <Badge key={i} variant="secondary" className="cursor-pointer" onClick={() => setForm(p => ({ ...p, ai_config: { ...p.ai_config, personality_traits: (p.ai_config.personality_traits || []).filter((_, j) => j !== i) } }))}>{t} ×</Badge>)}</div>
                       </div>
                     </div>
 

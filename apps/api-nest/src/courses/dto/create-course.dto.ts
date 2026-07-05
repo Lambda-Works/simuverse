@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsObject, MinLength } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsObject, IsArray, IsInt, MinLength } from 'class-validator';
 
 export class CreateCourseDto {
   @IsString()
@@ -18,7 +18,7 @@ export class CreateCourseDto {
   category: string;
 
   @IsOptional()
-  @IsObject()
+  @IsArray()
   modules?: any;
 
   @IsOptional()
@@ -26,18 +26,30 @@ export class CreateCourseDto {
   ai_config?: any;
 
   @IsOptional()
-  @IsObject()
+  @IsArray()
   eval_criteria?: any;
 
   @IsOptional()
-  @IsObject()
+  @IsArray()
   crisis_events?: any;
 
   @IsOptional()
-  @IsObject()
+  @IsArray()
   categories?: any;
 
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  simulated_company_id?: number;
+
+  @IsOptional()
+  @IsInt()
+  tech_sheet_id?: number;
+
+  @IsOptional()
+  @IsString()
+  created_by?: string;
 }

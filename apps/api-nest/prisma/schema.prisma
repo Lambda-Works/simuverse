@@ -208,6 +208,7 @@ model Course {
   eval_criteria        Json?
   crisis_events        Json?
   simulated_company_id Int?
+  tech_sheet_id        Int?
   is_active            Boolean  @default(true)
   created_by           String?  @db.VarChar(36)
   created_at           DateTime @default(now())

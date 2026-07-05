@@ -17,6 +17,7 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CreateTechSheetDto } from './dto/create-tech-sheet.dto';
 import { UpdateTechSheetDto } from './dto/update-tech-sheet.dto';
+import { UpdateTechSheetConfigDto } from './dto/update-tech-sheet-config.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
 @Controller()
@@ -67,6 +68,19 @@ export class CatalogController {
   @Get('tech-sheets')
   async findAllTechSheets() {
     return this.techSheetsService.findAll();
+  }
+
+  @Get('tech-sheets/:id/config')
+  async getTechSheetConfig(@Param('id', ParseIntPipe) id: number) {
+    return this.techSheetsService.getConfig(id);
+  }
+
+  @Put('tech-sheets/:id/config')
+  async updateTechSheetConfig(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateTechSheetConfigDto,
+  ) {
+    return this.techSheetsService.updateConfig(id, dto);
   }
 
   @Get('tech-sheets/:id')

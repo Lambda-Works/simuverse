@@ -83,7 +83,43 @@ export function ConfigureTechSheetModal({
       );
       if (response.ok) {
         const data = await response.json();
-        setConfig(data);
+        // Normalizar: asegurar defaults para KPIs y tareas
+        setConfig({
+          tech_sheet_id: techSheetId,
+          analyzed_at: new Date(),
+          competencies: (data.competencies || []).map((c: any) => ({
+            id: c.id || crypto.randomUUID(),
+            name: c.name || '',
+            description: c.description || '',
+            level: c.level || 'basic',
+          })),
+          kpis: (data.kpis || []).map((k: any) => ({
+            id: k.id || crypto.randomUUID(),
+            name: k.name || '',
+            description: k.description || '',
+            category: k.category || '',
+            weight: k.weight ?? 0,
+            target_value: k.target_value ?? 0,
+            minimum_pass_value: k.minimum_pass_value ?? 0,
+            competencies_required: k.competencies_required || [],
+            evaluation_questions: k.evaluation_questions || [],
+          })),
+          tasks: (data.tasks || []).map((t: any) => ({
+            id: t.id || crypto.randomUUID(),
+            kpi_id: t.kpi_id || '',
+            type: t.type || 'practice',
+            title: t.title || '',
+            description: t.description || '',
+            difficulty: t.difficulty || 'medium',
+            sequence: t.sequence ?? 0,
+            expected_duration_minutes: t.expected_duration_minutes ?? 0,
+          })),
+          prompts: {
+            system_prompt: data.prompts?.system_prompt || data.prompts?.system || '',
+            evaluation_prompt: data.prompts?.evaluation_prompt || '',
+            coaching_prompt: data.prompts?.coaching_prompt || '',
+          },
+        });
       }
     } catch (error) {
       console.error('Error fetching config:', error);
@@ -298,7 +334,7 @@ export function ConfigureTechSheetModal({
                       {editing ? (
                         <Input
                           type="number"
-                          value={kpi.weight}
+                          value={kpi.weight ?? 0}
                           onChange={(e) => {
                             setConfig({
                               ...config,
@@ -312,7 +348,7 @@ export function ConfigureTechSheetModal({
                           className="mt-1"
                         />
                       ) : (
-                        <p>{kpi.weight.toFixed(1)}%</p>
+                        <p>{(kpi.weight ?? 0).toFixed(1)}%</p>
                       )}
                     </div>
                     <div>
@@ -320,7 +356,7 @@ export function ConfigureTechSheetModal({
                       {editing ? (
                         <Input
                           type="number"
-                          value={kpi.target_value}
+                          value={kpi.target_value ?? 0}
                           onChange={(e) => {
                             setConfig({
                               ...config,
@@ -334,7 +370,7 @@ export function ConfigureTechSheetModal({
                           className="mt-1"
                         />
                       ) : (
-                        <p>{kpi.target_value}%</p>
+                        <p>{kpi.target_value ?? 0}%</p>
                       )}
                     </div>
                     <div>

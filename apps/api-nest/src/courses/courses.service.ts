@@ -42,6 +42,9 @@ export class CoursesService {
     crisis_events?: any;
     categories?: any;
     is_active?: boolean;
+    simulated_company_id?: number;
+    tech_sheet_id?: number;
+    created_by?: string;
   }) {
     // Check if course_id already exists
     const existing = await this.prisma.course.findUnique({
@@ -63,6 +66,9 @@ export class CoursesService {
         crisis_events: data.crisis_events || undefined,
         categories: data.categories || undefined,
         is_active: data.is_active ?? true,
+        simulated_company_id: data.simulated_company_id ?? undefined,
+        tech_sheet_id: data.tech_sheet_id ?? undefined,
+        created_by: data.created_by || undefined,
       },
     });
   }
@@ -77,17 +83,25 @@ export class CoursesService {
     crisis_events?: any;
     categories?: any;
     is_active?: boolean;
+    simulated_company_id?: number;
+    tech_sheet_id?: number;
+    created_by?: string;
   }) {
+    // Strip created_by — never overwrite original creator on update
+    const { created_by, ...updateData } = data;
+
     try {
       return await this.prisma.course.update({
         where: { course_id: courseId },
         data: {
-          ...data,
-          modules: data.modules || undefined,
-          ai_config: data.ai_config || undefined,
-          eval_criteria: data.eval_criteria || undefined,
-          crisis_events: data.crisis_events || undefined,
-          categories: data.categories || undefined,
+          ...updateData,
+          modules: updateData.modules || undefined,
+          ai_config: updateData.ai_config || undefined,
+          eval_criteria: updateData.eval_criteria || undefined,
+          crisis_events: updateData.crisis_events || undefined,
+          categories: updateData.categories || undefined,
+          simulated_company_id: updateData.simulated_company_id ?? undefined,
+          tech_sheet_id: updateData.tech_sheet_id ?? undefined,
         },
       });
     } catch (error: any) {
