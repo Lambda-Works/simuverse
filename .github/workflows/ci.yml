@@ -160,7 +160,12 @@ jobs:
         run: |
           echo "Waiting for seed to complete..."
           for i in {1..36}; do
-            cid=$(docker compose -f docker-compose.prod.yml ps -q seed 2>/dev/null || true)
+            cid=$(docker compose -f docker-compose.prod.yml ps -q -a seed 2>/dev/null || true)
+            if [ -z "$cid" ]; then
+              echo "  ($i/36) Seed container not found yet, waiting 5s..."
+              sleep 5
+              continue
+            fi
             code=$(docker inspect --format='{{.State.ExitCode}}' "$cid" 2>/dev/null || echo "-1")
             if [ "$code" = "0" ]; then
               echo "Seed completed successfully!"
@@ -171,12 +176,13 @@ jobs:
               docker logs "$cid"
               exit 1
             fi
-            echo "  ($i/36) Seed not yet complete (code=$code), waiting 5s..."
+            echo "  ($i/36) Seed still running, waiting 5s..."
             sleep 5
           done
           if [ "$code" != "0" ]; then
             echo "ERROR: Seed did not complete in time"
-            docker compose -f docker-compose.prod.yml logs seed
+            cid=$(docker compose -f docker-compose.prod.yml ps -q -a seed 2>/dev/null || true)
+            [ -n "$cid" ] && docker logs "$cid"
             exit 1
           fi
 
