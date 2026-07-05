@@ -141,7 +141,8 @@ jobs:
         run: |
           echo "Waiting for postgres to be healthy..."
           for i in {1..30}; do
-            status=$(docker inspect --format='{{.State.Health.Status}}' simuverse-engine-postgres-1 2>/dev/null || echo "starting")
+            cid=$(docker compose -f docker-compose.prod.yml ps -q postgres 2>/dev/null || true)
+            status=$(docker inspect --format='{{.State.Health.Status}}' "$cid" 2>/dev/null || echo "starting")
             if [ "$status" = "healthy" ]; then
               echo "Postgres is healthy!"
               break
@@ -159,14 +160,15 @@ jobs:
         run: |
           echo "Waiting for seed to complete..."
           for i in {1..36}; do
-            code=$(docker inspect --format='{{.State.ExitCode}}' simuverse-engine-seed-1 2>/dev/null || echo "-1")
+            cid=$(docker compose -f docker-compose.prod.yml ps -q seed 2>/dev/null || true)
+            code=$(docker inspect --format='{{.State.ExitCode}}' "$cid" 2>/dev/null || echo "-1")
             if [ "$code" = "0" ]; then
               echo "Seed completed successfully!"
               break
             fi
             if [ "$code" != "0" ] && [ "$code" != "-1" ]; then
               echo "ERROR: Seed exited with code $code"
-              docker logs simuverse-engine-seed-1
+              docker logs "$cid"
               exit 1
             fi
             echo "  ($i/36) Seed not yet complete (code=$code), waiting 5s..."
@@ -174,7 +176,7 @@ jobs:
           done
           if [ "$code" != "0" ]; then
             echo "ERROR: Seed did not complete in time"
-            docker logs simuverse-engine-seed-1
+            docker compose -f docker-compose.prod.yml logs seed
             exit 1
           fi
 
