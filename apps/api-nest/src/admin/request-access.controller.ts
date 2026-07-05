@@ -8,6 +8,7 @@ class RequestAccessDto {
   @IsString()
   student_id: string;
 
+  @IsOptional()
   @IsString()
   course_id: string;
 
@@ -17,6 +18,7 @@ class RequestAccessDto {
   @IsEmail()
   student_email: string;
 
+  @IsOptional()
   @IsString()
   course_name: string;
 
