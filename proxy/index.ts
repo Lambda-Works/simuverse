@@ -51,7 +51,6 @@ app.use(
 // Catch-all fallback: forward everything else to web (Next.js)
 const webTarget = process.env.WEB_TARGET || 'http://web:3000';
 app.use(
-  '*',
   createProxyMiddleware({
     target: webTarget,
     changeOrigin: true,
