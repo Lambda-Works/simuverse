@@ -9,11 +9,35 @@ class CreateSimulatedCompanyDto {
 
   @IsOptional()
   @IsString()
+  short_name?: string;
+
+  @IsOptional()
+  @IsString()
   description?: string;
 
   @IsOptional()
   @IsString()
   industry?: string;
+
+  @IsOptional()
+  @IsString()
+  logo_url?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  is_fictional?: boolean;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @IsOptional()
+  @IsString()
+  country?: string;
+
+  @IsOptional()
+  @IsString()
+  website?: string;
 }
 
 class UpdateSimulatedCompanyDto {
@@ -23,6 +47,10 @@ class UpdateSimulatedCompanyDto {
 
   @IsOptional()
   @IsString()
+  short_name?: string;
+
+  @IsOptional()
+  @IsString()
   description?: string;
 
   @IsOptional()
@@ -30,8 +58,24 @@ class UpdateSimulatedCompanyDto {
   industry?: string;
 
   @IsOptional()
+  @IsString()
+  logo_url?: string;
+
+  @IsOptional()
   @IsBoolean()
-  is_active?: boolean;
+  is_fictional?: boolean;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @IsOptional()
+  @IsString()
+  country?: string;
+
+  @IsOptional()
+  @IsString()
+  website?: string;
 }
 
 @Controller('simulated-companies')
@@ -46,7 +90,7 @@ export class SimulatedCompaniesController {
 
   @Get(':id')
   async findOne(@Param('id') id: string) {
-    return (this.prisma as any).simulatedCompany.findUnique({ where: { id } });
+    return (this.prisma as any).simulatedCompany.findUnique({ where: { id: Number(id) } });
   }
 
   @Post()
@@ -56,11 +100,11 @@ export class SimulatedCompaniesController {
 
   @Put(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateSimulatedCompanyDto) {
-    return (this.prisma as any).simulatedCompany.update({ where: { id }, data: dto });
+    return (this.prisma as any).simulatedCompany.update({ where: { id: Number(id) }, data: dto });
   }
 
   @Delete(':id')
   async remove(@Param('id') id: string) {
-    return (this.prisma as any).simulatedCompany.delete({ where: { id } });
+    return (this.prisma as any).simulatedCompany.delete({ where: { id: Number(id) } });
   }
 }
