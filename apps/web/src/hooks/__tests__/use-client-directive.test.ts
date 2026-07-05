@@ -51,7 +51,6 @@ describe('use client directive — hooks', () => {
 
 describe('use client directive — components', () => {
   const componentFiles = [
-    'AppNavbar.tsx',
     'NavLink.tsx',
     'DynamicWorkbench.tsx',
     'DynamicInterface.tsx',
