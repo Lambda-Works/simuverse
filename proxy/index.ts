@@ -48,6 +48,17 @@ app.use(
   })
 );
 
+// Catch-all fallback: forward everything else to web (Next.js)
+const webTarget = process.env.WEB_TARGET || 'http://web:3000';
+app.use(
+  '*',
+  createProxyMiddleware({
+    target: webTarget,
+    changeOrigin: true,
+  })
+);
+console.log(`  ✓ Catch-all → ${webTarget}`);
+
 console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
 console.log(`  ✓ Proxy server started on port ${PORT}`);
 console.log(`  ✓ Default target: ${config.defaultTarget}`);
