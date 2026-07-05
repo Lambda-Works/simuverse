@@ -24,5 +24,5 @@ COPY --from=builder /app/proxy/package.json ./proxy/
 
 USER proxyuser
 WORKDIR /app/proxy
-EXPOSE 4000
+EXPOSE 5000
 CMD ["node", "dist/index.js"]
