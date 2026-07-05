@@ -13,4 +13,5 @@ RUN mkdir -p /app/apps/api-nest/uploads
 WORKDIR /app/apps/api-nest
 
 EXPOSE 3002
-CMD sh -c "rm -f tsconfig.tsbuildinfo && npx prisma generate && npm run build && npm run start:prod"
+RUN chmod +x /app/apps/api-nest/docker-entrypoint.dev.sh
+ENTRYPOINT ["/app/apps/api-nest/docker-entrypoint.dev.sh"]
