@@ -81,7 +81,8 @@ services:
       PROXY_PORT: "5000"
       WEB_TARGET: http://web:3000
     ports:
-      - "${PUERTO_BACKEND:-5000}:5000"
+      - "${PUERTO_FRONTEND:-5000}:5000"
+      - "${PUERTO_BACKEND:-5001}:5000"
     depends_on:
       api-nest:
         condition: service_healthy
@@ -107,8 +108,8 @@ services:
       HOSTNAME: "0.0.0.0"
       PORT: "3000"
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-    ports:
-      - "${PUERTO_FRONTEND:-3000}:3000"
+    expose:
+      - "3000"
     depends_on:
       api-nest:
         condition: service_healthy
