@@ -13,6 +13,7 @@ import {
   ChevronRight, GraduationCap, Layers, Clock, CheckCircle, Copy
 } from 'lucide-react';
 import { API_BASE } from '@/lib/api';
+import { apiClient } from '@/services/ApiClient';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -134,15 +135,17 @@ export function ScenariosABM() {
   }, []);
 
   const loadScenarios = async () => {
-    const res = await fetch(`${API_BASE}/scenarios`);
-    const d = await res.json();
-    setScenarios(Array.isArray(d) ? d : []);
+    try {
+      const res = await apiClient.get('/scenarios');
+      setScenarios(Array.isArray(res.data) ? res.data : []);
+    } catch { setScenarios([]); }
   };
 
   const loadCourses = async () => {
-    const res = await fetch(`${API_BASE}/courses`);
-    const d = await res.json();
-    setCourses(Array.isArray(d) ? d : []);
+    try {
+      const res = await apiClient.get('/courses');
+      setCourses(Array.isArray(res.data) ? res.data : []);
+    } catch { setCourses([]); }
   };
 
   // ── CRUD ────────────────────────────────────────────────────────────────────
@@ -154,20 +157,17 @@ export function ScenariosABM() {
     }
     setSaving(true);
     try {
-      const url = editingId
-        ? `${API_BASE}/scenarios/${editingId}`
-        : `${API_BASE}/scenarios`;
-      await fetch(url, {
-        method: editingId ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
+      if (editingId) {
+        await apiClient.put(`/scenarios/${editingId}`, form);
+      } else {
+        await apiClient.post('/scenarios', form);
+      }
       setDialogOpen(false);
       setEditingId(null);
       setForm(emptyForm());
       await loadScenarios();
-    } catch {
-      alert('Error al guardar el escenario');
+    } catch (err: any) {
+      alert(err?.response?.data?.message || 'Error al guardar el escenario');
     } finally {
       setSaving(false);
     }
@@ -201,8 +201,12 @@ export function ScenariosABM() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar este escenario?')) return;
-    await fetch(`${API_BASE}/scenarios/${id}`, { method: 'DELETE' });
-    await loadScenarios();
+    try {
+      await apiClient.delete(`/scenarios/${id}`);
+      await loadScenarios();
+    } catch (err: any) {
+      alert(err?.response?.data?.message || 'Error al eliminar');
+    }
   };
 
   const handleDuplicate = async (s: Scenario) => {
@@ -216,12 +220,12 @@ export function ScenariosABM() {
       content: s.content,
       expected_outcomes: s.expected_outcomes,
     };
-    await fetch(`${API_BASE}/scenarios`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    await loadScenarios();
+    try {
+      await apiClient.post('/scenarios', payload);
+      await loadScenarios();
+    } catch (err: any) {
+      alert(err?.response?.data?.message || 'Error al duplicar');
+    }
   };
 
   const handleNew = () => {
