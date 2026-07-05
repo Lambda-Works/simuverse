@@ -148,45 +148,70 @@ enum AssignmentStatus {
 // ── Models ─────────────────────────────────────────────────────────
 
 model User {
-  id            String    @id @default(uuid()) @db.VarChar(36)
-  email         String    @unique @db.VarChar(255)
-  password_hash String    @db.VarChar(255)
-  name          String    @db.VarChar(255)
-  role          UserRole  @default(student)
-  created_at    DateTime  @default(now())
-  updated_at    DateTime  @updatedAt
+  id            String   @id @default(uuid()) @db.VarChar(36)
+  email         String   @unique @db.VarChar(255)
+  password_hash String   @db.VarChar(255)
+  name          String   @db.VarChar(255)
+  role          UserRole @default(student)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 
-  simulations                        Simulation[]
-  simulation_instances               SimulationInstance[]
-  practice_logs                      PracticeLogs[]
-  telemetry_logs                     TelemetryLog[]
-  assessments                        Assessment[]
-  ministry_requirements_uploaded     MinistryRequirement[] @relation("UploadedBy")
-  notifications_received             Notification[]        @relation("Recipient")
-  notifications_actor                Notification[]        @relation("Actor")
-  file_uploads                       FileUpload[]
+  simulations                    Simulation[]
+  simulation_instances           SimulationInstance[]
+  practice_logs                  PracticeLogs[]
+  telemetry_logs                 TelemetryLog[]
+  assessments                    Assessment[]
+  ministry_requirements_uploaded MinistryRequirement[] @relation("UploadedBy")
+  notifications_received         Notification[]        @relation("Recipient")
+  notifications_actor            Notification[]        @relation("Actor")
+  file_uploads                   FileUpload[]
 
   @@index([email])
   @@index([created_at])
   @@map("users")
 }
 
+model TeacherGroup {
+  id         Int      @id @default(autoincrement())
+  teacher_id String   @db.VarChar(36)
+  student_id String   @db.VarChar(36)
+  created_at DateTime @default(now()) @db.Timestamp(0)
+
+  @@unique([teacher_id, student_id])
+  @@map("teacher_groups")
+}
+
+model AccessRequest {
+  id            Int      @id @default(autoincrement())
+  student_id    String   @db.VarChar(36)
+  course_id     String   @db.VarChar(36)
+  student_name  String   @db.VarChar(255)
+  student_email String   @db.VarChar(255)
+  course_name   String   @db.VarChar(255)
+  reason        String?  @db.Text
+  status        String   @default("pending") @db.VarChar(50)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @default(now())
+
+  @@map("access_requests")
+}
+
 model Course {
-  id                   String    @id @default(uuid()) @db.VarChar(36)
-  course_id            String    @unique @db.VarChar(36)
-  title                String    @db.VarChar(255)
-  description          String?   @db.Text
-  category             String    @db.VarChar(100)
+  id                   String   @id @default(uuid()) @db.VarChar(36)
+  course_id            String   @unique @db.VarChar(36)
+  title                String   @db.VarChar(255)
+  description          String?  @db.Text
+  category             String   @db.VarChar(100)
   categories           Json?
   modules              Json?
   ai_config            Json?
   eval_criteria        Json?
   crisis_events        Json?
   simulated_company_id Int?
-  is_active            Boolean   @default(true)
-  created_by           String?   @db.VarChar(36)
-  created_at           DateTime  @default(now())
-  updated_at           DateTime  @updatedAt
+  is_active            Boolean  @default(true)
+  created_by           String?  @db.VarChar(36)
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
 
   config                CourseConfig?
   simulations           Simulation[]
@@ -206,22 +231,22 @@ model Course {
 }
 
 model Simulation {
-  id                 String             @id @default(uuid()) @db.VarChar(36)
-  student_id         String             @db.VarChar(36)
-  course_id          String             @db.VarChar(36)
-  status             SimulationStatus   @default(active)
-  current_state      Json?
-  progress_percentage Int               @default(0)
-  started_at         DateTime           @default(now())
-  paused_at          DateTime?
-  completed_at       DateTime?
-  updated_at         DateTime           @updatedAt
-  score              Int?
+  id                  String           @id @default(uuid()) @db.VarChar(36)
+  student_id          String           @db.VarChar(36)
+  course_id           String           @db.VarChar(36)
+  status              SimulationStatus @default(active)
+  current_state       Json?
+  progress_percentage Int              @default(0)
+  started_at          DateTime         @default(now())
+  paused_at           DateTime?
+  completed_at        DateTime?
+  updated_at          DateTime         @updatedAt
+  score               Int?
 
-  user            User            @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  course          Course          @relation(fields: [course_id], references: [id], onDelete: Cascade)
-  telemetry_logs  TelemetryLog[]
-  assessments     Assessment[]
+  user           User           @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  course         Course         @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  telemetry_logs TelemetryLog[]
+  assessments    Assessment[]
 
   @@index([student_id])
   @@index([course_id])
@@ -245,9 +270,9 @@ model Scenario {
   created_at        DateTime   @default(now())
   updated_at        DateTime   @updatedAt
 
-  course     Course               @relation(fields: [course_id], references: [id])
-  instances  SimulationInstance[]
-  tasks      Task[]
+  course    Course               @relation(fields: [course_id], references: [id])
+  instances SimulationInstance[]
+  tasks     Task[]
 
   @@map("scenarios")
 }
@@ -266,26 +291,26 @@ model SimulationInstance {
   completed_at        DateTime?
   updated_at          DateTime                 @updatedAt
 
-  student    User           @relation(fields: [student_id], references: [id])
-  course     Course         @relation(fields: [course_id], references: [id])
-  scenario   Scenario       @relation(fields: [scenario_id], references: [id])
-  logs       PracticeLogs[]
+  student       User           @relation(fields: [student_id], references: [id])
+  course        Course         @relation(fields: [course_id], references: [id])
+  scenario      Scenario       @relation(fields: [scenario_id], references: [id])
+  logs          PracticeLogs[]
   notifications Notification[]
 
   @@map("simulation_instances")
 }
 
 model Assessment {
-  id                String   @id @default(uuid()) @db.VarChar(36)
-  simulation_id     String   @db.VarChar(36)
-  user_id           String   @db.VarChar(36)
-  course_id         String   @db.VarChar(36)
-  created_at        DateTime @default(now())
+  id                String    @id @default(uuid()) @db.VarChar(36)
+  simulation_id     String    @db.VarChar(36)
+  user_id           String    @db.VarChar(36)
+  course_id         String    @db.VarChar(36)
+  created_at        DateTime  @default(now())
   completed_at      DateTime?
   kpis              Json
-  ai_evaluation     String?  @db.Text
-  recommendation    String?  @db.Text
-  digital_signature String?  @db.VarChar(64)
+  ai_evaluation     String?   @db.Text
+  recommendation    String?   @db.Text
+  digital_signature String?   @db.VarChar(64)
   feedback          Json?
 
   simulation Simulation @relation(fields: [simulation_id], references: [id], onDelete: Cascade)
@@ -300,19 +325,19 @@ model Assessment {
 }
 
 model PracticeLogs {
-  id                     String   @id @default(uuid()) @db.VarChar(36)
-  student_id             String   @db.VarChar(36)
-  course_id              String   @db.VarChar(36)
-  simulation_instance_id String?  @db.VarChar(36)
+  id                     String     @id @default(uuid()) @db.VarChar(36)
+  student_id             String     @db.VarChar(36)
+  course_id              String     @db.VarChar(36)
+  simulation_instance_id String?    @db.VarChar(36)
   action_type            ActionType
-  description            String   @db.Text
+  description            String     @db.Text
   metadata               Json
   sequence_number        Int
-  integrity_hash         String   @db.VarChar(64)
-  previous_hash          String?  @db.VarChar(64)
-  created_at             DateTime @default(now())
+  integrity_hash         String     @db.VarChar(64)
+  previous_hash          String?    @db.VarChar(64)
+  created_at             DateTime   @default(now())
   timestamp              BigInt
-  docenter_notes         String?  @db.Text
+  docenter_notes         String?    @db.Text
 
   student             User                @relation(fields: [student_id], references: [id])
   course              Course              @relation(fields: [course_id], references: [id])
@@ -326,16 +351,16 @@ model PracticeLogs {
 }
 
 model TelemetryLog {
-  id              String              @id @default(uuid()) @db.VarChar(36)
-  simulation_id   String              @db.VarChar(36)
-  user_id         String              @db.VarChar(36)
-  course_id       String              @db.VarChar(36)
-  action          String              @db.VarChar(255)
-  action_type     TelemetryActionType
-  created_at      DateTime            @default(now())
+  id               String              @id @default(uuid()) @db.VarChar(36)
+  simulation_id    String              @db.VarChar(36)
+  user_id          String              @db.VarChar(36)
+  course_id        String              @db.VarChar(36)
+  action           String              @db.VarChar(255)
+  action_type      TelemetryActionType
+  created_at       DateTime            @default(now())
   response_time_ms Int
-  metadata        Json?
-  integrity_hash  String              @db.VarChar(64)
+  metadata         Json?
+  integrity_hash   String              @db.VarChar(64)
 
   simulation Simulation @relation(fields: [simulation_id], references: [id], onDelete: Cascade)
   user       User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -361,20 +386,20 @@ model Category {
 }
 
 model TechSheet {
-  id            Int      @id @default(autoincrement())
-  name          String   @db.VarChar(200)
-  course_id     String   @db.VarChar(36)
-  ministry_code String?  @db.VarChar(100)
-  description   String?  @db.Text
-  competencies  Json?
+  id               Int       @id @default(autoincrement())
+  name             String    @db.VarChar(200)
+  course_id        String    @db.VarChar(36)
+  ministry_code    String?   @db.VarChar(100)
+  description      String?   @db.Text
+  competencies     Json?
   kpi_requirements Json?
-  context_scenario String? @db.Text
-  extracted_data Json?
-  file_url      String?  @db.Text
-  processed     Boolean  @default(false)
-  processed_at  DateTime?
-  uploaded_by   String?  @db.VarChar(36)
-  created_at    DateTime @default(now())
+  context_scenario String?   @db.Text
+  extracted_data   Json?
+  file_url         String?   @db.Text
+  processed        Boolean   @default(false)
+  processed_at     DateTime?
+  uploaded_by      String?   @db.VarChar(36)
+  created_at       DateTime  @default(now())
 
   course_configs CourseConfig[]
 
@@ -382,30 +407,30 @@ model TechSheet {
 }
 
 model CourseDocument {
-  id              Int         @id @default(autoincrement())
-  course_id       String      @db.VarChar(36)
-  document_name   String      @db.VarChar(200)
-  document_type   DocumentType @default(other)
-  document_content String?    @db.Text
-  file_url        String?     @db.VarChar(500)
-  uploaded_by     String?     @db.VarChar(36)
-  created_at      DateTime    @default(now())
+  id               Int          @id @default(autoincrement())
+  course_id        String       @db.VarChar(36)
+  document_name    String       @db.VarChar(200)
+  document_type    DocumentType @default(other)
+  document_content String?      @db.Text
+  file_url         String?      @db.VarChar(500)
+  uploaded_by      String?      @db.VarChar(36)
+  created_at       DateTime     @default(now())
 
   @@map("course_documents")
 }
 
 model SimulationAssignment {
-  id            Int               @id @default(autoincrement())
-  simulation_id String            @db.VarChar(36)
-  student_id    String            @db.VarChar(36)
-  course_id     String            @db.VarChar(36)
-  assigned_by   String            @db.VarChar(36)
+  id            Int              @id @default(autoincrement())
+  simulation_id String           @db.VarChar(36)
+  student_id    String           @db.VarChar(36)
+  course_id     String           @db.VarChar(36)
+  assigned_by   String           @db.VarChar(36)
   start_date    DateTime?
   end_date      DateTime?
-  max_attempts  Int?              @default(1)
-  status        AssignmentStatus  @default(pending)
-  attempts_used Int               @default(0)
-  created_at    DateTime          @default(now())
+  max_attempts  Int?             @default(1)
+  status        AssignmentStatus @default(pending)
+  attempts_used Int              @default(0)
+  created_at    DateTime         @default(now())
 
   @@map("simulation_assignments")
 }
@@ -429,8 +454,8 @@ model MinistryRequirement {
   updated_at        DateTime          @updatedAt
   activated_at      DateTime?
 
-  course       Course      @relation(fields: [course_id], references: [id], onDelete: Cascade)
-  uploaded_by  User?       @relation("UploadedBy", fields: [uploaded_by_id], references: [id], onDelete: SetNull)
+  course       Course       @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  uploaded_by  User?        @relation("UploadedBy", fields: [uploaded_by_id], references: [id], onDelete: SetNull)
   kpis         KPI[]
   file_uploads FileUpload[]
 
@@ -459,9 +484,9 @@ model KPI {
   students_achieved       Int      @default(0)
   created_at              DateTime @default(now())
 
-  course              Course              @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  course               Course               @relation(fields: [course_id], references: [id], onDelete: Cascade)
   ministry_requirement MinistryRequirement? @relation(fields: [ministry_requirement_id], references: [id], onDelete: Cascade)
-  tasks               Task[]
+  tasks                Task[]
 
   @@index([course_id])
   @@index([ministry_requirement_id])
@@ -470,25 +495,25 @@ model KPI {
 }
 
 model Task {
-  id                      String   @id @default(uuid()) @db.VarChar(36)
-  course_id               String   @db.VarChar(36)
-  kpi_id                  String   @db.VarChar(36)
-  scenario_id             String?  @db.VarChar(36)
-  title                   String   @db.VarChar(255)
-  description             String   @db.Text
+  id                      String     @id @default(uuid()) @db.VarChar(36)
+  course_id               String     @db.VarChar(36)
+  kpi_id                  String     @db.VarChar(36)
+  scenario_id             String?    @db.VarChar(36)
+  title                   String     @db.VarChar(255)
+  description             String     @db.Text
   type                    TaskType
-  sequence_order          Int      @default(0)
+  sequence_order          Int        @default(0)
   ai_prompt_config        Json?
   evaluation_criteria     Json?
   status                  TaskStatus @default(pending)
-  is_active               Boolean  @default(true)
-  students_completed      Int      @default(0)
-  average_completion_rate Decimal  @default(0) @db.Decimal(5, 2)
-  created_at              DateTime @default(now())
+  is_active               Boolean    @default(true)
+  students_completed      Int        @default(0)
+  average_completion_rate Decimal    @default(0) @db.Decimal(5, 2)
+  created_at              DateTime   @default(now())
   activated_at            DateTime?
 
-  course   Course   @relation(fields: [course_id], references: [id], onDelete: Cascade)
-  kpi      KPI      @relation(fields: [kpi_id], references: [id], onDelete: Cascade)
+  course   Course    @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  kpi      KPI       @relation(fields: [kpi_id], references: [id], onDelete: Cascade)
   scenario Scenario? @relation(fields: [scenario_id], references: [id], onDelete: SetNull)
 
   @@index([course_id])
@@ -513,8 +538,8 @@ model Notification {
   is_sent                Boolean          @default(false)
   created_at             DateTime         @default(now())
 
-  recipient          User                @relation("Recipient", fields: [recipient_id], references: [id], onDelete: Cascade)
-  actor              User?               @relation("Actor", fields: [actor_id], references: [id], onDelete: SetNull)
+  recipient           User                @relation("Recipient", fields: [recipient_id], references: [id], onDelete: Cascade)
+  actor               User?               @relation("Actor", fields: [actor_id], references: [id], onDelete: SetNull)
   simulation_instance SimulationInstance? @relation(fields: [simulation_instance_id], references: [id], onDelete: SetNull)
 
   @@index([recipient_id])
@@ -525,22 +550,22 @@ model Notification {
 }
 
 model FileUpload {
-  id                      String           @id @default(uuid()) @db.VarChar(36)
-  uploaded_by_id          String           @db.VarChar(36)
-  course_id               String?          @db.VarChar(36)
-  ministry_requirement_id String?          @db.VarChar(36)
-  file_name               String           @db.VarChar(255)
-  file_type               String           @db.VarChar(50)
+  id                      String         @id @default(uuid()) @db.VarChar(36)
+  uploaded_by_id          String         @db.VarChar(36)
+  course_id               String?        @db.VarChar(36)
+  ministry_requirement_id String?        @db.VarChar(36)
+  file_name               String         @db.VarChar(255)
+  file_type               String         @db.VarChar(50)
   upload_type             FileUploadType
   file_size_bytes         BigInt
-  file_path               String           @db.VarChar(255)
-  file_hash               String?          @db.VarChar(64)
-  description             String?          @db.Text
-  is_active               Boolean          @default(true)
-  created_at              DateTime         @default(now())
+  file_path               String         @db.VarChar(255)
+  file_hash               String?        @db.VarChar(64)
+  description             String?        @db.Text
+  is_active               Boolean        @default(true)
+  created_at              DateTime       @default(now())
 
-  uploaded_by         User                @relation(fields: [uploaded_by_id], references: [id], onDelete: Cascade)
-  course              Course?             @relation(fields: [course_id], references: [id], onDelete: SetNull)
+  uploaded_by          User                 @relation(fields: [uploaded_by_id], references: [id], onDelete: Cascade)
+  course               Course?              @relation(fields: [course_id], references: [id], onDelete: SetNull)
   ministry_requirement MinistryRequirement? @relation(fields: [ministry_requirement_id], references: [id], onDelete: Cascade)
 
   @@index([uploaded_by_id])
@@ -602,8 +627,8 @@ model CourseConfig {
   created_at             DateTime             @default(now())
   updated_at             DateTime             @updatedAt
 
-  course         Course         @relation(fields: [course_id], references: [id])
-  tech_sheet     TechSheet?     @relation(fields: [tech_sheet_id], references: [id])
+  course          Course          @relation(fields: [course_id], references: [id])
+  tech_sheet      TechSheet?      @relation(fields: [tech_sheet_id], references: [id])
   prompt_template PromptTemplate? @relation(fields: [prompt_template_id], references: [id])
 
   @@map("course_config")
@@ -630,22 +655,70 @@ model FlowTemplate {
 }
 
 model PromptTemplate {
-  id                  Int      @id @default(autoincrement())
-  name                String   @db.VarChar(255)
-  description         String?  @db.Text
-  category            String?  @db.VarChar(50)
-  base_role           String   @db.Text
-  course_context      String?  @db.Text
-  personality_traits  Json?
-  knowledge_base_prompt String @db.Text
-  is_active           Boolean  @default(true)
-  created_by          String?  @db.VarChar(36)
-  created_at          DateTime @default(now())
-  updated_at          DateTime @updatedAt
+  id                    Int      @id @default(autoincrement())
+  name                  String   @db.VarChar(255)
+  description           String?  @db.Text
+  category              String?  @db.VarChar(50)
+  base_role             String   @db.Text
+  course_context        String?  @db.Text
+  personality_traits    Json?
+  knowledge_base_prompt String   @db.Text
+  is_active             Boolean  @default(true)
+  created_by            String?  @db.VarChar(36)
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
 
   course_configs CourseConfig[]
 
   @@map("prompt_templates")
+}
+
+model Endorser {
+  id               Int      @id @default(autoincrement())
+  name             String   @db.VarChar(255)
+  short_name       String?  @db.VarChar(100)
+  logo_url         String?  @db.VarChar(500)
+  description      String?  @db.Text
+  endorsement_type String?  @default("institution") @db.VarChar(100)
+  website          String?  @db.VarChar(255)
+  is_active        Boolean? @default(true)
+  created_at       DateTime @default(now()) @db.Timestamp(0)
+  updated_at       DateTime @default(now()) @updatedAt @db.Timestamp(0)
+
+  course_endorsers CourseEndorser[]
+
+  @@map("endorsers")
+}
+
+model CourseEndorser {
+  id          Int       @id @default(autoincrement())
+  course_id   String    @db.VarChar(36)
+  endorser_id Int
+  Endorser    Endorser? @relation(fields: [endorserId], references: [id])
+  endorserId  Int?
+
+  @@unique([course_id, endorser_id])
+  @@map("course_endorsers")
+}
+
+model FoundationConfig {
+  id            Int      @id @default(autoincrement())
+  name          String   @db.VarChar(255)
+  short_name    String?  @db.VarChar(100)
+  logo_url      String?  @db.VarChar(500)
+  address       String?  @db.VarChar(255)
+  city          String?  @default("Rosario") @db.VarChar(100)
+  province      String?  @default("Santa Fe") @db.VarChar(100)
+  country       String?  @default("Argentina") @db.VarChar(100)
+  phone         String?  @db.VarChar(50)
+  email         String?  @db.VarChar(150)
+  website       String?  @db.VarChar(255)
+  ministry_aval String?  @db.Text
+  is_active     Boolean? @default(true)
+  created_at    DateTime @default(now()) @db.Timestamp(0)
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamp(0)
+
+  @@map("foundation_config")
 }
 
 // ── Legacy / Raw-SQL tables ────────────────────────────────────────
@@ -675,28 +748,28 @@ model SystemFunctionality {
 }
 
 model RolePermission {
-  id              Int     @id @default(autoincrement())
-  role_name       String  @db.VarChar(255)
+  id               Int     @id @default(autoincrement())
+  role_name        String  @db.VarChar(255)
   functionality_id Int
-  enabled         Boolean @default(false)
+  enabled          Boolean @default(false)
 
   @@unique([role_name, functionality_id])
   @@map("role_permissions")
 }
 
 model SimulationEvaluation {
-  id                   Int      @id @default(autoincrement())
-  assignment_id        Int?
-  student_id           String   @db.VarChar(36)
-  simulation_id        String   @db.VarChar(36)
-  attempt_number       Int      @default(1)
-  kpi_results          Json?
-  overall_score        Decimal? @db.Decimal(5, 2)
-  overall_feedback     String?  @db.Text
+  id                    Int      @id @default(autoincrement())
+  assignment_id         Int?
+  student_id            String   @db.VarChar(36)
+  simulation_id         String   @db.VarChar(36)
+  attempt_number        Int      @default(1)
+  kpi_results           Json?
+  overall_score         Decimal? @db.Decimal(5, 2)
+  overall_feedback      String?  @db.Text
   completion_percentage Decimal? @db.Decimal(5, 2)
-  time_spent_seconds   Int?
-  responses            Json?
-  evaluated_at         DateTime @default(now())
+  time_spent_seconds    Int?
+  responses             Json?
+  evaluated_at          DateTime @default(now())
 
   @@index([student_id])
   @@index([simulation_id])
