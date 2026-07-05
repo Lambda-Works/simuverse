@@ -186,6 +186,25 @@ jobs:
             exit 1
           fi
 
+      - name: Wait for proxy to be healthy
+        run: |
+          echo "Waiting for proxy to be healthy..."
+          for i in {1..36}; do
+            cid=$(docker compose -f docker-compose.prod.yml ps -q proxy 2>/dev/null || true)
+            status=$(docker inspect --format='{{.State.Health.Status}}' "$cid" 2>/dev/null || echo "starting")
+            if [ "$status" = "healthy" ]; then
+              echo "Proxy is healthy!"
+              break
+            fi
+            echo "  ($i/36) Proxy status: $status"
+            sleep 5
+          done
+          if [ "$status" != "healthy" ]; then
+            echo "ERROR: Proxy did not become healthy in time"
+            docker compose -f docker-compose.prod.yml logs proxy
+            exit 1
+          fi
+
       - name: Wait for API to be ready
         run: |
           echo "Waiting up to 3 minutes for API to be ready..."
