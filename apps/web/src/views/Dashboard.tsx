@@ -138,7 +138,14 @@ const Dashboard = () => {
     setSending(true);
     setSendError('');
     try {
-      const res = await apiClient.post('/request-access', { ...form, user_id: user?.id });
+      const res = await apiClient.post('/request-access', {
+        student_id: user?.id,
+        student_name: `${form.nombre} ${form.apellido}`,
+        student_email: form.email,
+        course_id: '',
+        course_name: '',
+        reason: JSON.stringify({ dni: form.dni, celular: form.celular }),
+      });
       setSent(true);
     } catch (err: any) {
       setSendError(err.response?.data?.error || err.message || 'No se pudo enviar la solicitud. Intente nuevamente.');
