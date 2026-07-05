@@ -7,7 +7,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { AppNavbar } from '@/components/AppNavbar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -91,7 +90,6 @@ const LegajosPage = () => {
   if (loading || fetching) {
     return (
       <div className="min-h-screen bg-background">
-        <AppNavbar title="Legajos de Alumnos" />
         <div className="flex items-center justify-center py-32">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
         </div>
@@ -102,7 +100,6 @@ const LegajosPage = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-background">
-        <AppNavbar title="Legajos de Alumnos" />
         <div className="container mx-auto px-4 py-16 text-center">
           <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
           <p className="text-destructive font-semibold text-lg mb-2">Acceso denegado</p>
@@ -115,12 +112,14 @@ const LegajosPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <AppNavbar
-        title="Legajos de Alumnos"
-        subtitle={`${students.length} alumno${students.length !== 1 ? 's' : ''} registrado${students.length !== 1 ? 's' : ''}`}
-      />
-
       <main className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">Legajos de Alumnos</h1>
+          <p className="text-muted-foreground text-sm">
+            {students.length} alumno{students.length !== 1 ? 's' : ''} registrado{students.length !== 1 ? 's' : ''}
+          </p>
+        </div>
         {/* Filtros */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
           <div className="relative flex-1 max-w-md">
