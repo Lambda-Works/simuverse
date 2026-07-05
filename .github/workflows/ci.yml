@@ -120,8 +120,8 @@ jobs:
           POSTGRES_DB=simuverse
           JWT_SECRET=ci-test-jwt-secret-32-chars-min
           CORS_ORIGIN=http://localhost:3000
-          NEXT_PUBLIC_API_URL=http://localhost:5000/api
-          PUERTO_BACKEND=5000
+          NEXT_PUBLIC_API_URL=http://localhost:5001/api
+          PUERTO_BACKEND_NEST=5001
           PUERTO_FRONTEND=3000
           PUERTO_POSTGRES=5433
           EOF
@@ -130,7 +130,7 @@ jobs:
         run: |
           echo "Building Web with Dockerfile.prod to verify no compile errors..."
           docker build \
-            --build-arg NEXT_PUBLIC_API_URL=http://localhost:5000/api \
+            --build-arg NEXT_PUBLIC_API_URL=http://localhost:5001/api \
             -f apps/web/Dockerfile.prod -t web-build-check .
           echo "✓ Web production build successful"
 
@@ -186,37 +186,18 @@ jobs:
             exit 1
           fi
 
-      - name: Wait for proxy to be healthy
-        run: |
-          echo "Waiting for proxy to be healthy..."
-          for i in {1..36}; do
-            cid=$(docker compose -f docker-compose.prod.yml ps -q proxy 2>/dev/null || true)
-            status=$(docker inspect --format='{{.State.Health.Status}}' "$cid" 2>/dev/null || echo "starting")
-            if [ "$status" = "healthy" ]; then
-              echo "Proxy is healthy!"
-              break
-            fi
-            echo "  ($i/36) Proxy status: $status"
-            sleep 5
-          done
-          if [ "$status" != "healthy" ]; then
-            echo "ERROR: Proxy did not become healthy in time"
-            docker compose -f docker-compose.prod.yml logs proxy
-            exit 1
-          fi
-
       - name: Wait for API to be ready
         run: |
           echo "Waiting up to 3 minutes for API to be ready..."
           for i in {1..36}; do
-            if curl -f -s --max-time 5 http://localhost:5000/api/health > /dev/null 2>&1; then
+            if curl -f -s --max-time 5 http://localhost:5001/api/health > /dev/null 2>&1; then
               echo "API is ready!"
               break
             fi
             echo "  ($i/36) API not ready yet, waiting 5s..."
             sleep 5
           done
-          if ! curl -f -s --max-time 5 http://localhost:5000/api/health > /dev/null 2>&1; then
+          if ! curl -f -s --max-time 5 http://localhost:5001/api/health > /dev/null 2>&1; then
             echo "ERROR: API did not become ready in time"
             docker compose -f docker-compose.prod.yml logs api-nest
             exit 1
@@ -241,11 +222,11 @@ jobs:
 
       - name: Verify API is running
         run: |
-          echo "Checking API at http://localhost:5000/api/health ..."
+          echo "Checking API at http://localhost:5001/api/health ..."
           curl -f -s --max-time 30 \
             -o /dev/null \
             -w "API Response: HTTP %{http_code}\n" \
-            http://localhost:5000/api/health
+            http://localhost:5001/api/health
 
       - name: Verify Web is running
         run: |
