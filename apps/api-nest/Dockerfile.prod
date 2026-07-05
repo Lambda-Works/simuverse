@@ -12,7 +12,7 @@ RUN npx prisma generate --schema=apps/api-nest/prisma/schema.prisma
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY apps/api-nest/ ./apps/api-nest/
 WORKDIR /app/apps/api-nest
 RUN npm run build
 
