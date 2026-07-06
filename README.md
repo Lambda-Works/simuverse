@@ -27,6 +27,55 @@ docker compose up -d --build
 
 Los puertos son configurables via `PUERTO_FRONTEND`, `PUERTO_PROXY`, `PUERTO_BACKEND_NEST`, `PUERTO_POSTGRES` en `.env`.
 
+## First-time setup
+
+Pasos para levantar el proyecto por primera vez:
+
+### 1. Clonar y configurar variables de entorno
+
+```bash
+git clone <repo-url>
+cd simuverse-engine
+cp .env.example .env
+```
+
+Editá el `.env` con los valores reales. Las variables que **sí o sí** hay que cambiar:
+
+| Variable | Descripción | Ejemplo |
+|----------|-------------|---------|
+| `POSTGRES_PASSWORD` | Password de PostgreSQL | `MiPasswordSeguro123` |
+| `JWT_SECRET` | Secreto para firmar JWTs | `random-string-seguro` |
+| `GEMINI_API_KEY` | API key de Gemini para IA | `AIzaSy...` |
+| `ASSESSMENT_HMAC_SECRET` | Secreto para firmar evaluaciones | `random-string-seguro` |
+
+El `.env.example` tiene placeholders seguros para desarrollo. Copialo y editá lo necesario.
+
+### 2. Levantar los servicios
+
+```bash
+docker compose up -d --build
+```
+
+Esto levanta: PostgreSQL, API NestJS, proxy y frontend Next.js.
+
+> **Nota:** Las migraciones de Prisma se aplican automáticamente cuando el contenedor de la API arranca (ver `apps/api-nest/docker-entrypoint.dev.sh`). No hace falta correrlas manualmente.
+
+### 3. Ejecutar la seed
+
+```bash
+npm run prisma:seed --prefix apps/api-nest
+```
+
+Esto pobla la base de datos con datos iniciales (usuarios de prueba, cursos, etc.).
+
+### 4. Verificar
+
+```bash
+curl http://localhost:5000/api/health
+```
+
+Deberías ver una respuesta JSON indicando que la API está funcionando.
+
 ## Puertos
 
 | Variable | Default | Descripción |
