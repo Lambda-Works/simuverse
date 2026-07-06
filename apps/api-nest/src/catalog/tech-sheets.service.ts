@@ -3,10 +3,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateTechSheetDto } from './dto/create-tech-sheet.dto';
 import { UpdateTechSheetDto } from './dto/update-tech-sheet.dto';
 import { UpdateTechSheetConfigDto } from './dto/update-tech-sheet-config.dto';
+import { AnalysisPipelineService } from './analysis-pipeline.service';
 
 @Injectable()
 export class TechSheetsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private analysisPipeline: AnalysisPipelineService,
+  ) {}
 
   async findAll() {
     return this.prisma.techSheet.findMany({ orderBy: { created_at: 'desc' } });
@@ -104,30 +108,15 @@ export class TechSheetsService {
       );
     }
 
-    // Mark as processed
-    const savedSheet = await this.prisma.techSheet.update({
-      where: { id },
-      data: { processed: true, processed_at: new Date() },
+    // Fire-and-forget: trigger pipeline without awaiting
+    this.analysisPipeline.run(id).catch((error) => {
+      console.error(`Pipeline failed for tech sheet ${id}:`, error);
     });
 
-    // Build analyzed config from sheet data
-    const analyzedConfig = {
-      competencies: (sheet.competencies as any[]) || [],
-      kpis: (sheet.kpi_requirements as any[]) || [],
-      tasks: [],
-      analysis_method: sheet.file_url ? 'file_analysis' : 'description_analysis',
-      analysis_notes: 'Analyzed via NestJS service',
-    };
-
     return {
-      message: 'Tech sheet analyzed successfully',
-      sheet: savedSheet,
-      config: analyzedConfig,
-      summary: {
-        competencies_count: analyzedConfig.competencies.length,
-        kpis_count: analyzedConfig.kpis.length,
-        tasks_count: analyzedConfig.tasks.length,
-      },
+      message: 'Analysis pipeline triggered',
+      sheet_id: id,
+      status: 'processing',
     };
   }
 
@@ -137,7 +126,10 @@ export class TechSheetsService {
     const config = extractedData?.analyzed_config;
 
     if (config) {
-      return config;
+      return {
+        ...config,
+        pipeline_status: sheet.pipeline_status,
+      };
     }
 
     // Return empty skeleton when no config exists yet
@@ -146,6 +138,7 @@ export class TechSheetsService {
       kpis: [],
       tasks: [],
       prompts: {},
+      pipeline_status: sheet.pipeline_status,
     };
   }
 

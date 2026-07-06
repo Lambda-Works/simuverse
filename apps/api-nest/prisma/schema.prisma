@@ -107,6 +107,7 @@ enum FileUploadType {
   ministry_requirement
   scenario_resource
   student_submission
+  tech_sheet
 }
 
 enum DocumentType {
@@ -401,6 +402,8 @@ model TechSheet {
   processed_at     DateTime?
   uploaded_by      String?   @db.VarChar(36)
   created_at       DateTime  @default(now())
+  pipeline_status  String?   @db.VarChar(50)
+  pipeline_output  Json?
 
   course_configs CourseConfig[]
 
