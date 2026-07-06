@@ -6,7 +6,6 @@ import {
   Delete,
   Param,
   Body,
-  UseGuards,
   HttpCode,
   HttpStatus,
   ParseIntPipe,
@@ -18,7 +17,7 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CreateTechSheetDto } from './dto/create-tech-sheet.dto';
 import { UpdateTechSheetDto } from './dto/update-tech-sheet.dto';
 import { UpdateTechSheetConfigDto } from './dto/update-tech-sheet-config.dto';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { TriggerAnalysisDto } from './dto/trigger-analysis.dto';
 
 @Controller()
 export class CatalogController {
@@ -113,7 +112,10 @@ export class CatalogController {
   }
 
   @Post('tech-sheets/:id/analyze')
-  async analyzeTechSheet(@Param('id', ParseIntPipe) id: number) {
+  async analyzeTechSheet(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: TriggerAnalysisDto,
+  ) {
     return this.techSheetsService.analyze(id);
   }
 }
