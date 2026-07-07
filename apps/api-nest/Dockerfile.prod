@@ -7,7 +7,8 @@ COPY package.json package-lock.json ./
 COPY apps/api-nest/package.json ./apps/api-nest/
 COPY apps/api-nest/prisma ./apps/api-nest/prisma/
 ARG DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy
-RUN npm install
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 RUN npx prisma generate --schema=apps/api-nest/prisma/schema.prisma
 
 FROM base AS builder
