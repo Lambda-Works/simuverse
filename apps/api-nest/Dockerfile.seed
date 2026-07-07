@@ -10,6 +10,8 @@ COPY apps/api-nest/package.json ./apps/api-nest/
 COPY apps/web/package.json ./apps/web/
 COPY proxy/package.json ./proxy/
 
+ENV CYPRESS_INSTALL_BINARY=0
+
 RUN npm ci
 
 COPY apps/api-nest/prisma ./apps/api-nest/prisma/
