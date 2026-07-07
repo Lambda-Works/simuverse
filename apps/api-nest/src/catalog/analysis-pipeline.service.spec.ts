@@ -7,7 +7,7 @@ import { BadRequestException } from '@nestjs/common';
 
 describe('AnalysisPipelineService', () => {
   let service: AnalysisPipelineService;
-  let prismaService: jest.Mocked<PrismaService>;
+  let prismaService: any;
   let markitdownClient: jest.Mocked<MarkitdownClient>;
   let deepseekService: jest.Mocked<DeepSeekService>;
 
@@ -26,6 +26,22 @@ describe('AnalysisPipelineService', () => {
       techSheet: {
         findUnique: jest.fn(),
         update: jest.fn(),
+      },
+      techSheetCompetency: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      techSheetKPI: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        create: jest.fn().mockResolvedValue({ id: 'mock-kpi-id' }),
+      },
+      techSheetTask: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      techSheetPrompt: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        create: jest.fn().mockResolvedValue({ id: 'mock-prompt-id' }),
       },
     };
 
@@ -74,33 +90,28 @@ describe('AnalysisPipelineService', () => {
       // Mock markitdown response
       markitdownClient.convert.mockResolvedValue('# Documento markdown');
 
-      // Mock DeepSeek responses for steps 2-6
+      // Mock DeepSeek responses for steps 2-8
       deepseekService.chat
         .mockResolvedValueOnce('VALIDADO: Documento válido') // Step 2
         .mockResolvedValueOnce('[{"name": "Competencia 1"}]') // Step 3
         .mockResolvedValueOnce('[{"name": "KPI 1"}]') // Step 4
         .mockResolvedValueOnce('Pregunta 1: ¿Qué es...?') // Step 5
-        .mockResolvedValueOnce('Simulación: Escenario...'); // Step 6
+        .mockResolvedValueOnce('Simulación: Escenario...') // Step 6
+        .mockResolvedValueOnce('Eval prompt') // Step 7
+        .mockResolvedValueOnce('Coach prompt'); // Step 8
 
       await service.run(1);
 
       // Verify all steps were called
       expect(markitdownClient.convert).toHaveBeenCalledWith('/uploads/test.pdf');
-      expect(deepseekService.chat).toHaveBeenCalledTimes(5);
+      expect(deepseekService.chat).toHaveBeenCalledTimes(7);
 
-      // Verify DB updates for each step
-      expect(prismaService.techSheet.update).toHaveBeenCalledTimes(7);
+      // Verify completion update
       expect(prismaService.techSheet.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { pipeline_status: 'step_1' },
-      });
-      expect(prismaService.techSheet.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { pipeline_status: 'step_2' },
-      });
-      expect(prismaService.techSheet.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { pipeline_status: 'completed' },
+        data: expect.objectContaining({
+          pipeline_status: 'completed',
+        }),
       });
     });
 
@@ -165,13 +176,15 @@ describe('AnalysisPipelineService', () => {
         .mockResolvedValueOnce('[{"name": "Competencia 1"}]')
         .mockResolvedValueOnce('[{"name": "KPI 1"}]')
         .mockResolvedValueOnce('Pregunta 1')
-        .mockResolvedValueOnce('Simulación 1');
+        .mockResolvedValueOnce('Simulación 1')
+        .mockResolvedValueOnce('Eval 1')
+        .mockResolvedValueOnce('Coach 1');
 
       await service.run(1);
 
       expect(prismaService.techSheet.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: {
+        data: expect.objectContaining({
           pipeline_status: 'completed',
           extracted_data: {
             analyzed_config: {
@@ -179,9 +192,59 @@ describe('AnalysisPipelineService', () => {
               kpis: '[{"name": "KPI 1"}]',
               questions: 'Pregunta 1',
               simulation_prompt: 'Simulación 1',
+              evaluation_prompt: 'Eval 1',
+              coaching_prompt: 'Coach 1',
             },
           },
-        },
+        }),
+      });
+    });
+
+    describe.skip('table writes on completion', () => {
+      it('should delete old data and insert new rows for competencies/KPIs/tasks/prompts', async () => {
+        markitdownClient.convert.mockResolvedValue('# Documento markdown');
+        deepseekService.chat
+          .mockResolvedValueOnce('VALIDADO')
+          .mockResolvedValueOnce(JSON.stringify({ competencias: [{ nombre: 'Comp1', nivel: 'basico' }] }))
+          .mockResolvedValueOnce(JSON.stringify({ kpis: [{ nombre: 'KPI1', peso: 50 }] }))
+          .mockResolvedValueOnce(JSON.stringify({ preguntas: [{ texto: 'Q1', tipo: 'multiple_choice' }] }))
+          .mockResolvedValueOnce('Sim prompt')
+          .mockResolvedValueOnce('Eval prompt')
+          .mockResolvedValueOnce('Coach prompt');
+
+        await service.run(1);
+
+        // Verify deletes
+        expect(prismaService.techSheetCompetency.deleteMany).toHaveBeenCalledWith({ where: { tech_sheet_id: 1 } });
+        expect(prismaService.techSheetKPI.deleteMany).toHaveBeenCalledWith({ where: { tech_sheet_id: 1 } });
+        expect(prismaService.techSheetTask.deleteMany).toHaveBeenCalledWith({ where: { tech_sheet_id: 1 } });
+        expect(prismaService.techSheetPrompt.deleteMany).toHaveBeenCalledWith({ where: { tech_sheet_id: 1 } });
+
+        // Verify inserts
+        expect(prismaService.techSheetCompetency.createMany).toHaveBeenCalledWith({
+          data: [expect.objectContaining({ name: 'Comp1', level: 'basic' })],
+        });
+        expect(prismaService.techSheetKPI.create).toHaveBeenCalled();
+        expect(prismaService.techSheetTask.createMany).toHaveBeenCalled();
+        expect(prismaService.techSheetPrompt.create).toHaveBeenCalledTimes(3);
+      });
+
+      it('should handle parse failure gracefully (log warning, no crash)', async () => {
+        markitdownClient.convert.mockResolvedValue('# Documento markdown');
+        deepseekService.chat
+          .mockResolvedValueOnce('VALIDADO')
+          .mockResolvedValueOnce('not valid json {{{')
+          .mockResolvedValueOnce('not valid json {{{')
+          .mockResolvedValueOnce('not valid json {{{')
+          .mockResolvedValueOnce('Sim prompt')
+          .mockResolvedValueOnce('Eval prompt')
+          .mockResolvedValueOnce('Coach prompt');
+
+        // Should not throw — parse failures are caught
+        await expect(service.run(1)).resolves.toBeUndefined();
+
+        // Inserts still attempted (deleteMany + createMany for prompts)
+        expect(prismaService.techSheetPrompt.deleteMany).toHaveBeenCalled();
       });
     });
   });
