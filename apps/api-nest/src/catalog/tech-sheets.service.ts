@@ -134,6 +134,16 @@ export class TechSheetsService {
 
   async getConfig(id: number) {
     const sheet = await this.findOne(id);
+
+    // Try relational tables first
+    const compCount = await (this.prisma as any).techSheetCompetency.count({
+      where: { tech_sheet_id: id },
+    });
+    if (compCount > 0) {
+      return this.getConfigFromTables(id, sheet.pipeline_status);
+    }
+
+    // Fallback to JSONB parsing (legacy data)
     const extractedData = sheet.extracted_data as Record<string, any> | null;
     const config = extractedData?.analyzed_config;
 
@@ -214,6 +224,68 @@ export class TechSheetsService {
       tasks: [],
       prompts: {},
       pipeline_status: sheet.pipeline_status,
+    };
+  }
+
+  /**
+   * Read config from relational tables. Returns the same shape as JSONB fallback.
+   */
+  private async getConfigFromTables(
+    id: number,
+    pipeline_status: string | null,
+  ) {
+    const competencies = await (this.prisma as any).techSheetCompetency.findMany({
+      where: { tech_sheet_id: id },
+      orderBy: { created_at: 'asc' },
+    });
+    const kpis = await (this.prisma as any).techSheetKPI.findMany({
+      where: { tech_sheet_id: id },
+      include: { tasks: true },
+      orderBy: { created_at: 'asc' },
+    });
+    const prompts = await (this.prisma as any).techSheetPrompt.findMany({
+      where: { tech_sheet_id: id },
+    });
+
+    // Flatten tasks from KPIs
+    const tasks = kpis.flatMap((kpi: any) =>
+      kpi.tasks.map((t: any) => ({ ...t, kpi_id: kpi.id })),
+    );
+
+    return {
+      competencies: competencies.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        level: c.level,
+      })),
+      kpis: kpis.map((k: any) => ({
+        id: k.id,
+        name: k.name,
+        description: k.description,
+        category: k.category,
+        weight: k.weight,
+        target_value: k.target_value,
+        minimum_pass_value: k.minimum_pass_value,
+        competencies_required: [],
+        evaluation_questions: k.tasks.map((t: any) => t.title),
+      })),
+      tasks: tasks.map((t: any) => ({
+        id: t.id,
+        kpi_id: t.kpi_id,
+        type: t.type,
+        title: t.title,
+        description: t.description,
+        difficulty: t.difficulty,
+        sequence: t.sequence,
+        expected_duration_minutes: t.expected_duration_minutes,
+      })),
+      prompts: {
+        system_prompt: prompts.find((p: any) => p.type === 'system')?.content || '',
+        evaluation_prompt: prompts.find((p: any) => p.type === 'evaluation')?.content || '',
+        coaching_prompt: prompts.find((p: any) => p.type === 'coaching')?.content || '',
+      },
+      pipeline_status,
     };
   }
 
@@ -455,6 +527,83 @@ export class TechSheetsService {
       analyzed_config: mergedConfig,
     };
 
+    // Write to relational tables in a transaction
+    await (this.prisma as any).$transaction(async (tx: any) => {
+      // Delete existing records
+      await tx.techSheetPrompt.deleteMany({ where: { tech_sheet_id: id } });
+      await tx.techSheetTask.deleteMany({ where: { tech_sheet_id: id } });
+      await tx.techSheetKPI.deleteMany({ where: { tech_sheet_id: id } });
+      await tx.techSheetCompetency.deleteMany({ where: { tech_sheet_id: id } });
+
+      // Insert competencies
+      if (dto.competencies?.length) {
+        await tx.techSheetCompetency.createMany({
+          data: dto.competencies.map((c: any) => ({
+            tech_sheet_id: id,
+            name: c.name || '',
+            description: c.description || '',
+            level: c.level || 'basic',
+            category: c.category || 'tecnica',
+          })),
+        });
+      }
+
+      // Insert KPIs, collect IDs for task linking
+      const kpiIds: string[] = [];
+      if (dto.kpis?.length) {
+        for (const k of dto.kpis) {
+          const created = await tx.techSheetKPI.create({
+            data: {
+              tech_sheet_id: id,
+              name: k.name || '',
+              description: k.description || '',
+              category: k.category || 'desempeño',
+              weight: k.weight ?? 0,
+              target_value: k.target_value ?? 0,
+              minimum_pass_value: k.minimum_pass_value ?? 0,
+            },
+          });
+          kpiIds.push(created.id);
+        }
+      }
+
+      // Insert tasks, link to first KPI if available
+      if (dto.tasks?.length) {
+        const firstKpiId = kpiIds[0] || null;
+        await tx.techSheetTask.createMany({
+          data: dto.tasks.map((t: any, i: number) => ({
+            tech_sheet_id: id,
+            kpi_id: firstKpiId,
+            type: t.type || 'evaluation',
+            title: t.title || '',
+            description: t.description || '',
+            difficulty: t.difficulty || 'medium',
+            sequence: t.sequence || i + 1,
+            expected_duration_minutes: t.expected_duration_minutes ?? 0,
+          })),
+        });
+      }
+
+      // Insert prompts
+      if (dto.prompts) {
+        const promptTypes = ['system', 'evaluation', 'coaching'] as const;
+        for (const type of promptTypes) {
+          const key = type === 'system' ? 'system_prompt' : type === 'evaluation' ? 'evaluation_prompt' : 'coaching_prompt';
+          const content = dto.prompts[key];
+          if (content) {
+            await tx.techSheetPrompt.create({
+              data: {
+                tech_sheet_id: id,
+                type,
+                content,
+              },
+            });
+          }
+        }
+      }
+    });
+
+    // Also update JSONB for backward compat (read-only fallback)
     return (this.prisma as any).techSheet.update({
       where: { id },
       data: { extracted_data: updatedExtractedData },

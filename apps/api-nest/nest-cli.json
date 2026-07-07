@@ -4,6 +4,7 @@
   "sourceRoot": "src",
   "compilerOptions": {
     "deleteOutDir": false,
+    "assets": ["**/*.md"],
     "watchOptions": {
       "excludeDirectories": ["node_modules", "dist", "test", "prisma", ".git"],
       "excludeFiles": ["*.log", "*.sql"]

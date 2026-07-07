@@ -1,13 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class DeepSeekService {
   private readonly logger = new Logger(DeepSeekService.name);
   private readonly apiKey = process.env.OPENCODE_ZEN_API_KEY;
   private readonly apiUrl = 'https://opencode.ai/zen/v1/chat/completions';
-  private readonly defaultSystemPrompt =
-    'Eres un experto en análisis de documentos educativos del Ministerio de Educación.';
+  private readonly defaultSystemPrompt = this.loadSystemPrompt();
+
+  private loadSystemPrompt(): string {
+    try {
+      return fs.readFileSync(path.join(__dirname, 'system-prompt.md'), 'utf-8');
+    } catch {
+      return 'Eres un experto en análisis de documentos educativos del Ministerio de Educación.';
+    }
+  }
 
   async chat(prompt: string, system?: string): Promise<string> {
     const maxRetries = 1;
@@ -37,7 +46,7 @@ export class DeepSeekService {
               Authorization: `Bearer ${this.apiKey}`,
               'Content-Type': 'application/json',
             },
-            timeout: 60000,
+            timeout: 180000,
           },
         );
 
