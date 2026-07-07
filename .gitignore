@@ -4,7 +4,10 @@
 .env
 .env.local
 .env.*
-!.env.example
+!env.example
+!env.prod.example
+env
+env.prod
 
 # ============================================
 # Dependencies
@@ -91,6 +94,7 @@ simuverse/
 # AI agent configuration (local, not shared)
 # ============================================
 .atl/
+.agents/
 
 # SDD / OpenSpec (spec files not tracked in git)
 # ============================================

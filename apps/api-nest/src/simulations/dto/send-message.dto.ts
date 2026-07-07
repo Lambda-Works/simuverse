@@ -1,21 +1,36 @@
-import { IsString, IsOptional, IsArray, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsOptional, IsArray } from 'class-validator';
+
+export class ConversationPartDto {
+  @IsString()
+  text?: string;
+}
 
 export class ChatMessageDto {
   @IsString()
   role: string;
 
+  @IsOptional()
   @IsString()
-  content: string;
+  content?: string;
+
+  @IsOptional()
+  @IsArray()
+  parts?: ConversationPartDto[];
 }
 
 export class SendMessageDto {
+  @IsOptional()
+  @IsString()
+  user_id?: string;
+
+  @IsOptional()
+  @IsString()
+  course_id?: string;
+
   @IsString()
   message: string;
 
   @IsOptional()
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ChatMessageDto)
   conversationHistory?: ChatMessageDto[];
 }

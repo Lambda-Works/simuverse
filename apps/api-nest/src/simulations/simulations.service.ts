@@ -121,4 +121,39 @@ export class SimulationsService {
   async abandon(id: string) {
     return this.transitionStatus(id, 'abandoned');
   }
+
+  async getSimulationScenario(id: string) {
+    const simulation = await this.prisma.simulation.findUnique({
+      where: { id },
+      include: { course: { include: { scenarios: true } } }
+    });
+    if (!simulation) throw new NotFoundException('Simulation not found');
+    return simulation.course?.scenarios?.[0];
+  }
+
+  async getSimulationDocuments(id: string) {
+    const simulation = await this.prisma.simulation.findUnique({
+      where: { id }
+    });
+    if (!simulation) throw new NotFoundException('Simulation not found');
+    const docs = await this.prisma.courseDocument.findMany({
+      where: { course_id: simulation.course_id }
+    });
+    return docs.map(d => ({
+      id: d.id,
+      name: d.document_name,
+      type: d.document_type,
+      content: d.document_content,
+    }));
+  }
+
+  async getSimulationConfig(id: string) {
+    const simulation = await this.prisma.simulation.findUnique({
+      where: { id }
+    });
+    if (!simulation) throw new NotFoundException('Simulation not found');
+    return this.prisma.courseConfig.findUnique({
+      where: { course_id: simulation.course_id }
+    });
+  }
 }
