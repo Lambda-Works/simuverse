@@ -61,7 +61,13 @@ export class FilesService {
       },
     });
 
-    return this.serialize(created);
+    const serialized = this.serialize(created);
+
+    // Include file_url so callers (two-step upload) can reference the file
+    return {
+      ...serialized,
+      file_url: `/api/files/${serialized.id}/download`,
+    };
   }
 
   async findAll(params: { uploaded_by_id?: string; course_id?: string }) {
