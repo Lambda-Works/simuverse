@@ -4,8 +4,7 @@ WORKDIR /app
 FROM base AS deps
 COPY package.json package-lock.json ./
 COPY apps/web/package.json ./apps/web/
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci
+RUN npm install
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules

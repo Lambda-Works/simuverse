@@ -10,8 +10,7 @@ COPY apps/api-nest/package.json ./apps/api-nest/
 COPY apps/web/package.json ./apps/web/
 COPY proxy/package.json ./proxy/
 
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci
+RUN npm ci
 
 COPY apps/api-nest/prisma ./apps/api-nest/prisma/
 COPY apps/api-nest/src/prisma/seed.ts ./apps/api-nest/src/prisma/
