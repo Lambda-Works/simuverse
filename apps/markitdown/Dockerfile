@@ -3,7 +3,9 @@ FROM python:3.11-slim
 WORKDIR /markitdown_app
 
 COPY apps/markitdown/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements.txt
 
 COPY apps/markitdown/main.py .
 
