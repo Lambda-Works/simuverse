@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Edit2, Plus, Zap, FileUp, Paperclip, Link, Settings, Check, AlertTriangle } from 'lucide-react';
+import { Trash2, Edit2, Plus, Zap, FileUp, Paperclip, Link, Settings, Check, AlertTriangle, RefreshCw } from 'lucide-react';
 import { ConfigureTechSheetModal } from './ConfigureTechSheetModal';
 import { API_BASE, authFetch } from '@/lib/api';
 import { useAnalysisProgress, PipelineStatus, PipelineOutput } from '@/hooks/useAnalysisProgress';
@@ -598,7 +598,7 @@ export function TechSheetsABM() {
                 )}
 
                 {/* Analizar button — pipeline-aware */}
-                {!sheet.processed && (
+                {!sheet.processed && sheet.pipeline_status !== 'completed' && (
                   <Button
                     onClick={() => handleAnalyze(sheet.id)}
                     disabled={
@@ -633,11 +633,23 @@ export function TechSheetsABM() {
                   </Button>
                 )}
 
-                {sheet.processed && (
+                {sheet.pipeline_status === 'completed' && (
                   <>
                     <Button disabled className="bg-green-600">
                       <Zap className="w-4 h-4 mr-2" />
                       Analizado
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (confirm('¿Re-analizar esta ficha? Se sobrescribirán los resultados existentes.')) {
+                          handleAnalyze(sheet.id);
+                        }
+                      }}
+                      disabled={analyzingSheetId === sheet.id}
+                      className="bg-orange-600 hover:bg-orange-700"
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Re-analizar
                     </Button>
                     {sheet.course_id && (
                       <Button
@@ -691,15 +703,30 @@ export function TechSheetsABM() {
 
             {/* Failed status banner */}
             {sheet.pipeline_status === 'failed' && (
-              <Alert variant="destructive" className="mt-3">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Error en el Analisis</AlertTitle>
-                <AlertDescription>
-                  {sheet.pipeline_output && typeof sheet.pipeline_output === 'object' && 'error_message' in sheet.pipeline_output
-                    ? String((sheet.pipeline_output as PipelineOutput).error_message)
-                    : 'Ocurrio un error durante el analisis. Intenta nuevamente.'}
-                </AlertDescription>
-              </Alert>
+              <>
+                <Alert variant="destructive" className="mt-3">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Error en el Analisis</AlertTitle>
+                  <AlertDescription>
+                    {sheet.pipeline_output && typeof sheet.pipeline_output === 'object' && 'error_message' in sheet.pipeline_output
+                      ? String((sheet.pipeline_output as PipelineOutput).error_message)
+                      : 'Ocurrio un error durante el analisis. Intenta nuevamente.'}
+                  </AlertDescription>
+                </Alert>
+                <Button
+                  onClick={() => {
+                    if (confirm('¿Reintentar el análisis?')) {
+                      handleAnalyze(sheet.id);
+                    }
+                  }}
+                  disabled={analyzingSheetId === sheet.id}
+                  size="sm"
+                  className="bg-orange-600 hover:bg-orange-700 mt-2"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Reintentar análisis
+                </Button>
+              </>
             )}
 
             {/* Render markdown output for completed steps */}
@@ -861,6 +888,8 @@ const PIPELINE_STEPS = [
   { key: 'step_4', label: 'KPIs', field: 'step_4_kpis' as const },
   { key: 'step_5', label: 'Preguntas', field: 'step_5_questions' as const },
   { key: 'step_6', label: 'Simulacion', field: 'step_6_simulation_prompt' as const },
+  { key: 'step_7', label: 'Prompt de Evaluación', field: 'step_7_evaluation_prompt' as const },
+  { key: 'step_8', label: 'Prompt de Coaching', field: 'step_8_coaching_prompt' as const },
 ];
 
 function getStepStatus(
@@ -886,7 +915,7 @@ function getStepStatus(
 
   if (pipelineStatus === 'completed') return 'completed';
 
-  // Running states: 'running', 'step_1' .. 'step_6'
+  // Running states: 'running', 'step_1' .. 'step_8'
   if (pipelineStatus === 'running') return stepIndex === 0 ? 'running' : 'pending';
 
   // Extract step number from 'step_N'

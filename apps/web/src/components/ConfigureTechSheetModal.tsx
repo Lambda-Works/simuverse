@@ -643,7 +643,13 @@ export function ConfigureTechSheetModal({
               </Card>
               <Card className="p-4 bg-yellow-50">
                 <p className="text-sm text-gray-600">Prompts</p>
-                <p className="text-2xl font-bold">3</p>
+                <p className="text-2xl font-bold">
+                  {[
+                    config.prompts.system_prompt,
+                    config.prompts.evaluation_prompt,
+                    config.prompts.coaching_prompt,
+                  ].filter(Boolean).length}
+                </p>
               </Card>
             </div>
 
