@@ -27,7 +27,7 @@ export class SimulationsController {
 
   @Post('start')
   async start(
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('id') userId: string,
     @Body() dto: CreateSimulationDto,
   ) {
     return this.simulationsService.create(userId, dto.course_id, dto.scenario_id);
@@ -81,7 +81,7 @@ export class SimulationsController {
 
   @Post('instances/start')
   async startInstance(
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('id') userId: string,
     @Body() body: { course_id: string; scenario_id: string },
   ) {
     return this.instanceService.start(userId, body.course_id, body.scenario_id);

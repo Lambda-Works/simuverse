@@ -116,6 +116,27 @@ export class AnalysisPipelineService {
         },
       });
 
+      // Write parsed analysis data to relational tables
+      await this.saveAnalyzedConfigToTables(techSheetId, {
+        competencies: competencyResponse,
+        kpis: kpiResponse,
+        tasks: questionResponse,
+        prompts: {
+          system_prompt: simulationResponse,
+          evaluation_prompt: evalResponse,
+          coaching_prompt: coachResponse,
+        },
+      });
+
+      // Auto-generate CourseConfig from the completed analysis
+      try {
+        await this.generateCourseConfig(techSheetId);
+      } catch (configError) {
+        this.logger.warn(
+          `CourseConfig generation failed (non-blocking): ${configError}`,
+        );
+      }
+
       this.logger.log(`Pipeline completed for tech sheet ${techSheetId}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -232,29 +253,39 @@ Solo incluye competencias que estén explícitamente mencionadas o claramente in
   }
 
   private getKpiPrompt(markdown: string): string {
-    return `Extrae los indicadores clave de rendimiento (KPIs) y criterios de evaluación del siguiente documento educativo.
+    return `Extrae TODOS los indicadores clave de rendimiento (KPIs) y criterios de evaluación del siguiente documento educativo. NO omitas ninguno.
 
 Documento:
 ${markdown}
 
-Retorna un JSON con el siguiente formato exacto:
+Incluye como KPIs:
+1. Cada requisito de asistencia (porcentaje mínimo, frecuencia semanal/mensual)
+2. Cada criterio de evaluación o calificación mínima
+3. Cada eje temático o módulo con su carga horaria
+4. Cada competencia o capacidad que deba ser demostrada
+5. Cada requisito de ingreso o egreso
+6. Cualquier otro criterio cuantificable mencionado
+
+Para valores cualitativos como "demostrar competencia en X", usa valor_objetivo: 100.
+
+Retorna un JSON con el formato:
 {
   "kpis": [
     {
       "nombre": "Nombre del KPI",
       "descripcion": "Descripción del indicador",
       "categoria": "evaluacion|desempeño|asistencia|participacion",
-      "valor_objetivo": "valor numérico o porcentaje",
+      "valor_objetivo": número,
       "criterio_aprobacion": "criterio mínimo para aprobar"
     }
   ]
 }
 
-Incluye todos los criterios de evaluación, exámenes, prácticas y requisitos de aprobación mencionados.`;
+IMPORTANTE: Extrae TODOS los criterios, no solo los más obvios. Si el documento tiene 15 criterios, incluye los 15.`;
   }
 
   private getQuestionPrompt(markdown: string, competencies: string): string {
-    return `Basándote en las competencias extraídas y el documento original, genera preguntas de evaluación.
+    return `Genera preguntas de evaluación variadas basadas en las competencias y el documento.
 
 Competencias extraídas:
 ${competencies}
@@ -262,9 +293,20 @@ ${competencies}
 Documento original:
 ${markdown}
 
-Genera 5-10 preguntas de evaluación que cubran las competencias identificadas.
+Genera entre 8 y 12 preguntas con la siguiente distribución aproximada:
+- 30-40% tipo multiple_choice (con 4 opciones)
+- 30-40% tipo abierta (sin opciones, array vacío)
+- 20-30% tipo verdadero_falso (opciones: ["Verdadero", "Falso"])
 
-Retorna un JSON con el siguiente formato exacto:
+Dificultad variada:
+- ~30% basica (conceptos fundamentales)
+- ~40% intermedia (aplicación práctica)
+- ~30% avanzada (análisis y síntesis)
+
+Cada pregunta debe estar asociada a una competencia de la lista (campo competencia_asociada).
+Las preguntas deben ser específicas al contenido del documento, no genéricas.
+
+Retorna un JSON con el formato:
 {
   "preguntas": [
     {
@@ -275,9 +317,7 @@ Retorna un JSON con el siguiente formato exacto:
       "opciones": ["Opción A", "Opción B", "Opción C", "Opción D"]
     }
   ]
-}
-
-Para preguntas de opción múltiple, incluye 4 opciones. Para preguntas abiertas, deja opciones vacía.`;
+}`;
   }
 
   private getSimulationPrompt(
@@ -352,6 +392,318 @@ El prompt de coaching debe:
 4. Incluir frases de ejemplo para corrección constructiva
 5. Adaptar el nivel de ayuda según la dificultad de cada competencia (básico/intermedio/avanzado)
 
-Retorna SOLO el texto del prompt de coaching, sin markdown ni explicaciones adicionales.`;
+      Retorna SOLO el texto del prompt de coaching, sin markdown ni explicaciones adicionales.`;
+  }
+
+  /**
+   * Parse AI response strings and insert into relational tables.
+   * Failures are logged but don't block the pipeline — JSONB is the primary store.
+   */
+  private async saveAnalyzedConfigToTables(
+    sheetId: number,
+    rawConfig: {
+      competencies: string;
+      kpis: string;
+      tasks: string;
+      prompts: { system_prompt: string; evaluation_prompt: string; coaching_prompt: string };
+    },
+  ): Promise<void> {
+    try {
+      // Delete old analysis data for this sheet (supports re-analysis)
+      await (this.prisma as any).techSheetPrompt.deleteMany({ where: { tech_sheet_id: sheetId } });
+      await (this.prisma as any).techSheetTask.deleteMany({ where: { tech_sheet_id: sheetId } });
+      await (this.prisma as any).techSheetKPI.deleteMany({ where: { tech_sheet_id: sheetId } });
+      await (this.prisma as any).techSheetCompetency.deleteMany({ where: { tech_sheet_id: sheetId } });
+
+      // Parse competencies
+      const parsedCompetencies = this.safeParseJson(rawConfig.competencies);
+      const competencyItems = parsedCompetencies
+        ? Array.isArray(parsedCompetencies)
+          ? parsedCompetencies
+          : parsedCompetencies.competencias || parsedCompetencies.competencies || []
+        : [];
+
+      if (competencyItems.length) {
+        await (this.prisma as any).techSheetCompetency.createMany({
+          data: competencyItems.map((c: any) => ({
+            tech_sheet_id: sheetId,
+            name: c.nombre || c.name || '',
+            description: c.descripcion || c.description || '',
+            level: this.mapLevel(c.nivel || c.level),
+            category: c.categoria || c.category || 'tecnica',
+          })),
+        });
+      }
+
+      // Parse KPIs
+      const parsedKpis = this.safeParseJson(rawConfig.kpis);
+      const kpiItems = parsedKpis
+        ? Array.isArray(parsedKpis)
+          ? parsedKpis
+          : parsedKpis.kpis || []
+        : [];
+
+      const kpiIds: string[] = [];
+      for (const k of kpiItems) {
+        const created = await (this.prisma as any).techSheetKPI.create({
+          data: {
+            tech_sheet_id: sheetId,
+            name: k.nombre || k.name || '',
+            description: k.descripcion || k.description || '',
+            category: k.categoria || k.category || 'desempeño',
+            weight: this.toNumber(k.weight || k.peso),
+            target_value: this.toNumber(k.valor_objetivo || k.target_value),
+            minimum_pass_value: this.extractPercentage(k.criterio_aprobacion) || this.toNumber(k.minimum_pass_value),
+          },
+        });
+        kpiIds.push(created.id);
+      }
+
+      // Parse questions/tasks
+      const parsedTasks = this.safeParseJson(rawConfig.tasks);
+      const taskItems = parsedTasks
+        ? Array.isArray(parsedTasks)
+          ? parsedTasks
+          : parsedTasks.preguntas || parsedTasks.questions || []
+        : [];
+
+      if (taskItems.length) {
+        const firstKpiId = kpiIds[0] || null;
+        await (this.prisma as any).techSheetTask.createMany({
+          data: taskItems.map((t: any, i: number) => ({
+            tech_sheet_id: sheetId,
+            kpi_id: firstKpiId,
+            type: this.mapTaskType(t.tipo || t.type),
+            title: t.texto || t.text || t.titulo || '',
+            description: t.descripcion || t.description || '',
+            difficulty: this.mapDifficulty(t.dificultad || t.difficulty),
+            sequence: i + 1,
+            expected_duration_minutes: this.toNumber(t.expected_duration_minutes),
+          })),
+        });
+      }
+
+      // Insert prompts
+      const promptEntries: Array<{ type: string; content: string }> = [
+        { type: 'system', content: rawConfig.prompts.system_prompt },
+        { type: 'evaluation', content: rawConfig.prompts.evaluation_prompt },
+        { type: 'coaching', content: rawConfig.prompts.coaching_prompt },
+      ];
+
+      for (const entry of promptEntries) {
+        if (entry.content) {
+          await (this.prisma as any).techSheetPrompt.create({
+            data: {
+              tech_sheet_id: sheetId,
+              type: entry.type,
+              content: entry.content,
+            },
+          });
+        }
+      }
+
+      this.logger.log(`Saved analysis data to relational tables for sheet ${sheetId}`);
+    } catch (error) {
+      this.logger.warn(`Failed to save analysis to tables (JSONB fallback preserved): ${error}`);
+    }
+  }
+
+  private safeParseJson(value: any): any {
+    if (!value) return null;
+    if (typeof value === 'string') {
+      let cleaned = value.trim();
+      cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '');
+      cleaned = cleaned.replace(/\n?\s*```$/, '');
+      try {
+        return JSON.parse(cleaned);
+      } catch {
+        return null;
+      }
+    }
+    return value;
+  }
+
+  private mapLevel(raw: string): 'basic' | 'intermediate' | 'advanced' {
+    const map: Record<string, 'basic' | 'intermediate' | 'advanced'> = {
+      basico: 'basic',
+      basica: 'basic',
+      intermedio: 'intermediate',
+      intermedia: 'intermediate',
+      avanzado: 'advanced',
+      avanzada: 'advanced',
+      basic: 'basic',
+      intermediate: 'intermediate',
+      advanced: 'advanced',
+    };
+    return map[String(raw).toLowerCase()] || 'basic';
+  }
+
+  private mapTaskType(raw: string): 'practice' | 'evaluation' {
+    const map: Record<string, 'practice' | 'evaluation'> = {
+      multiple_choice: 'evaluation',
+      verdadero_falso: 'evaluation',
+      abierta: 'practice',
+      practice: 'practice',
+      evaluation: 'evaluation',
+    };
+    return map[String(raw).toLowerCase()] || 'evaluation';
+  }
+
+  private mapDifficulty(raw: string): 'easy' | 'medium' | 'hard' {
+    const map: Record<string, 'easy' | 'medium' | 'hard'> = {
+      basica: 'easy',
+      basico: 'easy',
+      easy: 'easy',
+      intermedia: 'medium',
+      intermedio: 'medium',
+      medium: 'medium',
+      avanzada: 'hard',
+      avanzado: 'hard',
+      hard: 'hard',
+    };
+    return map[String(raw).toLowerCase()] || 'easy';
+  }
+
+  private toNumber(val: any): number {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    const str = String(val);
+    const match = str.match(/(\d+(?:[.,]\d+)?)/);
+    if (match) {
+      return parseFloat(match[1].replace(',', '.'));
+    }
+    return 0;
+  }
+
+  private extractPercentage(text: string): number {
+    if (!text) return 0;
+    const match = text.match(/(\d+(?:[.,]\d+)?)\s*%/);
+    if (match) return parseFloat(match[1].replace(',', '.'));
+    return 0;
+  }
+
+  /**
+   * Generate CourseConfig from completed analysis pipeline data.
+   * Called automatically after saveAnalyzedConfigToTables() succeeds.
+   * Non-blocking: failures are logged but don't affect the pipeline.
+   */
+  private async generateCourseConfig(sheetId: number): Promise<void> {
+    const sheet = await this.prisma.techSheet.findUnique({
+      where: { id: sheetId },
+    });
+    if (!sheet?.course_id) {
+      this.logger.warn(
+        `Cannot generate CourseConfig: sheet ${sheetId} has no course`,
+      );
+      return;
+    }
+
+    // Get the system prompt from the relational tables
+    const systemPrompt = await (this.prisma as any).techSheetPrompt.findFirst({
+      where: { tech_sheet_id: sheetId, type: 'system' },
+    });
+    if (!systemPrompt?.content) {
+      this.logger.warn(`No system prompt found for sheet ${sheetId}`);
+      return;
+    }
+
+    // Get eval and coaching prompts
+    const evalPrompt = await (this.prisma as any).techSheetPrompt.findFirst({
+      where: { tech_sheet_id: sheetId, type: 'evaluation' },
+    });
+    const coachPrompt = await (this.prisma as any).techSheetPrompt.findFirst({
+      where: { tech_sheet_id: sheetId, type: 'coaching' },
+    });
+
+    // Build eval_criteria from KPIs in the relational tables
+    const evalCriteria = await this.buildEvalCriteriaFromKPIs(sheetId);
+
+    // Build ia_config JSON
+    const iaConfig = {
+      systemPrompt: systemPrompt.content,
+      evaluationPrompt: evalPrompt?.content || '',
+      coachingPrompt: coachPrompt?.content || '',
+      temperature: 0.7,
+      maxTokens: 4000,
+    };
+
+    // Call AI to extract base_role, course_context, knowledge_base_prompt
+    const extractPrompt = `Extrae del siguiente prompt de simulación la información necesaria para configurar un simulador educativo.
+
+Prompt de simulación:
+${systemPrompt.content}
+
+Retorna SOLO un JSON con esta estructura exacta:
+{
+  "base_role": "rol del estudiante en la simulación (ej: Asistente Administrativo en Soluciones Integrales del Norte S.A.)",
+  "course_context": "contexto completo del curso y la empresa simulada (2-3 párrafos describiendo la empresa, situación, objetivos del curso)",
+  "knowledge_base_prompt": "instrucciones para la IA sobre cómo debe comportarse como evaluador/mentor durante la simulación"
+}
+
+Usa TODA la información disponible en el prompt. No inventes nada que no esté en el prompt.`;
+
+    const aiResponse = await this.deepseek.chat(extractPrompt);
+    const parsed = this.safeParseJson(aiResponse);
+
+    const baseRole = parsed?.base_role || '';
+    const courseContext = parsed?.course_context || '';
+    const knowledgeBasePrompt = parsed?.knowledge_base_prompt || '';
+
+    // Check if CourseConfig already exists for this course (upsert)
+    const existing = await (this.prisma as any).courseConfig.findFirst({
+      where: { course_id: sheet.course_id },
+    });
+
+    const configData = {
+      config_data: {
+        source: 'analysis_pipeline',
+        sheet_id: sheetId,
+        generated_at: new Date().toISOString(),
+        eval_criteria: evalCriteria,
+      },
+      base_role: baseRole,
+      course_context: courseContext,
+      knowledge_base_prompt: knowledgeBasePrompt,
+      ia_config: iaConfig,
+      tech_sheet_id: sheetId,
+      prompt_generation_mode: 'guided' as const,
+      prompt_generated_at: new Date(),
+    };
+
+    if (existing) {
+      await (this.prisma as any).courseConfig.update({
+        where: { id: existing.id },
+        data: configData,
+      });
+      this.logger.log(
+        `CourseConfig updated for course ${sheet.course_id} (sheet ${sheetId})`,
+      );
+    } else {
+      await (this.prisma as any).courseConfig.create({
+        data: {
+          ...configData,
+          course: { connect: { id: sheet.course_id } },
+        },
+      });
+      this.logger.log(
+        `CourseConfig created for course ${sheet.course_id} (sheet ${sheetId})`,
+      );
+    }
+  }
+
+  /**
+   * Build eval_criteria array from TechSheetKPI relational table.
+   */
+  private async buildEvalCriteriaFromKPIs(sheetId: number): Promise<any[]> {
+    const kpis = await (this.prisma as any).techSheetKPI.findMany({
+      where: { tech_sheet_id: sheetId },
+    });
+    return kpis.map((k: any) => ({
+      name: k.name,
+      description: k.description,
+      weight: k.weight || 0,
+      target: k.target_value || 0,
+      minimum: k.minimum_pass_value || 0,
+    }));
   }
 }

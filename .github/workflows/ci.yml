@@ -121,6 +121,7 @@ jobs:
           JWT_SECRET=ci-test-jwt-secret-32-chars-min
           CORS_ORIGIN=http://localhost:3000
           NEXT_PUBLIC_API_URL=http://localhost:5001/api
+          OPENCODE_ZEN_API_KEY=ci-test-key
           PUERTO_BACKEND_NEST=5001
           PUERTO_FRONTEND=3000
           PUERTO_POSTGRES=5433

@@ -1,10 +1,10 @@
-import { IsUUID, IsOptional } from 'class-validator';
+import { IsString, IsOptional } from 'class-validator';
 
 export class CreateSimulationDto {
-  @IsUUID()
+  @IsString()
   course_id: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   scenario_id?: string;
 }

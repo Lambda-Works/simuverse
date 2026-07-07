@@ -139,6 +139,25 @@ enum PromptGenerationMode {
   guided
 }
 
+// ── TechSheet Analysis Enums ──────────────────────────────────────
+
+enum TechSheetCompetencyLevel {
+  basic
+  intermediate
+  advanced
+}
+
+enum TechSheetTaskType {
+  practice
+  evaluation
+}
+
+enum TechSheetPromptType {
+  system
+  evaluation
+  coaching
+}
+
 enum AssignmentStatus {
   pending
   in_progress
@@ -405,9 +424,80 @@ model TechSheet {
   pipeline_status  String?   @db.VarChar(50)
   pipeline_output  Json?
 
-  course_configs CourseConfig[]
+  course_configs   CourseConfig[]
+  competencies_rel TechSheetCompetency[]
+  kpis_rel         TechSheetKPI[]
+  tasks_rel        TechSheetTask[]
+  prompts_rel      TechSheetPrompt[]
 
   @@map("tech_sheets")
+}
+
+model TechSheetCompetency {
+  id            String                   @id @default(uuid()) @db.VarChar(36)
+  tech_sheet_id Int
+  name          String                   @db.VarChar(255)
+  description   String?                  @db.Text
+  level         TechSheetCompetencyLevel @default(basic)
+  category      String?                  @db.VarChar(100)
+  created_at    DateTime                 @default(now())
+
+  tech_sheet TechSheet @relation(fields: [tech_sheet_id], references: [id], onDelete: Cascade)
+
+  @@index([tech_sheet_id])
+  @@map("tech_sheet_competencies")
+}
+
+model TechSheetKPI {
+  id                 String   @id @default(uuid()) @db.VarChar(36)
+  tech_sheet_id      Int
+  name               String   @db.VarChar(255)
+  description        String?  @db.Text
+  category           String?  @db.VarChar(100)
+  weight             Float    @default(0)
+  target_value       Float    @default(0)
+  minimum_pass_value Float    @default(0)
+  created_at         DateTime @default(now())
+
+  tech_sheet TechSheet        @relation(fields: [tech_sheet_id], references: [id], onDelete: Cascade)
+  tasks      TechSheetTask[]
+
+  @@index([tech_sheet_id])
+  @@map("tech_sheet_kpis")
+}
+
+model TechSheetTask {
+  id                        String            @id @default(uuid()) @db.VarChar(36)
+  tech_sheet_id             Int
+  kpi_id                    String?           @db.VarChar(36)
+  type                      TechSheetTaskType @default(evaluation)
+  title                     String            @db.Text
+  description               String?           @db.Text
+  difficulty                Difficulty        @default(medium)
+  sequence                  Int               @default(0)
+  expected_duration_minutes Int               @default(0)
+  created_at                DateTime          @default(now())
+
+  tech_sheet TechSheet      @relation(fields: [tech_sheet_id], references: [id], onDelete: Cascade)
+  kpi        TechSheetKPI?  @relation(fields: [kpi_id], references: [id], onDelete: SetNull)
+
+  @@index([tech_sheet_id])
+  @@index([kpi_id])
+  @@map("tech_sheet_tasks")
+}
+
+model TechSheetPrompt {
+  id            String              @id @default(uuid()) @db.VarChar(36)
+  tech_sheet_id Int
+  type          TechSheetPromptType
+  content       String              @db.Text
+  created_at    DateTime            @default(now())
+
+  tech_sheet TechSheet @relation(fields: [tech_sheet_id], references: [id], onDelete: Cascade)
+
+  @@unique([tech_sheet_id, type])
+  @@index([tech_sheet_id])
+  @@map("tech_sheet_prompts")
 }
 
 model CourseDocument {
