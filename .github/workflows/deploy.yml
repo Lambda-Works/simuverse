@@ -2,7 +2,7 @@ name: Deploy to Hub
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
 
 permissions:
   contents: write
@@ -41,8 +41,10 @@ jobs:
           fi
 
       - name: Deploy al Hub
+        env:
+          HUB_API_URL: ${{ vars.HUB_API_URL || 'https://hub.api.lambdaworks.ar' }}
         run: |
-          curl -sSL -w "\nHTTP %{http_code}\n" -X POST "${{ secrets.HUB_URL }}/projects/${{ secrets.HUB_PROJECT_ID }}/deploy-webhook" \
+          curl -sSL -w "\nHTTP %{http_code}\n" -X POST "$HUB_API_URL/projects/${{ secrets.HUB_PROJECT_ID }}/deploy-webhook" \
             -H "Content-Type: application/json" \
             -H "x-deploy-secret: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}" \
             -d "{\"environment\":\"${{ steps.vars.outputs.environment }}\",\"version\":\"${{ steps.vars.outputs.version }}\",\"branch\":\"${{ steps.vars.outputs.branch }}\"}"
