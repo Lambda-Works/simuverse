@@ -6,19 +6,15 @@ RUN apk add --no-cache openssl
 
 COPY package.json package-lock.json ./
 
+COPY proxy/package.json ./proxy/
 COPY apps/api-nest/package.json ./apps/api-nest/
 COPY apps/web/package.json ./apps/web/
-COPY proxy/package.json ./proxy/
+
+COPY apps/api-nest/prisma ./apps/api-nest/prisma/
 
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
 
-COPY apps/api-nest/prisma ./apps/api-nest/prisma/
-COPY apps/api-nest/src/prisma/seed.ts ./apps/api-nest/src/prisma/
-COPY apps/api-nest/tsconfig.json ./apps/api-nest/
-
 RUN npx prisma generate --schema=apps/api-nest/prisma/schema.prisma
 
-WORKDIR /app/apps/api-nest
-
-CMD ["npx", "ts-node", "src/prisma/seed.ts"]
+ENV NODE_ENV=development

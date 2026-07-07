@@ -2,9 +2,10 @@ services:
   proxy:
     build:
       context: .
-      dockerfile: proxy/Dockerfile.dev
+      dockerfile: docker/Dockerfile.dev
     container_name: simuverse-proxy
     restart: unless-stopped
+    working_dir: /app/proxy
     environment:
       NODE_ENV: development
       PROXY_PORT: "5000"
@@ -14,6 +15,7 @@ services:
       - .:/app
       - /app/node_modules
       - /app/proxy/node_modules
+    command: ["npm", "run", "dev"]
     depends_on:
       - api-nest
     networks:
@@ -43,9 +45,10 @@ services:
   api-nest:
     build:
       context: .
-      dockerfile: apps/api-nest/Dockerfile.dev
+      dockerfile: docker/Dockerfile.dev
     container_name: simuverse-api-nest
     restart: unless-stopped
+    working_dir: /app/apps/api-nest
     environment:
       NODE_ENV: development
       PORT: "5001"
@@ -58,6 +61,7 @@ services:
       - .:/app
       - /app/node_modules
       - /app/apps/api-nest/node_modules
+    command: ["sh", "/app/apps/api-nest/docker-entrypoint.dev.sh"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,13 +77,13 @@ services:
   web:
     build:
       context: .
-      dockerfile: apps/web/Dockerfile.dev
+      dockerfile: docker/Dockerfile.dev
     container_name: simuverse-web
     restart: unless-stopped
+    working_dir: /app/apps/web
     environment:
       NODE_ENV: development
       NEXT_PUBLIC_API_URL: http://localhost:${PUERTO_BACKEND:-5000}/api
-      CHOKIDAR_USEPOLLING: "true"
     ports:
       - "${PUERTO_FRONTEND:-8080}:3000"
     volumes:
@@ -87,6 +91,7 @@ services:
       - /app/node_modules
       - /app/apps/web/node_modules
       - /app/apps/web/.next
+    command: ["npx", "next", "dev", "-H", "0.0.0.0"]
     depends_on:
       api-nest:
         condition: service_healthy
