@@ -128,6 +128,15 @@ export class AnalysisPipelineService {
         },
       });
 
+      // Auto-generate CourseConfig from the completed analysis
+      try {
+        await this.generateCourseConfig(techSheetId);
+      } catch (configError) {
+        this.logger.warn(
+          `CourseConfig generation failed (non-blocking): ${configError}`,
+        );
+      }
+
       this.logger.log(`Pipeline completed for tech sheet ${techSheetId}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -571,5 +580,130 @@ El prompt de coaching debe:
     const match = text.match(/(\d+(?:[.,]\d+)?)\s*%/);
     if (match) return parseFloat(match[1].replace(',', '.'));
     return 0;
+  }
+
+  /**
+   * Generate CourseConfig from completed analysis pipeline data.
+   * Called automatically after saveAnalyzedConfigToTables() succeeds.
+   * Non-blocking: failures are logged but don't affect the pipeline.
+   */
+  private async generateCourseConfig(sheetId: number): Promise<void> {
+    const sheet = await this.prisma.techSheet.findUnique({
+      where: { id: sheetId },
+    });
+    if (!sheet?.course_id) {
+      this.logger.warn(
+        `Cannot generate CourseConfig: sheet ${sheetId} has no course`,
+      );
+      return;
+    }
+
+    // Get the system prompt from the relational tables
+    const systemPrompt = await (this.prisma as any).techSheetPrompt.findFirst({
+      where: { tech_sheet_id: sheetId, type: 'system' },
+    });
+    if (!systemPrompt?.content) {
+      this.logger.warn(`No system prompt found for sheet ${sheetId}`);
+      return;
+    }
+
+    // Get eval and coaching prompts
+    const evalPrompt = await (this.prisma as any).techSheetPrompt.findFirst({
+      where: { tech_sheet_id: sheetId, type: 'evaluation' },
+    });
+    const coachPrompt = await (this.prisma as any).techSheetPrompt.findFirst({
+      where: { tech_sheet_id: sheetId, type: 'coaching' },
+    });
+
+    // Build eval_criteria from KPIs in the relational tables
+    const evalCriteria = await this.buildEvalCriteriaFromKPIs(sheetId);
+
+    // Build ia_config JSON
+    const iaConfig = {
+      systemPrompt: systemPrompt.content,
+      evaluationPrompt: evalPrompt?.content || '',
+      coachingPrompt: coachPrompt?.content || '',
+      temperature: 0.7,
+      maxTokens: 4000,
+    };
+
+    // Call AI to extract base_role, course_context, knowledge_base_prompt
+    const extractPrompt = `Extrae del siguiente prompt de simulación la información necesaria para configurar un simulador educativo.
+
+Prompt de simulación:
+${systemPrompt.content}
+
+Retorna SOLO un JSON con esta estructura exacta:
+{
+  "base_role": "rol del estudiante en la simulación (ej: Asistente Administrativo en Soluciones Integrales del Norte S.A.)",
+  "course_context": "contexto completo del curso y la empresa simulada (2-3 párrafos describiendo la empresa, situación, objetivos del curso)",
+  "knowledge_base_prompt": "instrucciones para la IA sobre cómo debe comportarse como evaluador/mentor durante la simulación"
+}
+
+Usa TODA la información disponible en el prompt. No inventes nada que no esté en el prompt.`;
+
+    const aiResponse = await this.deepseek.chat(extractPrompt);
+    const parsed = this.safeParseJson(aiResponse);
+
+    const baseRole = parsed?.base_role || '';
+    const courseContext = parsed?.course_context || '';
+    const knowledgeBasePrompt = parsed?.knowledge_base_prompt || '';
+
+    // Check if CourseConfig already exists for this course (upsert)
+    const existing = await (this.prisma as any).courseConfig.findFirst({
+      where: { course_id: sheet.course_id },
+    });
+
+    const configData = {
+      config_data: {
+        source: 'analysis_pipeline',
+        sheet_id: sheetId,
+        generated_at: new Date().toISOString(),
+        eval_criteria: evalCriteria,
+      },
+      base_role: baseRole,
+      course_context: courseContext,
+      knowledge_base_prompt: knowledgeBasePrompt,
+      ia_config: iaConfig,
+      tech_sheet_id: sheetId,
+      prompt_generation_mode: 'guided' as const,
+      prompt_generated_at: new Date(),
+    };
+
+    if (existing) {
+      await (this.prisma as any).courseConfig.update({
+        where: { id: existing.id },
+        data: configData,
+      });
+      this.logger.log(
+        `CourseConfig updated for course ${sheet.course_id} (sheet ${sheetId})`,
+      );
+    } else {
+      await (this.prisma as any).courseConfig.create({
+        data: {
+          ...configData,
+          course: { connect: { id: sheet.course_id } },
+        },
+      });
+      this.logger.log(
+        `CourseConfig created for course ${sheet.course_id} (sheet ${sheetId})`,
+      );
+    }
+  }
+
+  /**
+   * Build eval_criteria array from TechSheetKPI relational table.
+   */
+  private async buildEvalCriteriaFromKPIs(sheetId: number): Promise<any[]> {
+    const kpis = await (this.prisma as any).techSheetKPI.findMany({
+      where: { tech_sheet_id: sheetId },
+    });
+    return kpis.map((k: any) => ({
+      name: k.name,
+      description: k.description,
+      weight: k.weight || 0,
+      target: k.target_value || 0,
+      minimum: k.minimum_pass_value || 0,
+    }));
   }
 }
