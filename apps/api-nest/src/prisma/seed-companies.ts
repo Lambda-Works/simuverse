@@ -404,7 +404,12 @@ async function main() {
 
     await prisma.courseConfig.upsert({
       where: { course_id: course.id },
-      update: {},
+      update: {
+        base_role: def.config.base_role,
+        course_context: def.config.course_context,
+        personality_traits: def.config.personality_traits || [],
+        knowledge_base_prompt: def.config.knowledge_base_prompt,
+      },
       create: {
         course_id: course.id,
         config_data: {},

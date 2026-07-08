@@ -6,8 +6,8 @@ import * as path from 'path';
 @Injectable()
 export class DeepSeekService {
   private readonly logger = new Logger(DeepSeekService.name);
-  private readonly apiKey = process.env.OPENCODE_ZEN_API_KEY;
-  private readonly apiUrl = 'https://opencode.ai/zen/v1/chat/completions';
+  private readonly apiKey = process.env.DEEPSEEK_API_KEY;
+  private readonly apiUrl = 'https://api.deepseek.com/v1/chat/completions';
   private readonly defaultSystemPrompt = this.loadSystemPrompt();
 
   private loadSystemPrompt(): string {
@@ -27,7 +27,7 @@ export class DeepSeekService {
         const response = await axios.post(
           this.apiUrl,
           {
-            model: 'mimo-v2.5-free',
+            model: 'deepseek-v4-flash',
             messages: [
               {
                 role: 'system',

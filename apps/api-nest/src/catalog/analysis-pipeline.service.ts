@@ -635,9 +635,9 @@ ${systemPrompt.content}
 
 Retorna SOLO un JSON con esta estructura exacta:
 {
-  "base_role": "rol del estudiante en la simulación (ej: Asistente Administrativo en Soluciones Integrales del Norte S.A.)",
-  "course_context": "contexto completo del curso y la empresa simulada (2-3 párrafos describiendo la empresa, situación, objetivos del curso)",
-  "knowledge_base_prompt": "instrucciones para la IA sobre cómo debe comportarse como evaluador/mentor durante la simulación"
+  "base_role": "rol del estudiante en primera persona, incluyendo nombre ficticio, cargo y empresa. Basado EXCLUSIVAMENTE en el prompt de simulación provisto.",
+  "course_context": "contexto completo del curso y la empresa simulada (2-3 párrafos describiendo la empresa, situación, objetivos del curso). Solo usar información presente en el prompt.",
+  "knowledge_base_prompt": "instrucciones para la IA sobre cómo debe comportarse como evaluador/mentor durante la simulación. Solo usar información presente en el prompt."
 }
 
 Usa TODA la información disponible en el prompt. No inventes nada que no esté en el prompt.`;
