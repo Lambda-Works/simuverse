@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { createHash } from 'crypto';
 import * as fs from 'fs';
@@ -89,8 +89,11 @@ export class FilesService {
     return { filePath: file.file_path, fileName: file.file_name };
   }
 
-  async update(id: string, dto: UpdateFileDto) {
-    await this.findOne(id);
+  async update(id: string, dto: UpdateFileDto, user: any) {
+    const file = await this.findOne(id);
+    if (user.role === 'student' && file.uploaded_by_id !== user.id) {
+      throw new ForbiddenException('You can only update your own files');
+    }
     const data: any = {};
     if (dto.description !== undefined) data.description = dto.description;
     if (dto.course_id !== undefined) data.course_id = dto.course_id;
@@ -99,8 +102,11 @@ export class FilesService {
     return this.prisma.fileUpload.update({ where: { id }, data });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, user: any) {
+    const file = await this.findOne(id);
+    if (user.role === 'student' && file.uploaded_by_id !== user.id) {
+      throw new ForbiddenException('You can only delete your own files');
+    }
     await this.prisma.fileUpload.update({
       where: { id },
       data: { is_active: false },

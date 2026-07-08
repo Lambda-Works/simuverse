@@ -8,6 +8,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
 import { SimulationsService } from './simulations.service';
 import { SimulationInstanceService } from './simulation-instance.service';
@@ -40,7 +41,13 @@ export class SimulationsController {
   }
 
   @Get('user/:userId')
-  async findByUserId(@Param('userId') userId: string) {
+  async findByUserId(
+    @Param('userId') userId: string,
+    @CurrentUser() user: any,
+  ) {
+    if (user?.role === 'student' && userId !== user.id) {
+      throw new ForbiddenException('You can only view your own simulations');
+    }
     return this.simulationsService.findByUserId(userId);
   }
 

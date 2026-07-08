@@ -167,6 +167,7 @@ const AdminPanel = () => {
   const { user, hasRole, loading } = useAuth();
   const router = useRouter();
   const [courses, setCourses] = useState<any[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState(true);
   const [techSheets, setTechSheets] = useState<Array<{ id: number; name: string; processed: boolean }>>([]);
   const [simCompanies, setSimCompanies] = useState<Array<{ id: number; name: string; short_name?: string }>>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -189,7 +190,7 @@ const AdminPanel = () => {
     ],
   };
   const [newCrisis, setNewCrisis] = useState<CrisisEventConfig>({ ...emtpyCrisisEvent, options: [...emtpyCrisisEvent.options] as CrisisEventConfig['options'] });
-  const { currentTab, setCurrentTab } = useAdmin();
+  const { currentTab, setCurrentTab, isInitialized } = useAdmin();
   const [showPromptConfigModal, setShowPromptConfigModal] = useState(false);
   const [selectedCourseForPromptConfig, setSelectedCourseForPromptConfig] = useState<any>(null);
   const [courseFilter, setCourseFilter] = useState<'all' | 'active' | 'inactive'>('all'); // Filtro de cursos
@@ -199,13 +200,15 @@ const AdminPanel = () => {
   }, [user, loading, hasRole, router]);
 
   const fetchCourses = async () => {
+    setLoadingCourses(true);
     try {
-      // Usar el endpoint de admin para obtener TODOS los cursos (activos e inactivos)
-      const res = await apiClient.get('/admin/courses');
+      const res = await apiClient.get('/courses');
       if (res.data) setCourses(res.data);
     } catch (error) {
       console.error('Error fetching courses:', error);
       toast.error('Error al cargar los cursos');
+    } finally {
+      setLoadingCourses(false);
     }
   };
 
@@ -343,6 +346,14 @@ const AdminPanel = () => {
       modules: prev.modules.includes(mod) ? prev.modules.filter(m => m !== mod) : [...prev.modules, mod],
     }));
   };
+
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -882,13 +893,18 @@ const AdminPanel = () => {
                   </CardContent>
                 </Card>
               ))}
-              {courses.length === 0 && (
+              {loadingCourses ? (
+                <div className="text-center py-16 text-muted-foreground flex flex-col items-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                  <p>Cargando cursos...</p>
+                </div>
+              ) : courses.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground">
                   <Settings className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p>No hay cursos configurados. Cree el primero.</p>
                 </div>
-              )}
-              {courses.length > 0 && courses.filter(c => {
+              ) : null}
+              {!loadingCourses && courses.length > 0 && courses.filter(c => {
                 if (courseFilter === 'active') return c.is_active;
                 if (courseFilter === 'inactive') return !c.is_active;
                 return true;
