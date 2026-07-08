@@ -5,10 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Edit2, Plus, Zap, FileUp, Paperclip, Link, Settings, Check } from 'lucide-react';
+import { Trash2, Edit2, Plus, Zap, FileUp, Paperclip, Link, Settings, Check, AlertTriangle, RefreshCw } from 'lucide-react';
 import { ConfigureTechSheetModal } from './ConfigureTechSheetModal';
-import { API_BASE } from '@/lib/api';
+import { API_BASE, authFetch } from '@/lib/api';
+import { useAnalysisProgress, PipelineStatus, PipelineOutput } from '@/hooks/useAnalysisProgress';
 
 interface TechSheet {
   id: number;
@@ -23,6 +26,8 @@ interface TechSheet {
   updated_at: string;
   competencies?: any;
   kpi_requirements?: any;
+  pipeline_status?: PipelineStatus;
+  pipeline_output?: PipelineOutput | null;
 }
 
 interface Course {
@@ -36,7 +41,6 @@ export function TechSheetsABM() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddingNew, setIsAddingNew] = useState(false);
-  const [processing, setProcessing] = useState<number | null>(null);
   const [selectedSheet, setSelectedSheet] = useState<TechSheet | null>(null);
   const [uploading, setUploading] = useState(false);
   const [configModalOpen, setConfigModalOpen] = useState(false);
@@ -46,6 +50,11 @@ export function TechSheetsABM() {
   const [editingCompetencies, setEditingCompetencies] = useState<string>('');
   const [editingKpis, setEditingKpis] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Pipeline analysis tracking
+  const [analyzingSheetId, setAnalyzingSheetId] = useState<number | null>(null);
+  const { status: pollStatus, output: pollOutput, isLoading: pollLoading, error: pollError } =
+    useAnalysisProgress(analyzingSheetId, analyzingSheetId !== null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -62,9 +71,20 @@ export function TechSheetsABM() {
     fetchCourses();
   }, []);
 
+  // Refresh list and clear analyzing state when pipeline reaches terminal status
+  useEffect(() => {
+    if (pollStatus === 'completed') {
+      fetchTechSheets();
+      setAnalyzingSheetId(null);
+      alert('Analisis completado exitosamente');
+    } else if (pollStatus === 'failed' || pollStatus === 'validation_rejected') {
+      setAnalyzingSheetId(null);
+    }
+  }, [pollStatus]);
+
   const fetchCourses = async () => {
     try {
-      const response = await fetch(`${API_BASE}/courses`);
+      const response = await authFetch(`${API_BASE}/courses`);
       const data = await response.json();
       setCourses(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -74,7 +94,7 @@ export function TechSheetsABM() {
 
   const fetchTechSheets = async () => {
     try {
-      const response = await fetch(`${API_BASE}/tech-sheets`);
+      const response = await authFetch(`${API_BASE}/tech-sheets`);
       const data = await response.json();
       setSheets(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -90,12 +110,12 @@ export function TechSheetsABM() {
     if (!file) return;
 
     // ✅ NUEVO: Validar tipo y tamaño en cliente
-    const allowedTypes = ['application/pdf', 'application/msword', 
+    const allowedTypes = ['application/pdf', 'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'text/csv', 'image/png', 'image/jpeg', 'text/plain'];
-    
+
     if (!allowedTypes.includes(file.type)) {
       toast.error(`❌ Tipo de archivo no permitido: ${file.type}\n\nSoportados: PDF, DOC, DOCX, XLS, XLSX, CSV, PNG, JPG, TXT`);
       e.target.value = '';
@@ -149,58 +169,54 @@ export function TechSheetsABM() {
     }
 
     try {
-      // Usar FormData para enviar archivos si existen
       const hasFile = fileInputRef.current?.files?.[0];
-      
+      let fileUrl: string | null = formData.file_url || null;
+
+      // Step 1: Upload file if present
       if (hasFile) {
-        // Con archivo: usar FormData
         const formDataObj = new FormData();
-        formDataObj.append('name', trimmedName);
-        if (formData.course_id) formDataObj.append('course_id', formData.course_id);
-        if (formData.ministry_code) formDataObj.append('ministry_code', formData.ministry_code);
-        if (formData.description) formDataObj.append('description', formData.description);
-        formDataObj.append('uploaded_by', localStorage.getItem('userId') || 'system');
         formDataObj.append('file', hasFile);
+        formDataObj.append('uploaded_by_id', JSON.parse(localStorage.getItem('user') || '{}').id || 'system');
+        formDataObj.append('upload_type', 'tech_sheet');
 
-        console.log(`📤 Archivo a enviar: ${hasFile.name} (${(hasFile.size / 1024).toFixed(2)} KB)`);
-
-        const response = await fetch(`${API_BASE}/tech-sheets`, {
+        const uploadResponse = await authFetch(`${API_BASE}/files/upload`, {
           method: 'POST',
           body: formDataObj,
         });
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Error al guardar');
+        if (!uploadResponse.ok) {
+          const error = await uploadResponse.json();
+          const message = error.message || error.error || 'Error al subir archivo';
+          throw new Error(message);
         }
 
-        const result = await response.json();
-        console.log('✅ Ficha técnica creada:', result);
-      } else {
-        // Sin archivo: usar JSON (más simple)
-        const payload = {
-          name: trimmedName,
-          course_id: formData.course_id || null,
-          ministry_code: formData.ministry_code || null,
-          description: formData.description || null,
-          file_url: formData.file_url || null,
-          uploaded_by: localStorage.getItem('userId') || 'system',
-        };
-
-        const response = await fetch(`${API_BASE}/tech-sheets`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Error al guardar');
-        }
-
-        const result = await response.json();
-        console.log('✅ Ficha técnica creada:', result);
+        const uploadResult = await uploadResponse.json();
+        fileUrl = uploadResult.file_url;
       }
+
+      // Step 2: Create tech sheet with file_url
+      const payload = {
+        name: trimmedName,
+        course_id: formData.course_id || undefined,
+        ministry_code: formData.ministry_code || undefined,
+        description: formData.description || undefined,
+        file_url: fileUrl || undefined,
+        uploaded_by: JSON.parse(localStorage.getItem('user') || '{}').id || 'system',
+      };
+
+      const createResponse = await authFetch(`${API_BASE}/tech-sheets`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      if (!createResponse.ok) {
+        const error = await createResponse.json();
+        const message = error.message || error.error || 'Error al guardar';
+        throw new Error(message);
+      }
+
+      const result = await createResponse.json();
+      console.log('✅ Ficha técnica creada:', result);
 
       // Reset form
       setFormData({ name: '', course_id: '', ministry_code: '', description: '', file_url: '', file_name: '' });
@@ -217,80 +233,36 @@ export function TechSheetsABM() {
   };
 
   const handleAnalyze = async (id: number) => {
-    // Buscar la ficha técnica a analizar
     const sheet = sheets.find(s => s.id === id);
     if (!sheet) return;
 
-    // ❌ VALIDACIÓN 1: Curso es obligatorio
+    // Validation: course is required
     if (!sheet.course_id) {
       toast.error('❌ Error: Debes asociar la ficha técnica a un curso antes de analizarla.\n\nPor favor, edita la ficha y selecciona un curso.');
       return;
     }
 
-    // ❌ VALIDACIÓN 2: Al menos 1 contenido (archivo, URL o descripción)
+    // Validation: at least 1 content
     const hasContent = sheet.file_url || sheet.description;
     if (!hasContent) {
       toast.error('❌ Error: La ficha técnica debe tener al menos uno de estos elementos:\n- Archivo adjunto (PDF/DOC)\n- URL del documento\n- Descripción/Contenido\n\nPor favor, agrega contenido antes de analizar.');
       return;
     }
 
-    setProcessing(id);
     try {
-      // Preparar contenido para análisis
-      let fileContent = sheet.description || '';
-      
-      // Si hay un archivo URL, intentar obtener el contenido
-      if (sheet.file_url && !fileContent) {
-        try {
-          // Intentar obtener el contenido del archivo remoto
-          const fileResponse = await fetch(sheet.file_url);
-          if (fileResponse.ok) {
-            // Para archivos de texto, leer como texto
-            if (sheet.file_url.endsWith('.txt') || sheet.file_url.includes('text')) {
-              fileContent = await fileResponse.text();
-            } else {
-              // Para otros tipos, usar el nombre como contexto
-              fileContent = sheet.name || 'Archivo sin contenido extractable';
-            }
-          }
-        } catch (e) {
-          // Si no se puede obtener el contenido remoto, usar el nombre
-          fileContent = sheet.name || sheet.file_url;
-        }
-      }
-
-      // Enviar el contenido REAL al backend para análisis
-      const response = await fetch(`${API_BASE}/tech-sheets/${id}/analyze`, {
+      const response = await authFetch(`${API_BASE}/tech-sheets/${id}/analyze`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: fileContent,
-          file_url: sheet.file_url || '',
-          description: sheet.description || '',
-          scenario: sheet.name || '',
-          competencies: []
-        })
+        body: JSON.stringify({}),
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Error al analizar');
+        const message = error.message || error.error || 'Error al analizar';
+        throw new Error(message);
       }
-      
-      const data = await response.json();
-      
-      // Mostrar los resultados reales del análisis
-      const competenciesList = data.extracted_data?.competencies?.join(', ') || 'No se identificaron';
-      const kpiCount = data.extracted_data?.kpi_requirements?.length || 0;
-      
-      alert(`✅ Ficha técnica analizada con éxito!\n\n📊 Resultados del análisis:
-- Competencias identificadas (${data.competencies_found || 0}): ${competenciesList}
-- KPIs extraídos: ${kpiCount}
-- Preguntas de evaluación: ${data.extracted_data?.suggested_questions?.length || 0}
-- Prompts para Chat IA: Generado
-- Tiempo de análisis: ${new Date(data.analysis_timestamp).toLocaleTimeString('es-ES')}`);
-      
-      await fetchTechSheets();
+
+      // Start polling for progress
+      setAnalyzingSheetId(id);
     } catch (error) {
       console.error('Error analyzing tech sheet:', error);
       toast.error(`❌ Error al analizar la ficha técnica: ${error instanceof Error ? error.message : 'Error desconocido'}`);
@@ -303,7 +275,7 @@ export function TechSheetsABM() {
     if (!confirm('¿Estás seguro de eliminar esta ficha técnica?')) return;
 
     try {
-      await fetch(`${API_BASE}/tech-sheets/${id}`, {
+      await authFetch(`${API_BASE}/tech-sheets/${id}`, {
         method: 'DELETE',
       });
       await fetchTechSheets();
@@ -342,20 +314,23 @@ export function TechSheetsABM() {
 
     try {
       const updatedSheet = {
-        ...sheet,
+        name: sheet.name,
+        description: sheet.description || undefined,
+        ministry_code: sheet.ministry_code || undefined,
+        context_scenario: sheet.context_scenario || undefined,
         competencies: competencies.length > 0 ? competencies : sheet.competencies,
         kpi_requirements: kpis.length > 0 ? kpis : sheet.kpi_requirements,
       };
 
-      const response = await fetch(`${API_BASE}/tech-sheets/${id}`, {
+      const response = await authFetch(`${API_BASE}/tech-sheets/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedSheet),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Error al actualizar');
+        const message = error.message || error.error || 'Error al actualizar';
+        throw new Error(message);
       }
 
       setEditingSheetId(null);
@@ -534,8 +509,8 @@ export function TechSheetsABM() {
             </div>
 
             <div className="flex gap-3">
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={!formData.course_id}
                 className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 title={!formData.course_id ? 'Debes seleccionar un curso primero' : 'Subir la ficha técnica'}
@@ -625,35 +600,59 @@ export function TechSheetsABM() {
                   </Button>
                 )}
 
-                {!sheet.processed && (sheet.competencies || sheet.kpi_requirements) && (
+                {/* Analizar button — pipeline-aware */}
+                {!sheet.processed && sheet.pipeline_status !== 'completed' && (
                   <Button
                     onClick={() => handleAnalyze(sheet.id)}
-                    disabled={processing === sheet.id || !sheet.course_id}
-                    title={!sheet.course_id ? 'Asocia un curso primero' : 'Analizar esta ficha técnica'}
-                    className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={
+                      analyzingSheetId === sheet.id ||
+                      sheet.pipeline_status === 'running' ||
+                      sheet.pipeline_status === 'completed' ||
+                      !sheet.course_id
+                    }
+                    title={
+                      !sheet.course_id
+                        ? 'Asocia un curso primero'
+                        : sheet.pipeline_status === 'running'
+                        ? 'Analisis en progreso...'
+                        : sheet.pipeline_status === 'completed'
+                        ? 'Ya fue analizada'
+                        : 'Analizar esta ficha tecnica'
+                    }
+                    className={
+                      sheet.pipeline_status === 'completed'
+                        ? 'bg-green-600'
+                        : sheet.pipeline_status === 'running' || analyzingSheetId === sheet.id
+                        ? 'bg-yellow-600'
+                        : 'bg-purple-600 hover:bg-purple-700'
+                    }
                   >
                     <Zap className="w-4 h-4 mr-2" />
-                    {processing === sheet.id ? 'Analizando...' : 'Analizar'}
+                    {sheet.pipeline_status === 'running' || analyzingSheetId === sheet.id
+                      ? 'Analizando...'
+                      : sheet.pipeline_status === 'completed'
+                      ? 'Analizado'
+                      : 'Analizar'}
                   </Button>
                 )}
 
-                {!sheet.processed && !sheet.competencies && !sheet.kpi_requirements && (
-                  <Button
-                    onClick={() => handleAnalyze(sheet.id)}
-                    disabled={processing === sheet.id || !sheet.course_id || (!sheet.file_url && !sheet.description)}
-                    title={!sheet.course_id ? 'Asocia un curso primero' : (!sheet.file_url && !sheet.description) ? 'Agrega archivo, URL o descripción' : 'Analizar esta ficha técnica'}
-                    className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Zap className="w-4 h-4 mr-2" />
-                    {processing === sheet.id ? 'Analizando...' : 'Analizar'}
-                  </Button>
-                )}
-
-                {sheet.processed && (
+                {sheet.pipeline_status === 'completed' && (
                   <>
                     <Button disabled className="bg-green-600">
                       <Zap className="w-4 h-4 mr-2" />
                       Analizado
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (confirm('¿Re-analizar esta ficha? Se sobrescribirán los resultados existentes.')) {
+                          handleAnalyze(sheet.id);
+                        }
+                      }}
+                      disabled={analyzingSheetId === sheet.id}
+                      className="bg-orange-600 hover:bg-orange-700"
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Re-analizar
                     </Button>
                     {sheet.course_id && (
                       <Button
@@ -681,6 +680,62 @@ export function TechSheetsABM() {
                 </Button>
               </div>
             </div>
+
+            {/* Pipeline progress indicator */}
+            {analyzingSheetId === sheet.id && (
+              <PipelineProgress status={pollStatus} output={pollOutput} error={pollError} />
+            )}
+
+            {/* Show progress for sheets that have pipeline status from DB */}
+            {analyzingSheetId !== sheet.id && sheet.pipeline_status && sheet.pipeline_status !== 'idle' && sheet.pipeline_status !== 'completed' && (
+              <PipelineProgressStatus status={sheet.pipeline_status} output={sheet.pipeline_output} />
+            )}
+
+            {/* Validation rejected banner */}
+            {sheet.pipeline_status === 'validation_rejected' && (
+              <Alert variant="destructive" className="mt-3">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Validacion Rechazada</AlertTitle>
+                <AlertDescription>
+                  {sheet.pipeline_output && typeof sheet.pipeline_output === 'object' && 'error_message' in sheet.pipeline_output
+                    ? String((sheet.pipeline_output as PipelineOutput).error_message)
+                    : 'El documento no fue validado como ficha tecnica del ministerio.'}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Failed status banner */}
+            {sheet.pipeline_status === 'failed' && (
+              <>
+                <Alert variant="destructive" className="mt-3">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Error en el Analisis</AlertTitle>
+                  <AlertDescription>
+                    {sheet.pipeline_output && typeof sheet.pipeline_output === 'object' && 'error_message' in sheet.pipeline_output
+                      ? String((sheet.pipeline_output as PipelineOutput).error_message)
+                      : 'Ocurrio un error durante el analisis. Intenta nuevamente.'}
+                  </AlertDescription>
+                </Alert>
+                <Button
+                  onClick={() => {
+                    if (confirm('¿Reintentar el análisis?')) {
+                      handleAnalyze(sheet.id);
+                    }
+                  }}
+                  disabled={analyzingSheetId === sheet.id}
+                  size="sm"
+                  className="bg-orange-600 hover:bg-orange-700 mt-2"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Reintentar análisis
+                </Button>
+              </>
+            )}
+
+            {/* Render markdown output for completed steps */}
+            {sheet.pipeline_output && typeof sheet.pipeline_output === 'object' && (
+              <StepOutput output={sheet.pipeline_output as PipelineOutput} />
+            )}
           </Card>
         ))}
       </div>
@@ -695,7 +750,7 @@ export function TechSheetsABM() {
       {selectedSheet && selectedSheet.processed && selectedSheet.extracted_data && (
         <Card className="p-6 border-2 border-purple-600">
           <h3 className="text-xl font-bold mb-4">Datos Extraídos: {selectedSheet.name}</h3>
-          
+
           <div className="space-y-4">
             <div>
               <h4 className="font-semibold">📚 Competencias</h4>
@@ -737,7 +792,7 @@ export function TechSheetsABM() {
           <div className="bg-white rounded-lg p-6 max-w-xl w-full">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold">Completar Ficha Técnica</h3>
-              <button 
+              <button
                 onClick={() => {
                   setEditingSheetId(null);
                   setEditingCompetencies('');
@@ -823,6 +878,168 @@ export function TechSheetsABM() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+// ── Pipeline Progress Components ───────────────────────────────────
+
+const PIPELINE_STEPS = [
+  { key: 'step_1', label: 'Conversion', field: 'step_1_markdown' as const },
+  { key: 'step_2', label: 'Validacion', field: 'step_2_validation' as const },
+  { key: 'step_3', label: 'Competencias', field: 'step_3_competencies' as const },
+  { key: 'step_4', label: 'KPIs', field: 'step_4_kpis' as const },
+  { key: 'step_5', label: 'Preguntas', field: 'step_5_questions' as const },
+  { key: 'step_6', label: 'Simulacion', field: 'step_6_simulation_prompt' as const },
+  { key: 'step_7', label: 'Prompt de Evaluación', field: 'step_7_evaluation_prompt' as const },
+  { key: 'step_8', label: 'Prompt de Coaching', field: 'step_8_coaching_prompt' as const },
+];
+
+function getStepStatus(
+  pipelineStatus: PipelineStatus,
+  stepIndex: number,
+  output: PipelineOutput | null,
+): 'pending' | 'running' | 'completed' | 'failed' {
+  if (pipelineStatus === 'failed') {
+    if (output?.error_step === stepIndex + 1) return 'failed';
+    // Steps before the failed step are completed
+    if (output?.error_step && stepIndex + 1 < output.error_step) return 'completed';
+    return 'pending';
+  }
+
+  if (pipelineStatus === 'validation_rejected') {
+    // Only step 2 (validation) matters
+    if (stepIndex === 1) return 'failed';
+    if (stepIndex === 0) return 'completed';
+    return 'pending';
+  }
+
+  if (!pipelineStatus || pipelineStatus === 'idle') return 'pending';
+
+  if (pipelineStatus === 'completed') return 'completed';
+
+  // Running states: 'running', 'step_1' .. 'step_8'
+  if (pipelineStatus === 'running') return stepIndex === 0 ? 'running' : 'pending';
+
+  // Extract step number from 'step_N'
+  const match = pipelineStatus.match(/^step_(\d+)$/);
+  if (match) {
+    const currentStep = parseInt(match[1], 10);
+    const stepNum = stepIndex + 1;
+    if (stepNum < currentStep) return 'completed';
+    if (stepNum === currentStep) return 'running';
+    return 'pending';
+  }
+
+  return 'pending';
+}
+
+function StepIcon({ status }: { status: 'pending' | 'running' | 'completed' | 'failed' }) {
+  switch (status) {
+    case 'completed':
+      return <span className="text-green-600">✅</span>;
+    case 'running':
+      return <span className="text-blue-600 animate-spin">🔄</span>;
+    case 'failed':
+      return <span className="text-red-600">❌</span>;
+    default:
+      return <span className="text-gray-400">⏳</span>;
+  }
+}
+
+/** Live progress indicator shown while polling is active */
+function PipelineProgress({
+  status,
+  output,
+  error,
+}: {
+  status: PipelineStatus;
+  output: PipelineOutput | null;
+  error: string | null;
+}) {
+  return (
+    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+        <span className="text-sm font-semibold text-blue-900">Analisis en progreso...</span>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {PIPELINE_STEPS.map((step, i) => {
+          const stepStatus = getStepStatus(status, i, output);
+          return (
+            <div key={step.key} className="flex items-center gap-1.5 text-xs">
+              <StepIcon status={stepStatus} />
+              <span className={stepStatus === 'completed' ? 'text-green-700' : stepStatus === 'running' ? 'text-blue-700 font-medium' : stepStatus === 'failed' ? 'text-red-700' : 'text-gray-500'}>
+                {step.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {error && (
+        <p className="text-xs text-red-600 mt-2">Error: {error}</p>
+      )}
+    </div>
+  );
+}
+
+/** Static progress display for sheets with pipeline_status from DB */
+function PipelineProgressStatus({
+  status,
+  output,
+}: {
+  status: PipelineStatus;
+  output: PipelineOutput | null | unknown;
+}) {
+  const pipelineOutput = (output && typeof output === 'object' ? output : null) as PipelineOutput | null;
+  return (
+    <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-sm font-semibold text-gray-900">Estado del pipeline</span>
+        <Badge variant={status === 'completed' ? 'default' : status === 'failed' || status === 'validation_rejected' ? 'destructive' : 'secondary'}>
+          {status}
+        </Badge>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {PIPELINE_STEPS.map((step, i) => {
+          const stepStatus = getStepStatus(status, i, pipelineOutput);
+          return (
+            <div key={step.key} className="flex items-center gap-1.5 text-xs">
+              <StepIcon status={stepStatus} />
+              <span className={stepStatus === 'completed' ? 'text-green-700' : stepStatus === 'failed' ? 'text-red-700' : 'text-gray-500'}>
+                {step.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Render markdown output for completed steps */
+function StepOutput({ output }: { output: PipelineOutput }) {
+  const stepsWithOutput = PIPELINE_STEPS.filter(
+    (step) => output[step.field],
+  );
+
+  if (stepsWithOutput.length === 0) return null;
+
+  return (
+    <div className="mt-3 space-y-2">
+      {stepsWithOutput.map((step) => (
+        <details key={step.key} className="group">
+          <summary className="cursor-pointer text-xs font-medium text-gray-700 hover:text-gray-900 flex items-center gap-1">
+            <span>📄 {step.label}</span>
+            <span className="text-gray-400 group-open:rotate-90 transition-transform">▶</span>
+          </summary>
+          <div className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded text-xs max-h-48 overflow-auto">
+            <pre className="whitespace-pre-wrap font-mono text-gray-700">
+              {String(output[step.field])}
+            </pre>
+          </div>
+        </details>
+      ))}
     </div>
   );
 }

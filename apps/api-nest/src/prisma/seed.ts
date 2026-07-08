@@ -155,68 +155,187 @@ async function main() {
   });
   console.log('✅ Auditor Ministerio creado:', ministerio.email);
 
-  console.log('✅ Auditor Ministerio creado:', ministerio.email);
-
-  console.log('\n🌱 Creando Circuito Ofimática...');
-
-  // 1. Crear Curso Ofimática
-  const ofimaticaCourse = await prisma.course.upsert({
-    where: { course_id: 'ofimatica-001' },
+  // ──────────────────────────────────────────────────────────
+  // Empresa Ficticia
+  // ──────────────────────────────────────────────────────────
+  console.log('🏢 Creando empresa ficticia...');
+  const company = await prisma.simulatedCompany.upsert({
+    where: { id: 1 },
     update: {},
     create: {
-      course_id: 'ofimatica-001',
-      title: 'Ofimática Básica y Administración',
-      description: 'Curso introductorio de herramientas de oficina (Word, Excel, Email) y gestión administrativa básica.',
+      name: 'Administración Las Tradiciones',
+      short_name: 'Las Tradiciones',
+      description: 'Empresa de servicios administrativos y contables',
+    },
+  });
+
+  // ──────────────────────────────────────────────────────────
+  // Curso y Configuración
+  // ──────────────────────────────────────────────────────────
+  console.log('📚 Creando curso "Ofimática Básica"...');
+  const course = await prisma.course.upsert({
+    where: { course_id: 'OFI-BAS-001' },
+    update: {
+      modules: ["chat_ia", "email_simulado", "documentos", "hoja_calculo", "crisis_engine"],
+      simulated_company_id: company.id
+    },
+    create: {
+      id: 'course-ofimatica-001',
+      course_id: 'OFI-BAS-001',
+      title: 'Ofimática Básica para Empleado de Oficina',
+      description: 'Simulación interactiva de ofimática en entorno administrativo real',
       category: 'administracion',
+      modules: ["chat_ia", "email_simulado", "documentos", "hoja_calculo", "crisis_engine"],
       is_active: true,
-      modules: ['Excel', 'Word', 'Email'],
-    }
+      simulated_company_id: company.id,
+    },
   });
-  console.log('✅ Curso Ofimática creado:', ofimaticaCourse.id);
 
-  // 2. Crear Escenario
-  let ofimaticaScenario = await prisma.scenario.findFirst({
-    where: { course_id: ofimaticaCourse.id }
+  await prisma.courseConfig.upsert({
+    where: { course_id: course.id },
+    update: {},
+    create: {
+      course_id: course.id,
+      config_data: {},
+      base_role: 'Eres el compañero de trabajo de Juan en Administración Las Tradiciones. Te llamas Carlos. Estás necesitando ayuda con una fórmula de Excel para liquidar sueldos.',
+      course_context: 'Juan es un empleado nuevo en Administración Las Tradiciones, una empresa de servicios administrativos en Rosario. Está en su primer día y debe ayudar con tareas de oficina.',
+      personality_traits: ["amigable", "paciente", "práctico", "orientado a resultados"],
+      knowledge_base_prompt: 'Si Juan pide ayuda con Excel, guialo paso a paso. Si se equivoca, corregilo con paciencia. Si se sale del rol, recordale el contexto.',
+      active_modules: ["chat_ia", "email_simulado", "documentos", "hoja_calculo", "crisis_engine"],
+      family_type: 'administration',
+    },
   });
-  if (!ofimaticaScenario) {
-    ofimaticaScenario = await prisma.scenario.create({
-      data: {
-        course_id: ofimaticaCourse.id,
-        title: 'Administración familiar: Las Tradiciones',
-        difficulty: 'medium',
-        content: {
-          context: 'Trabajas en "Las Tradiciones", una pequeña empresa familiar. Tu jefe necesita urgente el balance mensual en Excel y que respondas algunos correos de proveedores atrasados.',
+
+  // ──────────────────────────────────────────────────────────
+  // Escenario
+  // ──────────────────────────────────────────────────────────
+  console.log('🎬 Creando escenario "Primer Día"...');
+  const scenario = await prisma.scenario.upsert({
+    where: { id: 'scenario-primer-dia-001' },
+    update: {},
+    create: {
+      id: 'scenario-primer-dia-001',
+      course_id: course.id,
+      title: 'Primer Día en Administración Las Tradiciones',
+      description: 'Tu primer día como empleado de oficina. Tu compañero Carlos necesita ayuda con una planilla de sueldos.',
+      scenario_type: 'daily_operations',
+      difficulty: 'easy',
+      content: {
+        context: 'Es lunes por la mañana. Estás en tu escritorio. Tu compañero Carlos se acerca con una planilla de Excel y te pide ayuda.',
+        student_data: {
+          nombre: 'Juan Pérez',
+          rol: 'Empleado nuevo',
+          empresa: 'Administración Las Tradiciones'
         },
-        expected_outcomes: {
-          main_objective: 'Resolver correos atrasados, corregir errores en el Excel de balance, y enviar el informe a tiempo.',
+        emails: [
+          {
+            id: 1,
+            from: 'Jefe de Administración',
+            subject: 'Reunión del viernes — armar minuta',
+            body: 'Juan, necesito que armes la minuta de la reunión del viernes pasado. Te adjunto las notas. Formato estándar de la empresa.',
+            date: new Date().toISOString(),
+            read: false
+          },
+          {
+            id: 2,
+            from: 'Proveedor OfficeMax',
+            subject: 'Confirmación de envío',
+            body: 'Su pedido de 20 resmas de papel A4 fue despachado. Llega el miércoles. N° de seguimiento: OM-2024-7891.',
+            date: new Date().toISOString(),
+            read: false
+          },
+          {
+            id: 3,
+            from: 'Jefe de Administración (URGENTE)',
+            subject: 'Error en liquidación de sueldos',
+            body: 'URGENTE: El sistema procesó mal el coeficiente de aportes. 47 empleados afectados. Necesitamos reliquidación inmediata.',
+            date: new Date().toISOString(),
+            read: false,
+            isUrgent: true
+          }
+        ],
+        spreadsheet: {
+          name: "Liquidación de Sueldos — Noviembre 2024",
+          data: [
+            { item: "Sueldo base", value: 450000, currency: "ARS" },
+            { item: "Horas extra (10hs)", value: 28000, currency: "ARS" },
+            { item: "Aportes jubilatorios (17%)", value: 81060, currency: "ARS" },
+            { item: "Obra social (6%)", value: 28620, currency: "ARS" },
+            { item: "Total bruto", value: 478000, currency: "ARS" },
+            { item: "Descuento ART (1.5%)", value: 7170, currency: "ARS" },
+            { item: "Neto a cobrar", value: 470830, currency: "ARS" }
+          ],
+          formulas: {
+            "Aportes": "= Sueldo base × 17%",
+            "Obra Social": "= Sueldo base × 6%",
+            "ART": "= Sueldo base × 1.5%",
+            "Neto": "= Sueldo base + Horas extra - Aportes - Obra Social - ART"
+          }
         }
+      },
+      expected_outcomes: {
+        main_objective: 'Ayudar a Carlos con la fórmula de Excel, responder los emails del jefe y resolver la crisis de liquidación.'
       }
-    });
-  }
-  console.log('✅ Escenario Ofimática creado:', ofimaticaScenario.id);
-
-  // 3. Asignar el curso a los 3 estudiantes
-  const { v4: uuidv4 } = require('uuid');
-  for (const student of [student1, student2, student3]) {
-    const existingAssignment = await prisma.simulationAssignment.findFirst({
-      where: {
-        course_id: ofimaticaCourse.id,
-        student_id: student.id,
-      }
-    });
-    if (!existingAssignment) {
-      await prisma.simulationAssignment.create({
-        data: {
-          simulation_id: uuidv4(),
-          course_id: ofimaticaCourse.id,
-          student_id: student.id,
-          assigned_by: admin.id,
-          status: 'pending',
-        }
-      });
     }
+  });
+
+  // ──────────────────────────────────────────────────────────
+  // Documentos
+  // ──────────────────────────────────────────────────────────
+  console.log('📄 Subiendo documentos pre-cargados...');
+  await prisma.courseDocument.deleteMany({
+    where: { course_id: course.id }
+  });
+  await prisma.courseDocument.createMany({
+    data: [
+      {
+        course_id: course.id,
+        document_name: 'Minuta Reunión 2024-11-15',
+        document_type: 'procedure',
+        document_content: 'ORDEN DEL DÍA: 1. Revisión de presupuesto Q4. 2. Liquidación de sueldos. 3. Capacitación del equipo.',
+      },
+      {
+        course_id: course.id,
+        document_name: 'Contrato Proveedor OfficeMax',
+        document_type: 'contract',
+        document_content: 'Contrato de suministro de material de oficina. Vigencia: 01/01/2024 — 31/12/2024. Condiciones de pago: 30 días.',
+      }
+    ]
+  });
+
+  // ──────────────────────────────────────────────────────────
+  // Asignación de Curso y Permisos
+  // ──────────────────────────────────────────────────────────
+  console.log('📝 Asignando simulación a Juan Pérez...');
+  const existingAssignment = await prisma.simulationAssignment.findFirst({
+    where: { student_id: student1.id, course_id: course.id }
+  });
+  
+  if (!existingAssignment) {
+    await prisma.simulationAssignment.create({
+      data: {
+        simulation_id: `sim-${student1.id}`,
+        student_id: student1.id,
+        course_id: course.id,
+        assigned_by: admin.id,
+        status: 'in_progress'
+      }
+    });
   }
-  console.log('✅ Curso asignado a los 3 estudiantes');
+
+  // Ensure simulation record exists for endpoints to work properly
+  const sim = await prisma.simulation.findFirst({
+    where: { student_id: student1.id, course_id: course.id }
+  });
+  if (!sim) {
+    await prisma.simulation.create({
+      data: {
+        student_id: student1.id,
+        course_id: course.id,
+        status: 'active'
+      }
+    });
+  }
 
   console.log('\n🎉 Seed completado exitosamente!');
   console.log('\n📋 Credenciales de acceso:');
