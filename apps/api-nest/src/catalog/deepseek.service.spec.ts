@@ -11,7 +11,7 @@ describe('DeepSeekService', () => {
 
   beforeEach(async () => {
     // Set env var for API key
-    process.env.OPENCODE_ZEN_API_KEY = 'test-api-key';
+    process.env.DEEPSEEK_API_KEY = 'test-api-key';
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [DeepSeekService],
@@ -22,7 +22,7 @@ describe('DeepSeekService', () => {
   });
 
   afterEach(() => {
-    delete process.env.OPENCODE_ZEN_API_KEY;
+    delete process.env.DEEPSEEK_API_KEY;
   });
 
   it('should be defined', () => {

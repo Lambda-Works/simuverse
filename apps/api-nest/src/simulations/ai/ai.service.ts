@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
+import { DeepSeekService } from '../../catalog/deepseek.service';
 
 export interface PromptData {
   base_role: string;
@@ -23,10 +24,11 @@ export interface FallbackContext {
 
 @Injectable()
 export class AIService {
+  private readonly logger = new Logger(AIService.name);
   private geminiApiKey: string;
   private geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
-  constructor() {
+  constructor(private readonly deepseek: DeepSeekService) {
     this.geminiApiKey = process.env.GEMINI_API_KEY || '';
   }
 
@@ -104,6 +106,28 @@ export class AIService {
     return pool[this.hashStr(userMessage) % pool.length];
   }
 
+  // ─── DeepSeek provider ──────────────────────────────────────────────
+
+  private async sendMessageToDeepSeek(
+    userMessage: string,
+    systemPrompt: string,
+    conversationHistory: Array<{ role: string; content: string }>,
+  ): Promise<AIResponse> {
+    const historyStr =
+      conversationHistory.length > 0
+        ? '\n\n--- CONVERSATION HISTORY ---\n' +
+          conversationHistory.map((m) => `${m.role}: ${m.content}`).join('\n')
+        : '';
+
+    const fullPrompt = historyStr
+      ? `${historyStr}\n\n--- CURRENT MESSAGE ---\n${userMessage}`
+      : userMessage;
+
+    this.logger.log('Using DeepSeek provider (deepseek-v4-flash)');
+    const response = await this.deepseek.chat(fullPrompt, systemPrompt);
+    return { response, mode: 'live' };
+  }
+
   // ─── Public API ──────────────────────────────────────────────────────
 
   buildSystemPrompt(promptData: PromptData): string {
@@ -137,6 +161,16 @@ INSTRUCCIONES CRÍTICAS:
     conversationHistory: Array<{ role: string; content: string }> = [],
     fallbackCtx?: FallbackContext,
   ): Promise<AIResponse> {
+    // Check if DeepSeek is available first
+    if (process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_API_KEY.trim() !== '') {
+      try {
+        return await this.sendMessageToDeepSeek(userMessage, systemPrompt, conversationHistory);
+      } catch (error) {
+        this.logger.warn(`DeepSeek failed, falling back: ${(error as Error).message}`);
+        // Fall through to Gemini or fallback
+      }
+    }
+
     const isKeyMissing =
       !this.geminiApiKey ||
       this.geminiApiKey === 'tu_gemini_api_key_aqui' ||
