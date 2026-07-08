@@ -900,5 +900,6 @@ model SimulatedCompany {
   created_at    DateTime @default(now()) @db.Timestamptz
   updated_at    DateTime @default(now()) @db.Timestamptz
 
+  @@unique([name])
   @@map("simulated_companies")
 }

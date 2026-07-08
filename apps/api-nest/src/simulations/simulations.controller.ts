@@ -16,15 +16,21 @@ import { SendMessageDto } from './dto/send-message.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
+import { AIService } from './ai/ai.service';
+import { CrisisEngine } from './engines/crisis-engine.service';
+
 @Controller('simulations')
 export class SimulationsController {
   constructor(
     private simulationsService: SimulationsService,
     private instanceService: SimulationInstanceService,
+    private aiService: AIService,
+    private crisisEngine: CrisisEngine,
   ) {}
 
   // ─── Lifecycle endpoints ───────────────────────────────────────────────
 
+  @UseGuards(JwtAuthGuard)
   @Post('start')
   async start(
     @CurrentUser('id') userId: string,
@@ -90,20 +96,64 @@ export class SimulationsController {
   // ─── Simulation detail endpoints (Express compat) ──────────────────────
 
   @Get(':id/emails')
-  async getEmails(@Param('id') id: string) { return []; }
+  async getEmails(@Param('id') id: string) { 
+    const scenario = await this.simulationsService.getSimulationScenario(id);
+    return (scenario?.content as any)?.emails || [];
+  }
 
   @Get(':id/documents')
-  async getDocuments(@Param('id') id: string) { return []; }
+  async getDocuments(@Param('id') id: string) { 
+    return this.simulationsService.getSimulationDocuments(id);
+  }
 
   @Get(':id/spreadsheet')
-  async getSpreadsheet(@Param('id') id: string) { return {}; }
+  async getSpreadsheet(@Param('id') id: string) { 
+    const scenario = await this.simulationsService.getSimulationScenario(id);
+    return (scenario?.content as any)?.spreadsheet || {};
+  }
 
   @Get(':id/logs')
   async getLogs(@Param('id') id: string) { return []; }
 
   @Post(':id/message')
   async sendMessage(@Param('id') id: string, @Body() dto: SendMessageDto) {
-    return { id, message: dto.message, response: 'OK' };
+    const config = await this.simulationsService.getSimulationConfig(id);
+    const scenario = await this.simulationsService.getSimulationScenario(id);
+
+    const systemPrompt = this.aiService.buildSystemPrompt({
+      base_role: config?.base_role || 'Eres un asistente.',
+      course_context: config?.course_context || '',
+      knowledge_base: config?.knowledge_base_prompt || '',
+      personality_traits: (config?.personality_traits as string[]) || [],
+      student_history: [],
+    });
+
+    const fallbackCtx = {
+      scenarioContext: scenario?.description || '',
+      base_role: config?.base_role || '',
+      course_context: config?.course_context || ''
+    };
+
+    const aiResponse = await this.aiService.sendMessageToGemini(
+      dto.message,
+      systemPrompt,
+      [],
+      fallbackCtx
+    );
+
+    return { id, message: dto.message, response: aiResponse.response };
+  }
+  
+  @Post(':id/crisis/get')
+  async getCrisis(@Param('id') id: string) {
+    const config = await this.simulationsService.getSimulationConfig(id);
+    const familyType = config?.family_type || 'administracion';
+    return this.crisisEngine.getOrCreateCrisis(id, familyType);
+  }
+
+  @Post(':id/crisis/resolve')
+  async resolveCrisis(@Param('id') id: string, @Body('optionId') optionId: string) {
+    return this.crisisEngine.resolveCrisis(id, optionId);
   }
 
   @Post(':id/evaluate')

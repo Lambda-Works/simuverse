@@ -8,7 +8,7 @@ Diseñado para funcionar con el [Lambda Hub](https://github.com/anomalyco/lambda
 
 | Capa | Tecnología |
 |------|-----------|
-| **Frontend** | Next.js 16 (standalone output), React 19, Tailwind CSS, shadcn/ui |
+| **Frontend** | Next.js 15 (standalone output), React 19, Tailwind CSS, shadcn/ui |
 | **Backend** | NestJS + Prisma + TypeScript |
 | **Proxy** | Express + http-proxy-middleware (enrutamiento interno) |
 | **Base de datos** | PostgreSQL 15 |
@@ -58,23 +58,23 @@ docker compose up -d --build
 
 Esto levanta: PostgreSQL, API NestJS, proxy y frontend Next.js.
 
-> **Nota:** Las migraciones de Prisma se aplican automáticamente cuando el contenedor de la API arranca (ver `apps/api-nest/docker-entrypoint.dev.sh`). No hace falta correrlas manualmente.
+> **Nota:** Las migraciones de Prisma y las seeds se aplican automáticamente cuando el contenedor de la API arranca (ver `apps/api-nest/docker-entrypoint.dev.sh`). No hace falta correrlas manualmente.
 
-### 3. Ejecutar la seed
-
-```bash
-npm run prisma:seed --prefix apps/api-nest
-```
-
-Esto pobla la base de datos con datos iniciales (usuarios de prueba, cursos, etc.).
-
-### 4. Verificar
+### 3. Verificar
 
 ```bash
 curl http://localhost:5000/api/health
 ```
 
 Deberías ver una respuesta JSON indicando que la API está funcionando.
+
+### 4. Acceder
+
+- **Web**: `http://localhost:8080`
+- **Login estudiante**: `juan.perez@student.edu` / `Admin123!`
+- **Login admin**: `admin@simuverse.edu` / `Admin123!`
+- **Login profesor**: `garcia@simuverse.edu` / `Admin123!`
+- **Login ministerio**: `control@ministerio.gob` / `Admin123!`
 
 ## Puertos
 
@@ -121,6 +121,42 @@ El Hub asigna estos puertos automáticamente. Solo hay que asegurarse de que est
 | `POST` | `/api/auth/register` | No | Register |
 
 Todos los requests pasan por el proxy (`proxy/index.ts`), que enruta al backend correspondiente.
+
+## Seeds
+
+El proyecto incluye 5 seeds que se ejecutan automáticamente al levantar con `docker compose up`. Son idempotentes: se pueden correr varias veces sin duplicar datos.
+
+| # | Archivo | Qué crea |
+|---|---------|----------|
+| 1 | `seed.ts` | 7 usuarios (admin, 2 profes, 3 alumnos, 1 ministerio) + empresa "Las Tradiciones" + curso "Ofimática Básica" + 1 escenario + 2 documentos + asignación y simulación para Juan Pérez |
+| 2 | `seed-companies.ts` | 3 empresas (TextilNorte, Conservas Litoral, MetalRos) con 1 curso, 1 escenario, documentos y asignaciones cada una |
+| 3 | `seed-demo.ts` | Fundación FEPEI, 3 avaladores, 8 categorías, 4 flow templates, 6 prompts IA, 3 fichas técnicas, 6 notificaciones, 3 grupos prof-alumno, 2 solicitudes de acceso, 2 requisitos ministeriales, 6 KPIs, 4 tareas, 6 módulos |
+| 4 | `seed-demo-2.ts` | Asignaciones y simulaciones para María López (2 cursos) y Carlos Soto (2 cursos), 4 archivos subidos, 6 KPIs extra, 4 tareas extra, 4 notificaciones extra, 4 categorías extra |
+| 5 | `seed-demo-3.ts` | 2 requisitos ministeriales extra (completa los 4 cursos), 4 KPIs, 4 tareas, grupos Prof. Martínez, 4 archivos extra, flow template emprendimiento, prompt Inversor Ángel, 1 solicitud extra, 3 notificaciones |
+
+### Ejecutar seeds manualmente
+
+```bash
+docker compose exec api-nest npx ts-node src/prisma/seed.ts
+docker compose exec api-nest npx ts-node src/prisma/seed-companies.ts
+docker compose exec api-nest npx ts-node src/prisma/seed-demo.ts
+docker compose exec api-nest npx ts-node src/prisma/seed-demo-2.ts
+docker compose exec api-nest npx ts-node src/prisma/seed-demo-3.ts
+```
+
+### Credenciales de prueba
+
+Todos los usuarios usan contraseña `Admin123!`.
+
+| Rol | Email |
+|-----|-------|
+| Admin | `admin@simuverse.edu` |
+| Profesor | `garcia@simuverse.edu` |
+| Profesor | `martinez@simuverse.edu` |
+| Alumno | `juan.perez@student.edu` (4 cursos) |
+| Alumno | `maria.lopez@student.edu` (2 cursos) |
+| Alumno | `carlos.soto@student.edu` (2 cursos) |
+| Ministerio | `control@ministerio.gob` |
 
 ## Auth
 
