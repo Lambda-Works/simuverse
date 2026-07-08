@@ -42,7 +42,9 @@ export function AppSidebar() {
 
   const role = (user?.role || 'student') as string;
   const navItems = ROLE_NAV[role as keyof typeof ROLE_NAV] || ROLE_NAV.student;
-  const isAdmin = role === 'admin';
+  const isAdmin = role === 'admin' || role === 'ministerio';
+  const adminPath = role === 'ministerio' ? '/ministerio/admin' : '/admin';
+  const homeRoute = role === 'admin' ? '/admin' : role === 'ministerio' ? '/ministerio' : '/dashboard';
   const { currentTab, setCurrentTab } = useAdmin();
 
   // Admin group expansion state (starts completely closed)
@@ -56,7 +58,7 @@ export function AppSidebar() {
 
   // Auto-expand group containing the active admin sub-tab
   useEffect(() => {
-    if (!isAdmin || pathname !== '/admin') return;
+    if (!isAdmin || pathname !== adminPath) return;
     setExpandedGroups((prev) => {
       let changed = false;
       const next = { ...prev };
@@ -83,7 +85,7 @@ export function AppSidebar() {
   }, []);
 
   const isActive = (href: string) => {
-    if (href === '/dashboard') return pathname === '/dashboard';
+    if (href === '/dashboard' || href === '/ministerio') return pathname === href;
     return pathname === href || pathname.startsWith(href + '/');
   };
 
@@ -193,10 +195,10 @@ export function AppSidebar() {
                       {group.items.map((item) => (
                         <SidebarMenuItem key={item.id} className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
                           <SidebarMenuButton
-                            isActive={pathname === '/admin' && currentTab === item.id}
+                            isActive={pathname === adminPath && currentTab === item.id}
                             onClick={() => {
                               setCurrentTab(item.id);
-                              if (pathname !== '/admin') router.push('/admin');
+                              if (pathname !== adminPath) router.push(adminPath);
                             }}
                             tooltip={item.label}
                           >

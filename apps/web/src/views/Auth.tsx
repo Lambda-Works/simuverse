@@ -56,7 +56,7 @@ const Auth = () => {
       
       // Forzar redirección después de un delay mínimo
       setTimeout(() => {
-        router.replace(user.role === 'ministerio' ? '/ministerio' : '/dashboard');
+        router.replace(user.role === 'admin' ? '/admin' : user.role === 'ministerio' ? '/ministerio' : '/dashboard');
       }, 150);
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Error al iniciar sesión');
@@ -93,7 +93,7 @@ const Auth = () => {
       
       // Forzar redirección después de un delay mínimo
       setTimeout(() => {
-        router.replace(user.role === 'ministerio' ? '/ministerio' : '/dashboard');
+        router.replace(user.role === 'admin' ? '/admin' : user.role === 'ministerio' ? '/ministerio' : '/dashboard');
       }, 150);
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Error al crear cuenta');
