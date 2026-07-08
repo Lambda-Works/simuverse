@@ -54,6 +54,7 @@ export function AppSidebar() {
   const role = (user?.role || 'student') as string;
   const navItems = ROLE_NAV[role as keyof typeof ROLE_NAV] || ROLE_NAV.student;
   const isAdmin = role === 'admin' || role === 'ministerio';
+  const adminPath = role === 'ministerio' ? '/ministerio/admin' : '/admin';
   const { currentTab, setCurrentTab } = useAdmin();
 
   // Pin state (separate from sidebar open state)
@@ -243,10 +244,10 @@ export function AppSidebar() {
                         .map((item) => (
                         <SidebarMenuItem key={item.id} className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
                           <SidebarMenuButton
-                            isActive={pathname === '/admin' && currentTab === item.id}
+                            isActive={pathname === adminPath && currentTab === item.id}
                             onClick={() => {
                               setCurrentTab(item.id);
-                              if (pathname !== '/admin') router.push('/admin');
+                              if (pathname !== adminPath) router.push(adminPath);
                             }}
                             tooltip={item.label}
                           >

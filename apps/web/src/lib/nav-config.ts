@@ -24,7 +24,7 @@ export const ROLE_NAV: Record<AppRole, NavItem[]> = {
   ],
   ministerio: [
     { label: 'Ministerio', href: '/ministerio', icon: Home },
-    { label: 'Evaluaciones', href: '/evaluations', icon: BarChart3 },
-    { label: 'Legajos', href: '/legajos', icon: FileText },
+    { label: 'Evaluaciones', href: '/ministerio/evaluaciones', icon: BarChart3 },
+    { label: 'Legajos', href: '/ministerio/legajos', icon: FileText },
   ],
 };

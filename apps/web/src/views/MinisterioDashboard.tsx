@@ -239,7 +239,7 @@ export default function MinisterioDashboard() {
           <Button
             variant="outline"
             className="h-auto py-6 justify-between"
-            onClick={() => router.push('/evaluations')}
+            onClick={() => router.push('/ministerio/evaluaciones')}
           >
             <div className="flex items-center gap-3">
               <BarChart3 className="w-5 h-5 text-primary" />
@@ -253,7 +253,7 @@ export default function MinisterioDashboard() {
           <Button
             variant="outline"
             className="h-auto py-6 justify-between"
-            onClick={() => router.push('/legajos')}
+            onClick={() => router.push('/ministerio/legajos')}
           >
             <div className="flex items-center gap-3">
               <ClipboardList className="w-5 h-5 text-primary" />
