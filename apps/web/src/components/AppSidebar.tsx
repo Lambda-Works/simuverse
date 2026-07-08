@@ -130,9 +130,11 @@ export function AppSidebar() {
   }, []);
 
   const isActive = (href: string) => {
-    if (href === '/dashboard') return pathname === '/dashboard';
+    if (href === '/dashboard' || href === '/ministerio') return pathname === href;
     return pathname === href || pathname.startsWith(href + '/');
   };
+
+  const homeRoute = role === 'admin' ? '/admin' : role === 'ministerio' ? '/ministerio' : '/dashboard';
 
   const handleNavClick = (href: string) => {
     router.push(href);
@@ -162,7 +164,7 @@ export function AppSidebar() {
             <SidebarMenuItem className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
               <SidebarMenuButton
                 size="lg"
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push(homeRoute)}
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:!p-0"
                 tooltip="MSM"
               >
