@@ -139,7 +139,7 @@ const SimulationPage: React.FC = () => {
         message: chatInput,
         conversationHistory: chatMessages.map(m => ({ role: m.role === 'ai' ? 'model' : 'user', content: m.message }))
       });
-      const aiMsg = { role: 'ai' as const, message: res.data.ai_response, timestamp: new Date() };
+      const aiMsg = { role: 'ai' as const, message: res.data.response, timestamp: new Date() };
       setChatMessages(prev => [...prev, aiMsg]);
     } catch (error) {
       console.error('Error sending message:', error);

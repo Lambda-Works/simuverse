@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { Plus, Trash2, Settings, Handshake, Link, Unlink } from 'lucide-react';
 
 import { API_BASE } from '@/lib/api';
+import { useAdmin } from '@/lib/admin-context';
 const API = API_BASE;
 
 interface Endorser {
@@ -79,6 +80,7 @@ function LogoDisplay({ name, logoUrl, size = 'md' }: { name: string; logoUrl?: s
 }
 
 export function EndorsersABM() {
+  const { readOnly } = useAdmin();
   const [endorsers, setEndorsers] = useState<Endorser[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseEndorsers, setCourseEndorsers] = useState<CourseEndorser[]>([]);
@@ -188,9 +190,9 @@ export function EndorsersABM() {
           <p className="text-gray-600 mt-1">Organizaciones o instituciones que avalan las simulaciones. Se pueden vincular a cursos específicos.</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={o => { setDialogOpen(o); if (!o) { setForm(emptyForm()); setEditingId(null); } }}>
-          <DialogTrigger asChild>
-            <Button><Plus className="w-4 h-4 mr-2" /> Nuevo Avalador</Button>
-          </DialogTrigger>
+{!readOnly && <DialogTrigger asChild>
+              <Button><Plus className="w-4 h-4 mr-2" /> Nuevo Avalador</Button>
+            </DialogTrigger>}
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingId ? 'Editar Avalador' : 'Nuevo Avalador'}</DialogTitle>
@@ -265,8 +267,8 @@ export function EndorsersABM() {
               {e.description && <p className="text-xs text-gray-600 mb-3 line-clamp-2">{e.description}</p>}
               {e.website && <a href={e.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline block mb-3 truncate">🌐 {e.website}</a>}
               <div className="flex justify-end gap-1">
-                <Button variant="outline" size="sm" onClick={() => handleEdit(e)}><Settings className="w-3 h-3" /></Button>
-                <Button variant="ghost" size="sm" onClick={() => handleDeactivate(e.id)} className="text-red-500 hover:bg-red-50"><Trash2 className="w-3 h-3" /></Button>
+                {!readOnly && <Button variant="outline" size="sm" onClick={() => handleEdit(e)}><Settings className="w-3 h-3" /></Button>}
+                {!readOnly && <Button variant="ghost" size="sm" onClick={() => handleDeactivate(e.id)} className="text-red-500 hover:bg-red-50"><Trash2 className="w-3 h-3" /></Button>}
               </div>
             </CardContent>
           </Card>

@@ -14,6 +14,7 @@ import {
   ChevronRight, GraduationCap, Layers, Clock, CheckCircle, Copy
 } from 'lucide-react';
 import { API_BASE } from '@/lib/api';
+import { useAdmin } from '@/lib/admin-context';
 import { apiClient } from '@/services/ApiClient';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -112,6 +113,7 @@ const diffBadgeClass = (d: string) => ({
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ScenariosABM() {
+  const { readOnly } = useAdmin();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -300,9 +302,9 @@ export function ScenariosABM() {
             <span className="ml-1 text-red-700 font-medium">🎯 Evaluación</span> = único intento, calificado.
           </p>
         </div>
-        <Button onClick={handleNew} className="bg-blue-600 hover:bg-blue-700">
+{!readOnly && <Button onClick={handleNew} className="bg-blue-600 hover:bg-blue-700">
           <Plus className="w-4 h-4 mr-2" /> Nuevo Escenario
-        </Button>
+        </Button>}
       </div>
 
       {/* Info box */}
@@ -387,16 +389,16 @@ export function ScenariosABM() {
                     )}
                   </div>
                 </div>
-                <div className="flex gap-2 shrink-0">
-                  <Button size="sm" variant="outline" title="Duplicar" onClick={() => handleDuplicate(s)}>
+<div className="flex gap-2 shrink-0">
+                  {!readOnly && <Button size="sm" variant="outline" title="Duplicar" onClick={() => handleDuplicate(s)}>
                     <Copy className="w-4 h-4" />
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => handleEdit(s)}>
+                  </Button>}
+                  {!readOnly && <Button size="sm" variant="outline" onClick={() => handleEdit(s)}>
                     <Edit2 className="w-4 h-4" />
-                  </Button>
-                  <Button size="sm" variant="outline" className="text-red-600" onClick={() => handleDelete(s.id)}>
+                  </Button>}
+                  {!readOnly && <Button size="sm" variant="outline" className="text-red-600" onClick={() => handleDelete(s.id)}>
                     <Trash2 className="w-4 h-4" />
-                  </Button>
+                  </Button>}
                 </div>
               </div>
             </Card>

@@ -25,6 +25,7 @@ import {
   Layers, MessageSquare, FileText, Calculator, Mail, Zap, ChevronRight, Copy
 } from 'lucide-react';
 import { apiClient } from '@/services/ApiClient';
+import { useAdmin } from '@/lib/admin-context';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -131,6 +132,7 @@ const AI_QUESTIONS = [
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function TemplatesABM() {
+  const { readOnly } = useAdmin();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
@@ -369,14 +371,14 @@ export function TemplatesABM() {
             Podés crear una desde cero o usar el <span className="text-purple-700 font-semibold">Asistente IA</span> para que te guíe.
           </p>
         </div>
-        <div className="flex gap-2">
+{!readOnly && <div className="flex gap-2">
           <Button onClick={startWizard} className="bg-purple-600 hover:bg-purple-700">
             <Wand2 className="w-4 h-4 mr-2" /> Crear con IA
           </Button>
           <Button variant="outline" onClick={() => { setForm({ code: '', title: '', family: 'administracion', description: '', modules: ['chat_ia'], ai_config: { base_role: '', course_context: '', personality_traits: [], knowledge_base_prompt: '' }, eval_criteria: [] }); setEditingId(null); setEditDialogOpen(true); }}>
             <Plus className="w-4 h-4 mr-2" /> Manual
           </Button>
-        </div>
+        </div>}
       </div>
 
       {/* Lego explainer */}
@@ -405,9 +407,9 @@ export function TemplatesABM() {
           <Wand2 className="w-10 h-10 mx-auto mb-3 opacity-40" />
           <p className="font-medium">No hay plantillas guardadas.</p>
           <p className="text-sm mt-1">Usá el <strong>Asistente IA</strong> para crear la primera en minutos.</p>
-          <Button onClick={startWizard} className="mt-4 bg-purple-600 hover:bg-purple-700">
+{!readOnly && <Button onClick={startWizard} className="mt-4 bg-purple-600 hover:bg-purple-700">
             <Wand2 className="w-4 h-4 mr-2" /> Crear con IA
-          </Button>
+          </Button>}
         </Card>
       ) : (
         <div className="grid gap-3">
@@ -430,16 +432,16 @@ export function TemplatesABM() {
                       ))}
                     </div>
                   </div>
-                  <div className="flex gap-2 shrink-0">
-                    <Button size="sm" variant="outline" title="Duplicar" onClick={() => handleDuplicate(t)}>
+<div className="flex gap-2 shrink-0">
+                    {!readOnly && <Button size="sm" variant="outline" title="Duplicar" onClick={() => handleDuplicate(t)}>
                       <Copy className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleEdit(t)}>
+                    </Button>}
+                    {!readOnly && <Button size="sm" variant="outline" onClick={() => handleEdit(t)}>
                       <Edit2 className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="outline" className="text-red-600" onClick={() => handleDelete(t.id)}>
+                    </Button>}
+                    {!readOnly && <Button size="sm" variant="outline" className="text-red-600" onClick={() => handleDelete(t.id)}>
                       <Trash2 className="w-4 h-4" />
-                    </Button>
+                    </Button>}
                   </div>
                 </div>
               </Card>

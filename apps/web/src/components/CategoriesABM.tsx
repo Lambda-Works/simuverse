@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Trash2, Edit2, Plus } from 'lucide-react';
 import { API_BASE } from '@/lib/api';
+import { useAdmin } from '@/lib/admin-context';
 
 interface Category {
   id: number;
@@ -17,6 +18,7 @@ interface Category {
 }
 
 export function CategoriesABM() {
+  const { readOnly } = useAdmin();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -125,7 +127,7 @@ export function CategoriesABM() {
           <h2 className="text-2xl font-bold">Gestión de Categorías</h2>
           <p className="text-gray-600 mt-1">Crea y administra familias de cursos</p>
         </div>
-        {!isAddingNew && (
+{!isAddingNew && !readOnly && (
           <Button
             onClick={() => setIsAddingNew(true)}
             className="bg-blue-600 hover:bg-blue-700"
@@ -202,22 +204,22 @@ export function CategoriesABM() {
                   Creado: {new Date(category.created_at).toLocaleDateString()}
                 </p>
               </div>
-              <div className="flex gap-2">
-                <Button
+<div className="flex gap-2">
+                {!readOnly && <Button
                   onClick={() => handleEdit(category)}
                   size="sm"
                   variant="outline"
                 >
                   <Edit2 className="w-4 h-4" />
-                </Button>
-                <Button
+                </Button>}
+                {!readOnly && <Button
                   onClick={() => handleDelete(category.id)}
                   size="sm"
                   variant="outline"
                   className="text-red-600"
                 >
                   <Trash2 className="w-4 h-4" />
-                </Button>
+                </Button>}
               </div>
             </div>
           </Card>

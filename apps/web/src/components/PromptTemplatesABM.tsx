@@ -2,6 +2,7 @@
 import { toast } from 'sonner';
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '@/services/ApiClient';
+import { useAdmin } from '@/lib/admin-context';
 
 interface PromptTemplate {
   id: number;
@@ -27,6 +28,7 @@ interface FormData {
 }
 
 export const PromptTemplatesABM: React.FC = () => {
+  const { readOnly } = useAdmin();
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [categories] = useState(['service', 'audit', 'sales', 'management']);
   const [showModal, setShowModal] = useState(false);
@@ -150,7 +152,7 @@ export const PromptTemplatesABM: React.FC = () => {
     <div className="p-6 bg-white rounded-lg shadow">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">📋 Plantillas de Prompts</h2>
-        <button
+{!readOnly && <button
           onClick={() => {
             resetForm();
             setShowModal(true);
@@ -158,7 +160,7 @@ export const PromptTemplatesABM: React.FC = () => {
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
         >
           ➕ Nueva Plantilla
-        </button>
+        </button>}
       </div>
 
       {/* Tabs por categoría */}
@@ -195,25 +197,25 @@ export const PromptTemplatesABM: React.FC = () => {
                   <td className="border p-3 text-xs text-gray-600 max-w-xs truncate">
                     {template.base_role.substring(0, 50)}...
                   </td>
-                  <td className="border p-3 text-center space-x-2">
-                    <button
+<td className="border p-3 text-center space-x-2">
+                    {!readOnly && <button
                       onClick={() => handleEdit(template)}
                       className="px-2 py-1 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600"
                     >
                       ✏️
-                    </button>
-                    <button
+                    </button>}
+                    {!readOnly && <button
                       onClick={() => handleDuplicate(template.id, template.name)}
                       className="px-2 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
                     >
                       📋
-                    </button>
-                    <button
+                    </button>}
+                    {!readOnly && <button
                       onClick={() => handleDelete(template.id)}
                       className="px-2 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
                     >
                       🗑️
-                    </button>
+                    </button>}
                   </td>
                 </tr>
               ))}

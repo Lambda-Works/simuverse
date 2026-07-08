@@ -8,9 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Users, Plus, Trash2, BookOpen, GraduationCap, Search } from 'lucide-react';
 import { toast } from 'sonner';
-
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
+import { apiClient } from '@/services/ApiClient';
 
 interface GroupEntry {
   id: number;
@@ -45,14 +43,15 @@ export function TeacherGroupsABM() {
     setLoading(true);
     try {
       const [groupsRes, usersRes] = await Promise.all([
-        fetch(`${API}/teacher-groups`).then(r => r.json()),
-        fetch(`${API}/users/all`).then(r => r.json()),
+        apiClient.get('/teacher-groups'),
+        apiClient.get('/users/all'),
       ]);
-      setGroups(groupsRes || []);
-      setTeachers((usersRes || []).filter((u: User) => u.role === 'teacher'));
-      setStudents((usersRes || []).filter((u: User) => u.role === 'student'));
-      if (!selectedTeacher && (usersRes || []).filter((u: User) => u.role === 'teacher').length > 0) {
-        setSelectedTeacher((usersRes || []).filter((u: User) => u.role === 'teacher')[0].id);
+      setGroups(groupsRes.data || []);
+      const usersData = usersRes.data || [];
+      setTeachers(usersData.filter((u: User) => u.role === 'teacher'));
+      setStudents(usersData.filter((u: User) => u.role === 'student'));
+      if (!selectedTeacher && usersData.filter((u: User) => u.role === 'teacher').length > 0) {
+        setSelectedTeacher(usersData.filter((u: User) => u.role === 'teacher')[0].id);
       }
     } finally {
       setLoading(false);
@@ -69,13 +68,9 @@ export function TeacherGroupsABM() {
     if (!addStudentId || !selectedTeacher) return;
     setSaving(true);
     try {
-      const res = await fetch(`${API}/teacher-groups`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ teacher_id: selectedTeacher, student_id: addStudentId }),
+      await apiClient.post('/teacher-groups', {
+        teacher_id: selectedTeacher, student_id: addStudentId,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
       toast.success('Alumno asignado al docente');
       setAddOpen(false);
       setAddStudentId('');
@@ -90,7 +85,7 @@ export function TeacherGroupsABM() {
   const handleRemove = async (id: number, studentName: string) => {
     if (!confirm(`¿Quitar a ${studentName} del grupo de este docente?`)) return;
     try {
-      await fetch(`${API}/teacher-groups/${id}`, { method: 'DELETE' });
+      await apiClient.delete(`/teacher-groups/${id}`);
       toast.success('Alumno removido del grupo');
       load();
     } catch {

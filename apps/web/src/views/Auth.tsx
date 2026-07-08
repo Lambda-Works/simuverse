@@ -40,13 +40,13 @@ const Auth = () => {
       console.log('✅ Login Response:', { token, user });
       
       // Guardar token, refreshToken y usuario en localStorage
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+      sessionStorage.setItem('token', token);
+      sessionStorage.setItem('user', JSON.stringify(user));
+      if (refreshToken) sessionStorage.setItem('refreshToken', refreshToken);
       
-      console.log('✅ localStorage saved:', {
-        token: localStorage.getItem('token'),
-        user: localStorage.getItem('user')
+      console.log('✅ sessionStorage saved:', {
+        token: sessionStorage.getItem('token'),
+        user: sessionStorage.getItem('user')
       });
       
       // Disparar evento custom para notificar al AuthProvider
@@ -56,7 +56,7 @@ const Auth = () => {
       
       // Forzar redirección después de un delay mínimo
       setTimeout(() => {
-        router.replace('/dashboard');
+        router.replace(user.role === 'admin' ? '/admin' : user.role === 'ministerio' ? '/ministerio' : '/dashboard');
       }, 150);
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Error al iniciar sesión');
@@ -82,9 +82,9 @@ const Auth = () => {
       const { token, user, refreshToken } = response.data;
       
       // Guardar token, refreshToken y usuario en localStorage
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+      sessionStorage.setItem('token', token);
+      sessionStorage.setItem('user', JSON.stringify(user));
+      if (refreshToken) sessionStorage.setItem('refreshToken', refreshToken);
       
       // Disparar evento custom para notificar al AuthProvider
       authChangeEvent.dispatchEvent(new Event('authChange'));
@@ -93,7 +93,7 @@ const Auth = () => {
       
       // Forzar redirección después de un delay mínimo
       setTimeout(() => {
-        router.replace('/dashboard');
+        router.replace(user.role === 'admin' ? '/admin' : user.role === 'ministerio' ? '/ministerio' : '/dashboard');
       }, 150);
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Error al crear cuenta');

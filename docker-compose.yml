@@ -2,9 +2,10 @@ services:
   proxy:
     build:
       context: .
-      dockerfile: proxy/Dockerfile.dev
+      dockerfile: docker/Dockerfile.dev
     container_name: simuverse-proxy
     restart: unless-stopped
+    working_dir: /app/proxy
     environment:
       NODE_ENV: development
       PROXY_PORT: "5000"
@@ -14,6 +15,7 @@ services:
       - .:/app
       - /app/node_modules
       - /app/proxy/node_modules
+    command: ["npm", "run", "dev"]
     depends_on:
       - api-nest
     networks:
@@ -43,23 +45,28 @@ services:
   api-nest:
     build:
       context: .
-      dockerfile: apps/api-nest/Dockerfile.dev
+      dockerfile: docker/Dockerfile.dev
     container_name: simuverse-api-nest
     restart: unless-stopped
+    working_dir: /app/apps/api-nest
     environment:
       NODE_ENV: development
       PORT: "5001"
       DATABASE_URL: postgresql://${POSTGRES_USER:-simuverse}:${POSTGRES_PASSWORD:-SimuVerse2024secret}@postgres:5432/${POSTGRES_DB:-simuverse}
       JWT_SECRET: ${JWT_SECRET:-dev-secret}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+      OPENCODE_ZEN_API_KEY: ${OPENCODE_ZEN_API_KEY:-}
     ports:
       - "${PUERTO_BACKEND_INTERNAL:-5002}:5001"
     volumes:
       - .:/app
       - /app/node_modules
       - /app/apps/api-nest/node_modules
+    command: ["sh", "/app/apps/api-nest/docker-entrypoint.dev.sh"]
     depends_on:
       postgres:
+        condition: service_healthy
+      markitdown:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:5001/api/health || exit 1"]
@@ -70,16 +77,35 @@ services:
     networks:
       - app-network
 
+  markitdown:
+    build:
+      context: .
+      dockerfile: apps/markitdown/Dockerfile
+    container_name: simuverse-markitdown
+    restart: unless-stopped
+    ports:
+      - "5003:5000"
+    volumes:
+      - .:/app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - app-network
+
   web:
     build:
       context: .
-      dockerfile: apps/web/Dockerfile.dev
+      dockerfile: docker/Dockerfile.dev
     container_name: simuverse-web
     restart: unless-stopped
+    working_dir: /app/apps/web
     environment:
       NODE_ENV: development
       NEXT_PUBLIC_API_URL: http://localhost:${PUERTO_BACKEND:-5000}/api
-      CHOKIDAR_USEPOLLING: "true"
     ports:
       - "${PUERTO_FRONTEND:-8080}:3000"
     volumes:
@@ -87,6 +113,7 @@ services:
       - /app/node_modules
       - /app/apps/web/node_modules
       - /app/apps/web/.next
+    command: ["npx", "next", "dev", "-H", "0.0.0.0"]
     depends_on:
       api-nest:
         condition: service_healthy

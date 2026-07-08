@@ -25,7 +25,7 @@ const EvaluationsPage = () => {
   const [evaluations, setEvaluations] = useState<Record<string, any>>({});
 
   useEffect(() => {
-    if (!loading && (!user || (!hasRole('teacher') && !hasRole('admin')))) {
+    if (!loading && (!user || (!hasRole('teacher') && !hasRole('admin') && !hasRole('ministerio')))) {
       router.push('/dashboard');
     }
   }, [user, loading, hasRole, router]);

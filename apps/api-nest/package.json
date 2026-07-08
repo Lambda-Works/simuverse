@@ -12,11 +12,11 @@
     "test": "jest --maxWorkers=1 --forceExit --passWithNoTests",
     "test:watch": "jest --maxWorkers=1 --watch",
     "test:cov": "jest --maxWorkers=1 --coverage --forceExit --passWithNoTests",
-    "prisma:seed": "ts-node src/prisma/seed.ts",
+    "prisma:seed": "npx -y ts-node src/prisma/seed.ts",
     "prisma:watch": "node scripts/watch-prisma.js"
   },
   "prisma": {
-    "seed": "ts-node src/prisma/seed.ts"
+    "seed": "npx -y ts-node src/prisma/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.0",

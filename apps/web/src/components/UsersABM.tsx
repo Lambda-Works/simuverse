@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { Plus, Trash2, Settings, Users, Search, Mail, Shield, Eye, EyeOff } from 'lucide-react';
 
 import { API_BASE } from '@/lib/api';
+import { useAdmin } from '@/lib/admin-context';
 const API = API_BASE;
 
 interface UserRow {
@@ -31,6 +32,7 @@ interface UserRow {
 const emptyForm = { name: '', email: '', password: '', role: 'student' };
 
 export function UsersABM() {
+  const { readOnly } = useAdmin();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [rolesList, setRolesList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,9 +140,9 @@ export function UsersABM() {
           </h2>
           <p className="text-gray-500 mt-1">Alta, baja y modificación de usuarios del sistema.</p>
         </div>
-        <Button onClick={() => handleOpen()} className="bg-blue-600 hover:bg-blue-700">
+        {!readOnly && <Button onClick={() => handleOpen()} className="bg-blue-600 hover:bg-blue-700">
           <Plus className="w-4 h-4 mr-2" /> Nuevo Usuario
-        </Button>
+        </Button>}
       </div>
 
       {/* Filtros */}
@@ -238,14 +240,14 @@ export function UsersABM() {
                   </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex gap-1 justify-center">
-                      <Button size="sm" variant="outline" onClick={() => handleOpen(u)}
+                      {!readOnly && <Button size="sm" variant="outline" onClick={() => handleOpen(u)}
                         title="Editar usuario">
                         <Settings className="w-4 h-4" />
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => setDeleteConfirm(u.id)}
+                      </Button>}
+                      {!readOnly && <Button size="sm" variant="destructive" onClick={() => setDeleteConfirm(u.id)}
                         title="Eliminar usuario">
                         <Trash2 className="w-4 h-4" />
-                      </Button>
+                      </Button>}
                     </div>
                   </td>
                 </tr>
