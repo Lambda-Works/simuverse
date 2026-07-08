@@ -362,12 +362,14 @@ const AdminPanel = () => {
                 <p className="text-gray-600 mt-1">Crea, edita y configura los cursos disponibles</p>
               </div>
               <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setForm({ ...emptyForm }); setEditingId(null); } }}>
+                {!hasRole('ministerio') && (
                 <DialogTrigger asChild>
                   <Button><Plus className="w-4 h-4 mr-2" /> Nuevo Curso</Button>
                 </DialogTrigger>
+                )}
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>{editingId ? 'Editar Curso' : 'Crear Nuevo Curso'}</DialogTitle>
+                    <DialogTitle>{editingId ? 'Editar Curso' : hasRole('ministerio') ? 'Ver Curso' : 'Crear Nuevo Curso'}</DialogTitle>
                     <DialogDescription>Configure los módulos, rol de IA y criterios de evaluación</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-6 mt-4">
@@ -811,9 +813,11 @@ const AdminPanel = () => {
                       <Switch checked={form.is_active} onCheckedChange={v => setForm(p => ({ ...p, is_active: v }))} />
                     </div>
 
+                    {!hasRole('ministerio') && (
                     <Button className="w-full" onClick={handleSave} disabled={saving}>
                       <Save className="w-4 h-4 mr-2" /> {saving ? 'Guardando...' : editingId ? 'Actualizar Curso' : 'Crear Curso'}
                     </Button>
+                    )}
                   </div>
                 </DialogContent>
               </Dialog>
@@ -875,6 +879,8 @@ const AdminPanel = () => {
                       <p className="text-sm text-muted-foreground mt-1">{course.course_id} — {(course.modules as string[])?.join(', ')}</p>
                     </div>
                     <div className="flex gap-2">
+                      {!hasRole('ministerio') && (
+                        <>
                       <Button variant="outline" size="sm" title="Duplicar curso" onClick={() => handleDuplicate(course)}>
                         <Copy className="w-4 h-4" />
                       </Button>
@@ -884,6 +890,13 @@ const AdminPanel = () => {
                       <Button variant="destructive" size="sm" onClick={() => handleDelete(course.id)} title="Eliminar curso y todas sus dependencias">
                         <Trash2 className="w-4 h-4" />
                       </Button>
+                        </>
+                      )}
+                      {hasRole('ministerio') && (
+                        <Button variant="outline" size="sm" onClick={() => handleEdit(course)}>
+                          <Settings className="w-4 h-4" /> Ver
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

@@ -23,7 +23,7 @@ export const ROLE_NAV: Record<AppRole, NavItem[]> = {
     { label: 'Legajos', href: '/legajos', icon: FileText },
   ],
   ministerio: [
-    { label: 'Mis Cursos', href: '/dashboard', icon: Home },
+    { label: 'Ministerio', href: '/ministerio', icon: Home },
     { label: 'Evaluaciones', href: '/evaluations', icon: BarChart3 },
     { label: 'Legajos', href: '/legajos', icon: FileText },
   ],
