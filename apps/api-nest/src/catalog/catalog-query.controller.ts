@@ -6,9 +6,11 @@ import {
   Body,
   Query,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import { CatalogQueryService } from './catalog-query.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller()
 export class CatalogQueryController {
@@ -18,10 +20,15 @@ export class CatalogQueryController {
   async findAllEvaluations(
     @Query('course_id') courseId?: string,
     @Query('student_id') studentId?: string,
+    @CurrentUser() user?: any,
   ) {
+    let resolvedStudentId = studentId;
+    if (user?.role === 'student') {
+      resolvedStudentId = user.id;
+    }
     return this.queryService.findAllEvaluations({
       course_id: courseId,
-      student_id: studentId,
+      student_id: resolvedStudentId,
     });
   }
 
@@ -33,7 +40,13 @@ export class CatalogQueryController {
   }
 
   @Get('students/:studentId/history')
-  async findStudentHistory(@Param('studentId') studentId: string) {
+  async findStudentHistory(
+    @Param('studentId') studentId: string,
+    @CurrentUser() user: any,
+  ) {
+    if (user?.role === 'student' && studentId !== user.id) {
+      throw new ForbiddenException('You can only view your own history');
+    }
     const result = await this.queryService.findStudentHistory(studentId);
     if (!result) {
       return { error: 'Student not found' };

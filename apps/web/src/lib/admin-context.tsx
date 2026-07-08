@@ -9,7 +9,7 @@ interface AdminContextValue {
   setCurrentTab: (tab: string) => void;
   pendingCount: number;
   setPendingCount: (count: number) => void;
-  readOnly: boolean;
+  isInitialized: boolean;
 }
 
 const AdminContext = createContext<AdminContextValue | null>(null);
@@ -17,11 +17,16 @@ const AdminContext = createContext<AdminContextValue | null>(null);
 export function AdminProvider({ children, readOnly = false }: { children: React.ReactNode; readOnly?: boolean }) {
   const [currentTab, setCurrentTabState] = useState<string>('courses');
   const [pendingCount, setPendingCount] = useState(0);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) setCurrentTabState(stored);
+    if (typeof localStorage !== 'undefined') {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        setCurrentTabState(stored);
+      }
+    }
+    setIsInitialized(true);
   }, []);
 
   const setCurrentTab = (tab: string) => {
@@ -33,7 +38,7 @@ export function AdminProvider({ children, readOnly = false }: { children: React.
 
   return (
     <AdminContext.Provider
-      value={{ currentTab, setCurrentTab, pendingCount, setPendingCount, readOnly }}
+      value={{ currentTab, setCurrentTab, pendingCount, setPendingCount, isInitialized }}
     >
       {children}
     </AdminContext.Provider>

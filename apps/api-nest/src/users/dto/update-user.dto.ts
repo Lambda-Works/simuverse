@@ -10,7 +10,7 @@ export class UpdateUserDto {
   email?: string;
 
   @IsOptional()
-  @IsEnum(['student', 'teacher', 'admin', 'ministerio'] as const)
+  @IsString()
   role?: string;
 
   @IsOptional()

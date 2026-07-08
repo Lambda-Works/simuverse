@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
@@ -22,23 +23,17 @@ interface UserRow {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'teacher' | 'student' | 'ministerio';
+  role: string;
   created_at: string;
   updated_at?: string;
 }
-
-const ROLES = [
-  { value: 'student', label: '🎓 Alumno', color: 'bg-green-100 text-green-800 border-green-300' },
-  { value: 'teacher', label: '👨‍🏫 Profesor', color: 'bg-blue-100 text-blue-800 border-blue-300' },
-  { value: 'admin', label: '⚙️ Administrador', color: 'bg-red-100 text-red-800 border-red-300' },
-  { value: 'ministerio', label: '🏛️ Ministerio', color: 'bg-amber-100 text-amber-800 border-amber-300' },
-];
 
 const emptyForm = { name: '', email: '', password: '', role: 'student' };
 
 export function UsersABM() {
   const { readOnly } = useAdmin();
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [rolesList, setRolesList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('all');
@@ -59,7 +54,15 @@ export function UsersABM() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  const fetchRoles = async () => {
+    try {
+      const res = await fetch(`${API}/roles`);
+      const data = await res.json();
+      setRolesList(Array.isArray(data) ? data : []);
+    } catch { toast.error('Error al cargar roles'); }
+  };
+
+  useEffect(() => { fetchUsers(); fetchRoles(); }, []);
 
   const handleOpen = (user?: UserRow) => {
     if (user) {
@@ -108,7 +111,10 @@ export function UsersABM() {
     } catch { toast.error('Error al eliminar usuario'); }
   };
 
-  const roleInfo = (role: string) => ROLES.find(r => r.value === role) || ROLES[0];
+  const roleInfo = (role: string) => {
+    const r = rolesList.find(x => x.name === role);
+    return r ? { label: r.description || r.name, color: r.color } : { label: role, color: '#9CA3AF' };
+  };
 
   const filtered = users.filter(u =>
     (filterRole === 'all' || u.role === filterRole) &&
@@ -145,29 +151,47 @@ export function UsersABM() {
           <select value={filterRole} onChange={e => setFilterRole(e.target.value)}
             className="px-3 py-2 border rounded-md text-sm">
             <option value="all">Todos los roles</option>
-            {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+            {rolesList.map(r => <option key={r.name} value={r.name}>{r.description || r.name}</option>)}
           </select>
         </div>
       </Card>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {ROLES.map(r => {
-          const count = users.filter(u => u.role === r.value).length;
-          return (
-            <Card key={r.value} className="p-3 text-center">
-              <p className="text-2xl font-bold">{count}</p>
-              <p className="text-sm text-gray-500">{r.label}</p>
-            </Card>
-          );
-        })}
-      </div>
-
       {/* Tabla */}
       {loading ? (
-        <div className="py-12 text-center text-gray-400">Cargando usuarios...</div>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[1, 2, 3, 4].map(i => (
+              <Card key={i} className="p-3">
+                <Skeleton className="h-8 w-12 mx-auto mb-2" />
+                <Skeleton className="h-4 w-24 mx-auto" />
+              </Card>
+            ))}
+          </div>
+          <Card className="p-4 border shadow-sm">
+            <div className="space-y-3">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          </Card>
+        </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border shadow-sm">
+        <>
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            {rolesList.map(r => {
+              const count = users.filter(u => u.role === r.name).length;
+              return (
+                <Card key={r.name} className="p-3 text-center">
+                  <p className="text-2xl font-bold">{count}</p>
+                  <p className="text-sm text-gray-500 truncate" title={r.description || r.name}>{r.description || r.name}</p>
+                </Card>
+              );
+            })}
+          </div>
+
+          <div className="overflow-x-auto rounded-lg border shadow-sm">
           <table className="w-full text-sm">
             <thead className="bg-gray-100 border-b">
               <tr>
@@ -195,7 +219,10 @@ export function UsersABM() {
                     <Mail className="w-3 h-3 text-gray-400" /> {u.email}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`text-xs font-semibold px-2 py-1 rounded border ${roleInfo(u.role).color}`}>
+                    <span 
+                      className="text-xs font-semibold px-2 py-1 rounded border text-white"
+                      style={{ backgroundColor: roleInfo(u.role).color, borderColor: roleInfo(u.role).color }}
+                    >
                       {roleInfo(u.role).label}
                     </span>
                   </td>
@@ -219,6 +246,7 @@ export function UsersABM() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {/* Dialog alta/edición */}
@@ -260,11 +288,17 @@ export function UsersABM() {
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Rol</Label>
-              <Select value={form.role} onValueChange={v => setForm(p => ({ ...p, role: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Label>Rol *</Label>
+              <Select value={form.role} onValueChange={(val: any) => setForm(p => ({ ...p, role: val }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar rol" />
+                </SelectTrigger>
                 <SelectContent>
-                  {ROLES.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                  {rolesList.map(r => (
+                    <SelectItem key={r.name} value={r.name}>
+                      {r.description || r.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

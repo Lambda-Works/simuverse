@@ -10,12 +10,7 @@ datasource db {
 
 // ── Enums ──────────────────────────────────────────────────────────
 
-enum UserRole {
-  student
-  teacher
-  admin
-  ministerio
-}
+// Removed UserRole enum to allow dynamic roles
 
 enum SimulationStatus {
   not_started
@@ -172,7 +167,7 @@ model User {
   email         String   @unique @db.VarChar(255)
   password_hash String   @db.VarChar(255)
   name          String   @db.VarChar(255)
-  role          UserRole @default(student)
+  role          String   @default("student") @db.VarChar(100)
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
