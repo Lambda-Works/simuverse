@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Trash2, Edit2, Plus } from 'lucide-react';
-import { API_BASE } from '@/lib/api';
+import { apiClient } from '@/services/ApiClient';
 import { useAdmin } from '@/lib/admin-context';
 
 interface Category {
@@ -37,8 +37,8 @@ export function CategoriesABM() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch(`${API_BASE}/categories`);
-      const data = await response.json();
+      const response = await apiClient.get('/categories');
+      const data = response.data;
       setCategories(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -58,19 +58,9 @@ export function CategoriesABM() {
 
     try {
       if (editingId) {
-        // Update
-        await fetch(`${API_BASE}/categories/${editingId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
-        });
+        await apiClient.put(`/categories/${editingId}`, formData);
       } else {
-        // Create
-        await fetch(`${API_BASE}/categories`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
-        });
+        await apiClient.post('/categories', formData);
       }
 
       // Reset form
@@ -90,9 +80,7 @@ export function CategoriesABM() {
     if (!confirm('¿Estás seguro de eliminar esta categoría?')) return;
 
     try {
-      await fetch(`${API_BASE}/categories/${id}`, {
-        method: 'DELETE',
-      });
+      await apiClient.delete(`/categories/${id}`);
       await fetchCategories();
     } catch (error) {
       console.error('Error deleting category:', error);

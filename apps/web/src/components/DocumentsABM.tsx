@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
-import { API_BASE } from '@/lib/api';
+import { apiClient } from '@/services/ApiClient';
 import { useAdmin } from '@/lib/admin-context';
 import { Trash2, Edit2, Plus, FileText } from 'lucide-react';
 
@@ -46,8 +46,8 @@ export function DocumentsABM() {
 
   const fetchDocuments = async () => {
     try {
-      const response = await fetch(`${API_BASE}/documents`);
-      const data = await response.json();
+      const response = await apiClient.get('/documents');
+      const data = response.data;
       setDocuments(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching documents:', error);
@@ -59,8 +59,8 @@ export function DocumentsABM() {
 
   const fetchCourses = async () => {
     try {
-      const response = await fetch(`${API_BASE}/courses`);
-      const data = await response.json();
+      const response = await apiClient.get('/courses');
+      const data = response.data;
       setCourses(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching courses:', error);
@@ -82,11 +82,7 @@ export function DocumentsABM() {
         uploaded_by: sessionStorage.getItem('userId') || 'system',
       };
 
-      await fetch(`${API_BASE}/documents`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      await apiClient.post('/documents', payload);
 
       // Reset form
       setFormData({
@@ -109,9 +105,7 @@ export function DocumentsABM() {
     if (!confirm('¿Estás seguro de eliminar este documento?')) return;
 
     try {
-      await fetch(`${API_BASE}/documents/${id}`, {
-        method: 'DELETE',
-      });
+      await apiClient.delete(`/documents/${id}`);
       await fetchDocuments();
     } catch (error) {
       console.error('Error deleting document:', error);

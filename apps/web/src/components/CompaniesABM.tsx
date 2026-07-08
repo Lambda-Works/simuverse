@@ -11,9 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from 'sonner';
 import { Plus, Trash2, Settings, Building2 } from 'lucide-react';
 
-import { API_BASE } from '@/lib/api';
+import { apiClient } from '@/services/ApiClient';
 import { useAdmin } from '@/lib/admin-context';
-const API = API_BASE;
 
 interface SimulatedCompany {
   id: number;
@@ -67,9 +66,8 @@ export function CompaniesABM() {
 
   const fetchCompanies = async () => {
     try {
-      const r = await fetch(`${API}/simulated-companies`);
-      const d = await r.json();
-      setCompanies(Array.isArray(d) ? d : []);
+      const r = await apiClient.get('/simulated-companies');
+      setCompanies(Array.isArray(r.data) ? r.data : []);
     } catch { setCompanies([]); }
     setLoading(false);
   };
@@ -80,13 +78,11 @@ export function CompaniesABM() {
     if (!form.name.trim()) { toast.error('El nombre es obligatorio'); return; }
     setSaving(true);
     try {
-      const url = editingId ? `${API}/simulated-companies/${editingId}` : `${API}/simulated-companies`;
-      const r = await fetch(url, {
-        method: editingId ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      if (!r.ok) { const d = await r.json(); throw new Error(d.error || 'Error al guardar'); }
+      if (editingId) {
+        await apiClient.put(`/simulated-companies/${editingId}`, form);
+      } else {
+        await apiClient.post('/simulated-companies', form);
+      }
       toast.success(editingId ? 'Empresa actualizada' : 'Empresa creada');
       setDialogOpen(false);
       setForm(emptyCompany());
@@ -110,8 +106,7 @@ export function CompaniesABM() {
   const handleDelete = async (id: number) => {
     if (!confirm('¿Eliminar esta empresa? Se desvinculará de los cursos asociados.')) return;
     try {
-      const r = await fetch(`${API}/simulated-companies/${id}`, { method: 'DELETE' });
-      if (!r.ok) throw new Error('Error al eliminar');
+      await apiClient.delete(`/simulated-companies/${id}`);
       toast.success('Empresa eliminada');
       fetchCompanies();
     } catch { toast.error('Error al eliminar'); }

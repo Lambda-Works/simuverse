@@ -1,6 +1,7 @@
 'use client'
 import { toast } from 'sonner';
 import React, { useState, useEffect } from 'react';
+import { apiClient } from '@/services/ApiClient';
 
 interface Course {
   id: string;
@@ -78,8 +79,8 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
 
   const fetchTemplates = async () => {
     try {
-      const response = await fetch('/api/prompt-templates');
-      const data = await response.json();
+      const response = await apiClient.get('/prompt-templates');
+      const data = response.data;
       setTemplates(data);
     } catch (error) {
       console.error('Error fetching templates:', error);
@@ -105,18 +106,14 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
 
     setIsGenerating(true);
     try {
-      const response = await fetch(`/api/prompt-config/${course.id}/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          selectedKPIIds: selectedKPIs,
-          selectedTaskIds: selectedTasks,
-          aiRole,
-          situations
-        })
+      const response = await apiClient.post(`/prompt-config/${course.id}/generate`, {
+        selectedKPIIds: selectedKPIs,
+        selectedTaskIds: selectedTasks,
+        aiRole,
+        situations
       });
 
-      const data = await response.json();
+      const data = response.data;
       if (data.success) {
         setGeneratedPrompt(data.prompt);
       }
@@ -141,17 +138,10 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
     };
 
     try {
-      const response = await fetch(`/api/prompt-config/${course.id}/save`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ promptData })
-      });
-
-      if (response.ok) {
-        toast.success('Configuración guardada exitosamente');
-        onSave(promptData);
-        onClose();
-      }
+      await apiClient.post(`/prompt-config/${course.id}/save`, { promptData });
+      toast.success('Configuración guardada exitosamente');
+      onSave(promptData);
+      onClose();
     } catch (error) {
       console.error('Error saving prompt:', error);
       toast.error('Error guardando configuración');

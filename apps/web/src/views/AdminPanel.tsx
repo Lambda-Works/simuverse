@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
-import { API_BASE } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -213,12 +212,12 @@ const AdminPanel = () => {
     if (user) {
       fetchCourses();
       // Cargar SOLO fichas técnicas válidas (con competencies o kpi_requirements)
-      fetch(`${API_BASE}/tech-sheets/valid/list`)
-        .then(r => r.json())
+      apiClient.get('/tech-sheets/valid/list')
+        .then(r => r.data)
         .then(d => setTechSheets(Array.isArray(d) ? d.map((s: any) => ({ id: s.id, name: s.name, processed: s.processed })) : []))
         .catch(() => {});
-      fetch(`${API_BASE}/simulated-companies`)
-        .then(r => r.json())
+      apiClient.get('/simulated-companies')
+        .then(r => r.data)
         .then(d => setSimCompanies(Array.isArray(d) ? d.map((c: any) => ({ id: c.id, name: c.name, short_name: c.short_name })) : []))
         .catch(() => {});
     }

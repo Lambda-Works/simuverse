@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { apiClient } from '@/services/ApiClient';
 import './AdminTeacherPermissions.css';
 
 interface TeacherPermissions {
@@ -37,13 +38,9 @@ export function AdminTeacherPermissions() {
   const loadPermissions = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/teacher-permissions');
+      const response = await apiClient.get('/admin/teacher-permissions');
       
-      if (!response.ok) {
-        throw new Error(`Failed to load permissions: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = response.data;
       setPermissions(data.data || {});
       setMessage(null);
     } catch (error) {
@@ -67,24 +64,13 @@ export function AdminTeacherPermissions() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      const response = await fetch('/api/admin/teacher-permissions', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          can_see_ai_config: permissions.can_see_ai_config,
-          can_see_system_prompt: permissions.can_see_system_prompt,
-          can_see_temperature: permissions.can_see_temperature,
-          can_see_score_calculation: permissions.can_see_score_calculation,
-        }),
+      const response = await apiClient.put('/admin/teacher-permissions', {
+        can_see_ai_config: permissions.can_see_ai_config,
+        can_see_system_prompt: permissions.can_see_system_prompt,
+        can_see_temperature: permissions.can_see_temperature,
+        can_see_score_calculation: permissions.can_see_score_calculation,
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to update permissions: ${response.statusText}`);
-      }
-
-      const data = await response.json();
       setMessage({
         type: 'success',
         text: '✅ Permisos de profesor actualizados correctamente',

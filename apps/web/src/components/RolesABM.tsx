@@ -21,8 +21,7 @@ import {
   CheckCircle2, XCircle, LayoutGrid, FolderOpen
 } from 'lucide-react';
 
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
+import { apiClient } from '@/services/ApiClient';
 
 interface Role {
   id: number;
@@ -92,9 +91,11 @@ function RolesTab({ roles, onRefresh }: { roles: Role[]; onRefresh: () => void }
     if (!form.name) { toast.error('El nombre es obligatorio'); return; }
     setSaving(true);
     try {
-      const url = editingId ? `${API}/roles/${editingId}` : `${API}/roles`;
-      const method = editingId ? 'PUT' : 'POST';
-      await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+      if (editingId) {
+        await apiClient.put(`/roles/${editingId}`, form);
+      } else {
+        await apiClient.post('/roles', form);
+      }
       toast.success(editingId ? 'Rol actualizado' : 'Rol creado');
       setDialogOpen(false);
       onRefresh();
@@ -105,7 +106,7 @@ function RolesTab({ roles, onRefresh }: { roles: Role[]; onRefresh: () => void }
   const handleDelete = async (id: number) => {
     if (!confirm('¿Eliminar este rol? No se puede deshacer.')) return;
     try {
-      await fetch(`${API}/roles/${id}`, { method: 'DELETE' });
+      await apiClient.delete(`/roles/${id}`);
       toast.success('Rol eliminado');
       onRefresh();
     } catch { toast.error('Error al eliminar'); }
@@ -214,9 +215,11 @@ function FunctionalitiesTab({ funcs, onRefresh }: { funcs: Functionality[]; onRe
     if (!form.name) { toast.error('El nombre es obligatorio'); return; }
     setSaving(true);
     try {
-      const url = editingId ? `${API}/functionalities/${editingId}` : `${API}/functionalities`;
-      const method = editingId ? 'PUT' : 'POST';
-      await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+      if (editingId) {
+        await apiClient.put(`/functionalities/${editingId}`, form);
+      } else {
+        await apiClient.post('/functionalities', form);
+      }
       toast.success(editingId ? 'Funcionalidad actualizada' : 'Funcionalidad creada');
       setDialogOpen(false);
       onRefresh();
@@ -227,7 +230,7 @@ function FunctionalitiesTab({ funcs, onRefresh }: { funcs: Functionality[]; onRe
   const handleDelete = async (id: number) => {
     if (!confirm('¿Eliminar esta funcionalidad?')) return;
     try {
-      await fetch(`${API}/functionalities/${id}`, { method: 'DELETE' });
+      await apiClient.delete(`/functionalities/${id}`);
       toast.success('Funcionalidad eliminada');
       onRefresh();
     } catch { toast.error('Error al eliminar'); }
@@ -338,8 +341,8 @@ function PermissionsTab({ roles }: { roles: Role[] }) {
   const fetchPermissions = async (roleName: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/role-permissions?role_name=${encodeURIComponent(roleName)}`);
-      const data = await res.json();
+      const res = await apiClient.get(`/role-permissions?role_name=${encodeURIComponent(roleName)}`);
+      const data = res.data;
       setPermissions(Array.isArray(data) ? data : []);
       setChanged(false);
     } catch { toast.error('Error al cargar permisos'); }
@@ -360,13 +363,9 @@ function PermissionsTab({ roles }: { roles: Role[] }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await fetch(`${API}/role-permissions`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          role_name: selectedRole,
-          permissions: permissions.map(p => ({ functionality_id: p.functionality_id, enabled: p.enabled }))
-        })
+      await apiClient.put('/role-permissions', {
+        role_name: selectedRole,
+        permissions: permissions.map(p => ({ functionality_id: p.functionality_id, enabled: p.enabled }))
       });
       toast.success(`Permisos de '${selectedRole}' actualizados`);
       setChanged(false);
@@ -499,8 +498,8 @@ export function RolesABM() {
     setLoading(true);
     try {
       const [rolesRes, funcsRes] = await Promise.all([
-        fetch(`${API}/roles`).then(r => r.json()),
-        fetch(`${API}/functionalities`).then(r => r.json()),
+        apiClient.get('/roles').then(r => r.data),
+        apiClient.get('/functionalities').then(r => r.data),
       ]);
       setRoles(Array.isArray(rolesRes) ? rolesRes : []);
       setFuncs(Array.isArray(funcsRes) ? funcsRes : []);

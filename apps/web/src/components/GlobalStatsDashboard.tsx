@@ -3,9 +3,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Users, CheckCircle2, TrendingUp, Clock, BookOpen, AlertCircle, Star, BarChart3 } from 'lucide-react';
-
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
+import { apiClient } from '@/services/ApiClient';
 
 interface GlobalStats {
   users: Array<{ role: string; count: number }>;
@@ -24,9 +22,8 @@ export function GlobalStatsDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API}/global-stats`)
-      .then(r => r.json())
-      .then(data => { setStats(data); setLoading(false); })
+    apiClient.get('/global-stats')
+      .then(r => { setStats(r.data); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 

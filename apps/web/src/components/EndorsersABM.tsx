@@ -13,9 +13,8 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { Plus, Trash2, Settings, Handshake, Link, Unlink } from 'lucide-react';
 
-import { API_BASE } from '@/lib/api';
+import { apiClient } from '@/services/ApiClient';
 import { useAdmin } from '@/lib/admin-context';
-const API = API_BASE;
 
 interface Endorser {
   id: number;
@@ -95,8 +94,8 @@ export function EndorsersABM() {
   const fetchAll = async () => {
     try {
       const [eRes, cRes] = await Promise.all([
-        fetch(`${API}/endorsers`).then(r => r.json()),
-        fetch(`${API}/courses`).then(r => r.json()),
+        apiClient.get('/endorsers').then(r => r.data),
+        apiClient.get('/courses').then(r => r.data),
       ]);
       setEndorsers(Array.isArray(eRes) ? eRes : []);
       setCourses(Array.isArray(cRes) ? cRes : []);
@@ -106,8 +105,8 @@ export function EndorsersABM() {
 
   const fetchCourseEndorsers = async (courseId: string) => {
     try {
-      const r = await fetch(`${API}/course-endorsers/${courseId}`);
-      const d = await r.json();
+      const r = await apiClient.get(`/course-endorsers/${courseId}`);
+      const d = r.data;
       setCourseEndorsers(Array.isArray(d) ? d : []);
     } catch { setCourseEndorsers([]); }
   };
@@ -123,13 +122,11 @@ export function EndorsersABM() {
     if (!form.name.trim()) { toast.error('El nombre es obligatorio'); return; }
     setSaving(true);
     try {
-      const url = editingId ? `${API}/endorsers/${editingId}` : `${API}/endorsers`;
-      const r = await fetch(url, {
-        method: editingId ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      if (!r.ok) { const d = await r.json(); throw new Error(d.error || 'Error al guardar'); }
+      if (editingId) {
+        await apiClient.put(`/endorsers/${editingId}`, form);
+      } else {
+        await apiClient.post('/endorsers', form);
+      }
       toast.success(editingId ? 'Avalador actualizado' : 'Avalador creado');
       setDialogOpen(false);
       setForm(emptyForm());
@@ -148,7 +145,7 @@ export function EndorsersABM() {
   const handleDeactivate = async (id: number) => {
     if (!confirm('¿Desactivar este avalador?')) return;
     try {
-      await fetch(`${API}/endorsers/${id}`, { method: 'DELETE' });
+      await apiClient.delete(`/endorsers/${id}`);
       toast.success('Avalador desactivado');
       fetchAll();
     } catch { toast.error('Error al desactivar'); }
@@ -160,18 +157,10 @@ export function EndorsersABM() {
     const isLinked = courseEndorsers.some(ce => ce.endorser_id === endorserId);
     try {
       if (isLinked) {
-        await fetch(`${API}/course-endorsers`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ course_id: selectedCourse, endorser_id: endorserId }),
-        });
+        await apiClient.delete('/course-endorsers', { data: { course_id: selectedCourse, endorser_id: endorserId } });
         toast.success('Vínculo eliminado');
       } else {
-        await fetch(`${API}/course-endorsers`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ course_id: selectedCourse, endorser_id: endorserId }),
-        });
+        await apiClient.post('/course-endorsers', { course_id: selectedCourse, endorser_id: endorserId });
         toast.success('Avalador vinculado al curso');
       }
       fetchCourseEndorsers(selectedCourse);

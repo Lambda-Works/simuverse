@@ -4,8 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Printer, Award, CheckCircle2, XCircle, BookOpen, Clock, Star } from 'lucide-react';
 
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
+import { apiClient } from '@/services/ApiClient';
 
 interface CertificateData {
   certificate_id: string;
@@ -47,10 +46,9 @@ export default function CertificateView() {
 
   useEffect(() => {
     if (!instanceId) return;
-    fetch(`${API}/certificates/${instanceId}`)
-      .then(async r => {
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.error);
+    apiClient.get(`/certificates/${instanceId}`)
+      .then(r => {
+        const data = r.data;
         setCert(data);
       })
       .catch(e => setError(e.message))

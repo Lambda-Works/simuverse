@@ -15,9 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Plus, Trash2, Settings, Users, Search, Mail, Shield, Eye, EyeOff } from 'lucide-react';
 
-import { API_BASE } from '@/lib/api';
+import { apiClient } from '@/services/ApiClient';
 import { useAdmin } from '@/lib/admin-context';
-const API = API_BASE;
 
 interface UserRow {
   id: string;
@@ -53,8 +52,8 @@ export function UsersABM() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/users/all`);
-      const data = await res.json();
+      const res = await apiClient.get('/users/all');
+      const data = res.data;
       setUsers(Array.isArray(data) ? data : []);
     } catch { toast.error('Error al cargar usuarios'); }
     finally { setLoading(false); }
@@ -82,18 +81,10 @@ export function UsersABM() {
       if (editingId) {
         const payload: any = { name: form.name, email: form.email, role: form.role };
         if (form.password) payload.password = form.password;
-        await fetch(`${API}/users/${editingId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+        await apiClient.put(`/users/${editingId}`, payload);
         toast.success('Usuario actualizado');
       } else {
-        const res = await fetch(`${API}/users/create`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
-        });
+        const res = await apiClient.post('/users/create', form);
         if (!res.ok) {
           const err = await res.json();
           throw new Error(err.error || 'Error al crear usuario');
@@ -110,7 +101,7 @@ export function UsersABM() {
 
   const handleDelete = async (id: string) => {
     try {
-      await fetch(`${API}/users/${id}`, { method: 'DELETE' });
+      await apiClient.delete(`/users/${id}`);
       toast.success('Usuario eliminado');
       setDeleteConfirm(null);
       fetchUsers();

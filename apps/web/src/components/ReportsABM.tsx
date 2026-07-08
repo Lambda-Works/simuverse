@@ -11,8 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart3, Download, Filter, GraduationCap, Clock, Calendar, CheckCircle2, XCircle, Target, Timer, Trophy, TrendingUp } from 'lucide-react';
 
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
+import { apiClient } from '@/services/ApiClient';
 
 interface Evaluation {
   id: number; student_id: string; simulation_id: string; assignment_id: number;
@@ -77,11 +76,11 @@ function StudentHistoryDialog({ studentId, studentName, onClose }: {
     (async () => {
       try {
         const [histRes, statsRes] = await Promise.all([
-          fetch(`${API}/students/${studentId}/history`),
-          fetch(`${API}/students/${studentId}/stats`),
+          apiClient.get(`/students/${studentId}/history`),
+          apiClient.get(`/students/${studentId}/stats`),
         ]);
-        setHistory(await histRes.json());
-        setStats(await statsRes.json());
+        setHistory(histRes.data);
+        setStats(statsRes.data);
       } catch { setHistory(null); }
       finally { setLoading(false); }
     })();
@@ -303,8 +302,8 @@ export function ReportsABM() {
 
   useEffect(() => {
     Promise.all([
-      fetch(`${API}/evaluations/student/all`).then(r => r.json()).then(d => setEvaluations(Array.isArray(d) ? d : [])).catch(() => {}),
-      fetch(`${API}/courses`).then(r => r.json()).then(d => setCourses(Array.isArray(d) ? d : [])).catch(() => {}),
+      apiClient.get('/evaluations/student/all').then(r => r.data).then(d => setEvaluations(Array.isArray(d) ? d : [])).catch(() => {}),
+      apiClient.get('/courses').then(r => r.data).then(d => setCourses(Array.isArray(d) ? d : [])).catch(() => {}),
     ]).then(() => setLoading(false));
   }, []);
 
