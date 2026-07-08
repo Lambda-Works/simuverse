@@ -63,10 +63,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // ── Demo mode: auto-login as admin if no saved session ───────────────
+    // ── Demo mode: only when explicitly enabled ────────────────────────
     if (typeof window !== 'undefined' &&
-        (process.env.NEXT_PUBLIC_DEMO_MODE === 'true' ||
-         window.location.hostname.includes('vercel.app'))) {
+        process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
       const demoUser = DEMO_USERS[0]; // admin@fepei.com
       localStorage.setItem('token', 'demo-' + demoUser.id);
       localStorage.setItem('user', JSON.stringify(demoUser));

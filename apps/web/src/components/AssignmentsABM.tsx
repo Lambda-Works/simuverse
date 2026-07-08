@@ -5,9 +5,8 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, Plus, Send, CheckSquare, Square } from 'lucide-react';
 import { toast } from 'sonner';
+import { apiClient } from '@/services/ApiClient';
 
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
 interface Assignment {
   id: number;
   simulation_id: string;
@@ -86,9 +85,8 @@ export function AssignmentsABM() {
   useEffect(() => {
     setSelectedScenarios([]);
     if (selectedCourse) {
-      fetch(`${API}/scenarios?course_id=${selectedCourse}`)
-        .then(r => r.json())
-        .then(d => setScenarios(Array.isArray(d) ? d : []))
+      apiClient.get(`/scenarios?course_id=${selectedCourse}`)
+        .then(r => setScenarios(Array.isArray(r.data) ? r.data : []))
         .catch(() => setScenarios([]));
     } else {
       setScenarios([]);
@@ -106,9 +104,8 @@ export function AssignmentsABM() {
 
   const fetchAssignments = async () => {
     try {
-      const response = await fetch(`${API}/assignments`);
-      const data = await response.json();
-      setAssignments(Array.isArray(data) ? data : []);
+      const response = await apiClient.get('/assignments');
+      setAssignments(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching assignments:', error);
       setAssignments([]);
@@ -117,9 +114,8 @@ export function AssignmentsABM() {
 
   const fetchCourses = async () => {
     try {
-      const response = await fetch(`${API}/courses`);
-      const data = await response.json();
-      setCourses(Array.isArray(data) ? data : []);
+      const response = await apiClient.get('/courses');
+      setCourses(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching courses:', error);
       setCourses([]);
@@ -128,9 +124,8 @@ export function AssignmentsABM() {
 
   const fetchStudents = async () => {
     try {
-      const response = await fetch(`${API}/users?role=student`);
-      const data = await response.json();
-      setUsers(Array.isArray(data) ? data : []);
+      const response = await apiClient.get('/users?role=student');
+      setUsers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching students:', error);
       setUsers([]);
@@ -156,10 +151,7 @@ export function AssignmentsABM() {
 
     for (const pair of pairs) {
       try {
-        const res = await fetch(`${API}/assignments`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        const res = await apiClient.post('/assignments', {
             simulation_id: pair.simulation_id,
             student_id: pair.student_id,
             course_id: selectedCourse,
@@ -167,9 +159,8 @@ export function AssignmentsABM() {
             start_date: startDate || null,
             end_date: endDate || null,
             assigned_by: localStorage.getItem('userId') || 'system',
-          }),
         });
-        if (res.ok) created++;
+        if (res.status === 201 || res.status === 200) created++;
         else errors++;
       } catch { errors++; }
     }
@@ -213,7 +204,7 @@ export function AssignmentsABM() {
   const handleDelete = async (id: number) => {
     if (!confirm('¿Eliminar esta asignación?')) return;
     try {
-      await fetch(`${API}/assignments/${id}`, { method: 'DELETE' });
+      await apiClient.delete(`/assignments/${id}`);
       await fetchAssignments();
       toast.success('Asignación eliminada');
     } catch { toast.error('Error al eliminar'); }

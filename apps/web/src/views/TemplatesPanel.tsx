@@ -30,7 +30,7 @@ const TemplatesPanel = () => {
   const [filterFamily, setFilterFamily] = useState('all');
 
   useEffect(() => {
-    if (!loading && (!user || !hasRole('administrador'))) {
+    if (!loading && (!user || !hasRole('admin'))) {
       router.push('/dashboard');
     }
   }, [user, loading, hasRole, router]);
