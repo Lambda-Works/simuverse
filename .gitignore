@@ -105,3 +105,4 @@ openspec/
 # ============================================
 Thumbs.db
 Desktop.ini
+docker-compose.override.yml
