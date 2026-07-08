@@ -45,7 +45,7 @@ const AVAILABLE_MODULES = [
   { id: 'evaluacion_auto', label: 'Evaluación Automática IA' },
 ];
 
-const CATEGORIES = ['seguros', 'contable', 'rrhh', 'ventas', 'oratoria', 'legal', 'administracion', 'general'];
+
 
 // ─── Plantillas de Prompts FEPEI (Lego de IA) ───────────────────────────────
 const PROMPT_TEMPLATES = [
@@ -167,6 +167,7 @@ const AdminPanel = () => {
   const { user, hasRole, loading } = useAuth();
   const router = useRouter();
   const [courses, setCourses] = useState<any[]>([]);
+  const [dbCategories, setDbCategories] = useState<Array<{ id: number; name: string; code: string }>>([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [techSheets, setTechSheets] = useState<Array<{ id: number; name: string; processed: boolean }>>([]);
   const [simCompanies, setSimCompanies] = useState<Array<{ id: number; name: string; short_name?: string }>>([]);
@@ -215,6 +216,11 @@ const AdminPanel = () => {
   useEffect(() => {
     if (user) {
       fetchCourses();
+      // Cargar categorías
+      fetch(`${API_BASE}/categories`)
+        .then(r => r.json())
+        .then(d => setDbCategories(Array.isArray(d) ? d : []))
+        .catch(() => {});
       // Cargar SOLO fichas técnicas válidas (con competencies o kpi_requirements)
       fetch(`${API_BASE}/tech-sheets/valid/list`)
         .then(r => r.json())
@@ -384,21 +390,25 @@ const AdminPanel = () => {
                       </div>
                       <div className="space-y-2">
                         <Label className="text-sm font-semibold">Categorías <span className="text-gray-400 font-normal">(una o varias)</span></Label>
-                        <div className="border rounded-lg p-2 bg-white max-h-36 overflow-y-auto">
-                          <label className="flex items-center gap-2 p-1 cursor-pointer border-b mb-1">
-                            <input type="checkbox"
-                              checked={form.categories.length === CATEGORIES.length}
-                              onChange={() => setForm(p => ({ ...p, categories: p.categories.length === CATEGORIES.length ? [] : [...CATEGORIES] }))}
-                              className="rounded" />
-                            <span className="text-xs font-semibold text-gray-700">Todas</span>
-                          </label>
-                          {CATEGORIES.map(cat => (
-                            <label key={cat} className={`flex items-center gap-2 p-1 rounded cursor-pointer ${form.categories.includes(cat) ? 'bg-blue-50' : ''}`}>
-                              <input type="checkbox"
-                                checked={form.categories.includes(cat)}
-                                onChange={() => setForm(p => ({ ...p, categories: p.categories.includes(cat) ? p.categories.filter(c => c !== cat) : [...p.categories, cat] }))}
-                                className="rounded" />
-                              <span className="text-xs capitalize">{cat}</span>
+                        <div className="flex items-center gap-2 mb-2">
+                          <input 
+                            type="checkbox"
+                            checked={form.categories.length === dbCategories.length && dbCategories.length > 0}
+                            onChange={() => setForm(p => ({ ...p, categories: p.categories.length === dbCategories.length ? [] : dbCategories.map(c => c.code) }))}
+                            className="rounded"
+                          />
+                          <span className="text-sm font-medium">Seleccionar todas</span>
+                        </div>
+                        <div className="border rounded-lg p-2 bg-white max-h-36 overflow-y-auto flex flex-wrap gap-2">
+                          {dbCategories.map(cat => (
+                            <label key={cat.code} className={`flex items-center gap-2 p-1 rounded cursor-pointer ${form.categories.includes(cat.code) ? 'bg-blue-50' : ''}`}>
+                              <input 
+                                type="checkbox"
+                                checked={form.categories.includes(cat.code)}
+                                onChange={() => setForm(p => ({ ...p, categories: p.categories.includes(cat.code) ? p.categories.filter(c => c !== cat.code) : [...p.categories, cat.code] }))}
+                                className="rounded"
+                              />
+                              <span className="text-xs capitalize">{cat.name}</span>
                             </label>
                           ))}
                         </div>
