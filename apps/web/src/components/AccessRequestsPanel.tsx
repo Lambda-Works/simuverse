@@ -8,22 +8,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CheckCircle2, XCircle, Clock, User, Phone, CreditCard, Mail, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
+import { apiClient } from '@/services/ApiClient';
 
 interface AccessRequest {
   id: number;
-  user_id: string | null;
-  nombre: string;
-  apellido: string;
-  dni: string;
-  celular: string;
-  email: string;
-  status: 'pending' | 'processed' | 'rejected';
+  student_id: string;
+  course_id: string;
+  student_name: string;
+  student_email: string;
+  course_name: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
   admin_notes: string | null;
   created_at: string;
-  processed_at: string | null;
+  updated_at: string;
 }
 
 export function AccessRequestsPanel() {
@@ -38,8 +36,8 @@ export function AccessRequestsPanel() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/access-requests?status=${filter}`);
-      setRequests(await res.json());
+      const res = await apiClient.get('/access-requests', { params: { status: filter } });
+      setRequests(res.data);
     } finally {
       setLoading(false);
     }
@@ -51,19 +49,17 @@ export function AccessRequestsPanel() {
     if (!selectedReq) return;
     setProcessing(true);
     try {
-      const res = await fetch(`${API}/access-requests/${selectedReq.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, admin_notes: notes }),
+      const newStatus = action === 'approve' ? 'approved' : 'rejected';
+      await apiClient.put(`/access-requests/${selectedReq.id}`, {
+        status: newStatus,
+        admin_notes: notes,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
       toast.success(action === 'approve' ? '✅ Solicitud aprobada' : '❌ Solicitud rechazada');
       setSelectedReq(null);
       setNotes('');
       load();
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(e.response?.data?.error || e.message);
     } finally {
       setProcessing(false);
     }
@@ -71,7 +67,7 @@ export function AccessRequestsPanel() {
 
   const statusBadge = (status: string) => {
     if (status === 'pending') return <Badge className="bg-amber-100 text-amber-800 border-amber-300 border text-xs">⏳ Pendiente</Badge>;
-    if (status === 'processed') return <Badge className="bg-green-100 text-green-800 border-green-300 border text-xs">✅ Aprobada</Badge>;
+    if (status === 'approved') return <Badge className="bg-green-100 text-green-800 border-green-300 border text-xs">✅ Aprobada</Badge>;
     return <Badge className="bg-red-100 text-red-800 border-red-300 border text-xs">❌ Rechazada</Badge>;
   };
 
@@ -99,7 +95,7 @@ export function AccessRequestsPanel() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="pending">Pendientes</SelectItem>
-              <SelectItem value="processed">Aprobadas</SelectItem>
+              <SelectItem value="approved">Aprobadas</SelectItem>
               <SelectItem value="rejected">Rechazadas</SelectItem>
               <SelectItem value="all">Todas</SelectItem>
             </SelectContent>
@@ -116,28 +112,30 @@ export function AccessRequestsPanel() {
         <Card>
           <CardContent className="flex flex-col items-center py-16 text-center">
             <CheckCircle2 className="w-12 h-12 text-green-400 mb-4" />
-            <h3 className="font-semibold text-lg">Sin solicitudes {filter !== 'all' ? `"${filter === 'pending' ? 'pendientes' : filter === 'processed' ? 'aprobadas' : 'rechazadas'}"` : ''}</h3>
+            <h3 className="font-semibold text-lg">Sin solicitudes {filter !== 'all' ? `"${filter === 'pending' ? 'pendientes' : filter === 'approved' ? 'aprobadas' : 'rechazadas'}"` : ''}</h3>
             <p className="text-muted-foreground text-sm mt-1">Todo al día.</p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
-          {requests.map(req => (
+          {requests.map(req => {
+            const reasonData = (() => { try { return JSON.parse(req.reason || '{}'); } catch { return {}; } })();
+            return (
             <Card key={req.id} className={req.status === 'pending' ? 'border-amber-200 bg-amber-50/30' : ''}>
               <CardContent className="pt-4 pb-3">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-4">
                     <div>
-                      <p className="font-semibold text-sm">{req.nombre} {req.apellido}</p>
+                      <p className="font-semibold text-sm">{req.student_name}</p>
                       <div className="flex items-center gap-3 mt-1 flex-wrap">
                         <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <CreditCard className="w-3 h-3" /> DNI: {req.dni}
+                          <CreditCard className="w-3 h-3" /> DNI: {reasonData.dni}
                         </span>
                         <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Phone className="w-3 h-3" /> {req.celular}
+                          <Phone className="w-3 h-3" /> {reasonData.celular}
                         </span>
                         <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Mail className="w-3 h-3" /> {req.email}
+                          <Mail className="w-3 h-3" /> {req.student_email}
                         </span>
                         <span className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Clock className="w-3 h-3" /> {new Date(req.created_at).toLocaleDateString('es-AR')}
@@ -171,7 +169,8 @@ export function AccessRequestsPanel() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -188,9 +187,19 @@ export function AccessRequestsPanel() {
           {selectedReq && (
             <div className="space-y-4">
               <div className="bg-muted rounded-lg p-3 text-sm">
-                <p className="font-semibold">{selectedReq.nombre} {selectedReq.apellido}</p>
-                <p className="text-muted-foreground">{selectedReq.email}</p>
-                <p className="text-muted-foreground">DNI: {selectedReq.dni} · Cel: {selectedReq.celular}</p>
+                {(() => { try {
+                  const rd = JSON.parse(selectedReq.reason || '{}');
+                  return <>
+                    <p className="font-semibold">{selectedReq.student_name}</p>
+                    <p className="text-muted-foreground">{selectedReq.student_email}</p>
+                    <p className="text-muted-foreground">DNI: {rd.dni} · Cel: {rd.celular}</p>
+                  </>;
+                } catch {
+                  return <>
+                    <p className="font-semibold">{selectedReq.student_name}</p>
+                    <p className="text-muted-foreground">{selectedReq.student_email}</p>
+                  </>;
+                } })()}
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">

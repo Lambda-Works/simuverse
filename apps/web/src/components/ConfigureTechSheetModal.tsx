@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Trash2, X, Edit2 } from 'lucide-react';
-import { API_BASE } from '@/lib/api';
+import { API_BASE, authFetch } from '@/lib/api';
 
 interface Competency {
   id: string;
@@ -68,6 +69,7 @@ export function ConfigureTechSheetModal({
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('competencies');
+  const [pipelineStatus, setPipelineStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && !config) {
@@ -78,6 +80,17 @@ export function ConfigureTechSheetModal({
   const fetchConfig = async () => {
     setLoading(true);
     try {
+      // Fetch pipeline status from tech sheet endpoint
+      try {
+        const sheetResponse = await authFetch(`${API_BASE}/tech-sheets/${techSheetId}`);
+        if (sheetResponse.ok) {
+          const sheetData = await sheetResponse.json();
+          setPipelineStatus(sheetData.pipeline_status || null);
+        }
+      } catch {
+        // Non-critical — config still loads
+      }
+
       const response = await fetch(
         `${API_BASE}/tech-sheets/${techSheetId}/config`
       );
@@ -183,7 +196,30 @@ export function ConfigureTechSheetModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-auto">
       <Card className="w-full max-w-4xl m-4 p-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">Configurar Ficha Técnica</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold">Configurar Ficha Tecnica</h2>
+            {pipelineStatus && (
+              <Badge
+                variant={
+                  pipelineStatus === 'completed'
+                    ? 'default'
+                    : pipelineStatus === 'failed' || pipelineStatus === 'validation_rejected'
+                    ? 'destructive'
+                    : 'secondary'
+                }
+              >
+                {pipelineStatus === 'completed'
+                  ? 'Analizado'
+                  : pipelineStatus === 'running'
+                  ? 'Analizando...'
+                  : pipelineStatus === 'failed'
+                  ? 'Error'
+                  : pipelineStatus === 'validation_rejected'
+                  ? 'Rechazado'
+                  : pipelineStatus}
+              </Badge>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="text-gray-600 hover:text-gray-900"
@@ -607,7 +643,13 @@ export function ConfigureTechSheetModal({
               </Card>
               <Card className="p-4 bg-yellow-50">
                 <p className="text-sm text-gray-600">Prompts</p>
-                <p className="text-2xl font-bold">3</p>
+                <p className="text-2xl font-bold">
+                  {[
+                    config.prompts.system_prompt,
+                    config.prompts.evaluation_prompt,
+                    config.prompts.coaching_prompt,
+                  ].filter(Boolean).length}
+                </p>
               </Card>
             </div>
 

@@ -28,7 +28,7 @@ export class CoursesController {
 
   @Get(':courseId')
   async findOne(@Param('courseId') courseId: string) {
-    return this.coursesService.findByCourseId(courseId);
+    return this.coursesService.findById(courseId);
   }
 
   @Post()

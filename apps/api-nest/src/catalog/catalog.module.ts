@@ -18,6 +18,9 @@ import {
   SimulationSessionsController,
   CertificatesController,
 } from './missing-controllers';
+import { MarkitdownClient } from './markitdown-client.service';
+import { DeepSeekService } from './deepseek.service';
+import { AnalysisPipelineService } from './analysis-pipeline.service';
 
 @Module({
   controllers: [
@@ -34,7 +37,25 @@ import {
     SimulationSessionsController,
     CertificatesController,
   ],
-  providers: [CategoriesService, TechSheetsService, DocumentsService, AssignmentsService, CatalogQueryService],
-  exports: [CategoriesService, TechSheetsService, DocumentsService, AssignmentsService, CatalogQueryService],
+  providers: [
+    CategoriesService,
+    TechSheetsService,
+    DocumentsService,
+    AssignmentsService,
+    CatalogQueryService,
+    MarkitdownClient,
+    DeepSeekService,
+    AnalysisPipelineService,
+  ],
+  exports: [
+    CategoriesService,
+    TechSheetsService,
+    DocumentsService,
+    AssignmentsService,
+    CatalogQueryService,
+    MarkitdownClient,
+    DeepSeekService,
+    AnalysisPipelineService,
+  ],
 })
 export class CatalogModule {}

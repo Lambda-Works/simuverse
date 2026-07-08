@@ -14,11 +14,9 @@ export class UpdateTechSheetDto {
   description?: string;
 
   @IsOptional()
-  @IsObject()
   competencies?: any;
 
   @IsOptional()
-  @IsObject()
   kpi_requirements?: any;
 
   @IsOptional()

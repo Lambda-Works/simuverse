@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Param, Body, Query, UseGuards, NotFoundException } from '@nestjs/common';
 import { IsString, IsOptional, IsIn } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -7,6 +7,10 @@ class UpdateAccessRequestDto {
   @IsString()
   @IsIn(['approved', 'rejected', 'pending'])
   status: string;
+
+  @IsOptional()
+  @IsString()
+  admin_notes?: string;
 }
 
 @Controller('access-requests')
@@ -27,11 +31,22 @@ export class AccessRequestsController {
     );
   }
 
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    const result: any[] = await this.prisma.$queryRawUnsafe(
+      `SELECT * FROM access_requests WHERE id = $1`, parseInt(id),
+    );
+    if (!result?.[0]) {
+      throw new NotFoundException(`Access request ${id} not found`);
+    }
+    return result[0];
+  }
+
   @Put(':id')
   async update(@Param('id') id: string, @Body() body: UpdateAccessRequestDto) {
     await this.prisma.$queryRawUnsafe(
-      `UPDATE access_requests SET status = $1, updated_at = NOW() WHERE id = $2`,
-      body.status, parseInt(id),
+      `UPDATE access_requests SET status = $1, admin_notes = $2, updated_at = NOW() WHERE id = $3`,
+      body.status, body.admin_notes || null, parseInt(id),
     );
     // If approved, create a simulation assignment
     if (body.status === 'approved') {
