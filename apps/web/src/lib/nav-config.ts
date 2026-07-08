@@ -19,7 +19,6 @@ export const ROLE_NAV: Record<AppRole, NavItem[]> = {
   ],
   admin: [
     { label: 'Mis Cursos', href: '/dashboard', icon: Home },
-    { label: 'Admin', href: '/admin', icon: Settings },
     { label: 'Evaluaciones', href: '/evaluations', icon: BarChart3 },
     { label: 'Legajos', href: '/legajos', icon: FileText },
   ],

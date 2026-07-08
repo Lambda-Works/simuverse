@@ -48,7 +48,7 @@ export class CatalogQueryController {
 
   @Put('role-permissions')
   async upsertRolePermissions(
-    @Body() body: { role_name: string; permissions: { functionality_id: number; enabled: boolean }[] },
+    @Body() body: { role_name: string; permissions: { functionality_id: number; enabled: boolean | number }[] },
   ) {
     return this.queryService.upsertRolePermissions(body.role_name, body.permissions);
   }

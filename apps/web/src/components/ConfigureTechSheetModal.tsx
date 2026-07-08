@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner';
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -148,11 +149,11 @@ export function ConfigureTechSheetModal({
 
       if (response.ok) {
         setEditing(false);
-        alert('Configuración guardada exitosamente');
+        toast.success('Configuración guardada exitosamente');
       }
     } catch (error) {
       console.error('Error saving config:', error);
-      alert('Error al guardar configuración');
+      toast.error('Error al guardar configuración');
     }
   };
 
@@ -180,8 +181,8 @@ export function ConfigureTechSheetModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-auto">
-      <Card className="w-full max-w-4xl m-4 p-6">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-auto" onClick={onClose}>
+      <Card className="w-full max-w-4xl m-4 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">Configurar Ficha Técnica</h2>
           <button

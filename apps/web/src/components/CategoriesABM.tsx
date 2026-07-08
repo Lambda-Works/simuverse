@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner';
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,7 +50,7 @@ export function CategoriesABM() {
     e.preventDefault();
 
     if (!formData.name || !formData.code) {
-      alert('Nombre y código son obligatorios');
+      toast.error('Nombre y código son obligatorios');
       return;
     }
 
@@ -79,7 +80,7 @@ export function CategoriesABM() {
       await fetchCategories();
     } catch (error) {
       console.error('Error saving category:', error);
-      alert('Error al guardar la categoría');
+      toast.error('Error al guardar la categoría');
     }
   };
 
@@ -93,7 +94,7 @@ export function CategoriesABM() {
       await fetchCategories();
     } catch (error) {
       console.error('Error deleting category:', error);
-      alert('Error al eliminar la categoría');
+      toast.error('Error al eliminar la categoría');
     }
   };
 

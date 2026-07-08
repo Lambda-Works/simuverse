@@ -108,16 +108,26 @@ export class CatalogQueryService {
    * ON CONFLICT upsert for role permissions
    * Ported from Express: PUT /role-permissions
    */
-  async upsertRolePermissions(roleName: string, permissions: { functionality_id: number; enabled: boolean }[]) {
-    const results: any[] = [];
-
+  async upsertRolePermissions(roleName: string, permissions: { functionality_id: number; enabled: boolean | number }[]) {
+    const results = [];
+    
     for (const p of permissions) {
-      const result = await this.prisma.$executeRaw`
-        INSERT INTO role_permissions (role_name, functionality_id, enabled)
-        VALUES (${roleName}, ${p.functionality_id}, ${p.enabled})
-        ON CONFLICT (role_name, functionality_id)
-        DO UPDATE SET enabled = ${p.enabled}
-      `;
+      const isEnabled = Boolean(p.enabled); // Convert 0/1 from frontend to proper boolean
+      
+      const result = await this.prisma.rolePermission.upsert({
+        where: {
+          role_name_functionality_id: {
+            role_name: roleName,
+            functionality_id: p.functionality_id
+          }
+        },
+        update: { enabled: isEnabled },
+        create: {
+          role_name: roleName,
+          functionality_id: p.functionality_id,
+          enabled: isEnabled
+        }
+      });
       results.push(result);
     }
 

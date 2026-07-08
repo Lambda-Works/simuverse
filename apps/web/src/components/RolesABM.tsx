@@ -287,18 +287,35 @@ function FunctionalitiesTab({ funcs, onRefresh }: { funcs: Functionality[]; onRe
           <DialogHeader>
             <DialogTitle>{editingId ? 'Editar Funcionalidad' : 'Nueva Funcionalidad'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 mt-2">
-            <div><Label>Nombre *</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Ver reportes avanzados" /></div>
-            <div><Label>Descripción</Label><Input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></div>
+          <div className="space-y-4 mt-4">
+            <div>
+              <Label>Nombre *</Label>
+              <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Ej: ver_reportes_avanzados" />
+              <p className="text-[12px] text-gray-500 mt-1">Identificador corto para la funcionalidad en el sistema.</p>
+            </div>
+            <div>
+              <Label>Descripción</Label>
+              <Input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Ej: Permite al usuario ver los reportes detallados..." />
+              <p className="text-[12px] text-gray-500 mt-1">Explica brevemente qué permite hacer esta funcionalidad.</p>
+            </div>
             <div>
               <Label>Módulo</Label>
               <select value={form.module} onChange={e => setForm(p => ({ ...p, module: e.target.value }))}
                 className="w-full border rounded-md px-3 py-2 text-sm mt-1">
                 {Object.entries(MODULE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
+              <p className="text-[12px] text-gray-500 mt-1">Categoría bajo la cual se agrupará en el panel de permisos.</p>
             </div>
-            <div><Label>Icono (nombre Lucide)</Label><Input value={form.icon} onChange={e => setForm(p => ({ ...p, icon: e.target.value }))} placeholder="BarChart3" /></div>
-            <div><Label>Ruta</Label><Input value={form.route} onChange={e => setForm(p => ({ ...p, route: e.target.value }))} placeholder="/admin/reports" /></div>
+            <div>
+              <Label>Icono (nombre Lucide)</Label>
+              <Input value={form.icon} onChange={e => setForm(p => ({ ...p, icon: e.target.value }))} placeholder="Ej: BarChart3" />
+              <p className="text-[12px] text-gray-500 mt-1">Opcional. Ícono identificativo para mostrar en la interfaz.</p>
+            </div>
+            <div>
+              <Label>Ruta</Label>
+              <Input value={form.route} onChange={e => setForm(p => ({ ...p, route: e.target.value }))} placeholder="Ej: /admin/reports" />
+              <p className="text-[12px] text-gray-500 mt-1">Opcional. Ruta de la app a la que da acceso exclusivo.</p>
+            </div>
             <div className="flex gap-2">
               <Button className="flex-1" onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear'}</Button>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
@@ -465,15 +482,7 @@ function PermissionsTab({ roles }: { roles: Role[] }) {
             </Card>
           ))}
 
-          {changed && (
-            <div className="sticky bottom-4 flex justify-center">
-              <Button onClick={handleSave} disabled={saving}
-                className="bg-green-600 hover:bg-green-700 shadow-lg px-8">
-                <Save className="w-4 h-4 mr-2" />
-                {saving ? 'Guardando...' : 'Guardar todos los cambios'}
-              </Button>
-            </div>
-          )}
+
         </>
       )}
     </div>

@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner';
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '@/services/ApiClient';
 
@@ -65,10 +66,10 @@ export const PromptTemplatesABM: React.FC = () => {
 
       fetchTemplates();
       resetForm();
-      alert(editingId ? 'Plantilla actualizada' : 'Plantilla creada');
+      toast.success(editingId ? 'Plantilla actualizada' : 'Plantilla creada');
     } catch (error) {
       console.error('Error saving template:', error);
-      alert('Error guardando plantilla');
+      toast.error('Error guardando plantilla');
     }
   };
 
@@ -90,7 +91,7 @@ export const PromptTemplatesABM: React.FC = () => {
         await apiClient.post(`/prompt-templates/${id}/duplicate`, { name: newName });
 
         fetchTemplates();
-        alert('Plantilla duplicada exitosamente');
+        toast.success('Plantilla duplicada exitosamente');
       } catch (error) {
         console.error('Error duplicating template:', error);
       }
@@ -221,8 +222,8 @@ export const PromptTemplatesABM: React.FC = () => {
 
       {/* Modal crear/editar */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-xl font-bold mb-4">
               {editingId ? '✏️ Editar Plantilla' : '➕ Nueva Plantilla'}
             </h3>
@@ -297,10 +298,11 @@ export const PromptTemplatesABM: React.FC = () => {
                     placeholder="impaciente, exigente..."
                   />
                   <button
+                    type="button"
                     onClick={addTrait}
                     className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                   >
-                    +
+                    Agregar
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">

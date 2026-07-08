@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner';
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,7 +70,7 @@ export function DocumentsABM() {
     e.preventDefault();
 
     if (!formData.course_id || !formData.document_name) {
-      alert('Curso y nombre del documento son obligatorios');
+      toast.error('Curso y nombre del documento son obligatorios');
       return;
     }
 
@@ -98,7 +99,7 @@ export function DocumentsABM() {
       await fetchDocuments();
     } catch (error) {
       console.error('Error saving document:', error);
-      alert('Error al guardar el documento');
+      toast.error('Error al guardar el documento');
     }
   };
 
@@ -112,7 +113,7 @@ export function DocumentsABM() {
       await fetchDocuments();
     } catch (error) {
       console.error('Error deleting document:', error);
-      alert('Error al eliminar el documento');
+      toast.error('Error al eliminar el documento');
     }
   };
 

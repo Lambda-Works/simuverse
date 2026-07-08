@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner';
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -96,14 +97,14 @@ export function TechSheetsABM() {
       'text/csv', 'image/png', 'image/jpeg', 'text/plain'];
     
     if (!allowedTypes.includes(file.type)) {
-      alert(`❌ Tipo de archivo no permitido: ${file.type}\n\nSoportados: PDF, DOC, DOCX, XLS, XLSX, CSV, PNG, JPG, TXT`);
+      toast.error(`❌ Tipo de archivo no permitido: ${file.type}\n\nSoportados: PDF, DOC, DOCX, XLS, XLSX, CSV, PNG, JPG, TXT`);
       e.target.value = '';
       return;
     }
 
     const maxSize = 50 * 1024 * 1024;
     if (file.size > maxSize) {
-      alert(`❌ Archivo demasiado grande: ${(file.size / (1024 * 1024)).toFixed(2)} MB\n\nMáximo: 50 MB`);
+      toast.error(`❌ Archivo demasiado grande: ${(file.size / (1024 * 1024)).toFixed(2)} MB\n\nMáximo: 50 MB`);
       e.target.value = '';
       return;
     }
@@ -127,7 +128,7 @@ export function TechSheetsABM() {
       reader.readAsDataURL(file);
     } catch {
       setUploading(false);
-      alert('Error al leer el archivo');
+      toast.error('Error al leer el archivo');
     }
   };
 
@@ -137,13 +138,13 @@ export function TechSheetsABM() {
     // Validación: nombre es obligatorio
     const trimmedName = formData.name?.trim();
     if (!trimmedName) {
-      alert('❌ El nombre de la ficha es obligatorio');
+      toast.error('❌ El nombre de la ficha es obligatorio');
       return;
     }
 
     // Validación: al menos un campo de contenido
     if (!formData.course_id && !formData.description && !formData.file_url) {
-      alert('❌ Debes rellenar: Curso (obligatorio) O al menos Descripción/Archivo');
+      toast.error('❌ Debes rellenar: Curso (obligatorio) O al menos Descripción/Archivo');
       return;
     }
 
@@ -208,10 +209,10 @@ export function TechSheetsABM() {
 
       // Refresh list
       await fetchTechSheets();
-      alert('✅ Ficha técnica guardada exitosamente');
+      toast.success('✅ Ficha técnica guardada exitosamente');
     } catch (error) {
       console.error('Error saving tech sheet:', error);
-      alert(`❌ Error al guardar la ficha técnica: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      toast.error(`❌ Error al guardar la ficha técnica: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   };
 
@@ -222,14 +223,14 @@ export function TechSheetsABM() {
 
     // ❌ VALIDACIÓN 1: Curso es obligatorio
     if (!sheet.course_id) {
-      alert('❌ Error: Debes asociar la ficha técnica a un curso antes de analizarla.\n\nPor favor, edita la ficha y selecciona un curso.');
+      toast.error('❌ Error: Debes asociar la ficha técnica a un curso antes de analizarla.\n\nPor favor, edita la ficha y selecciona un curso.');
       return;
     }
 
     // ❌ VALIDACIÓN 2: Al menos 1 contenido (archivo, URL o descripción)
     const hasContent = sheet.file_url || sheet.description;
     if (!hasContent) {
-      alert('❌ Error: La ficha técnica debe tener al menos uno de estos elementos:\n- Archivo adjunto (PDF/DOC)\n- URL del documento\n- Descripción/Contenido\n\nPor favor, agrega contenido antes de analizar.');
+      toast.error('❌ Error: La ficha técnica debe tener al menos uno de estos elementos:\n- Archivo adjunto (PDF/DOC)\n- URL del documento\n- Descripción/Contenido\n\nPor favor, agrega contenido antes de analizar.');
       return;
     }
 
@@ -292,7 +293,7 @@ export function TechSheetsABM() {
       await fetchTechSheets();
     } catch (error) {
       console.error('Error analyzing tech sheet:', error);
-      alert(`❌ Error al analizar la ficha técnica: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      toast.error(`❌ Error al analizar la ficha técnica: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     } finally {
       setProcessing(null);
     }
@@ -308,7 +309,7 @@ export function TechSheetsABM() {
       await fetchTechSheets();
     } catch (error) {
       console.error('Error deleting tech sheet:', error);
-      alert('Error al eliminar la ficha técnica');
+      toast.error('Error al eliminar la ficha técnica');
     }
   };
 
@@ -335,7 +336,7 @@ export function TechSheetsABM() {
     }
 
     if (competencies.length === 0 && kpis.length === 0) {
-      alert('❌ Debes agregar al menos una competencia o un KPI');
+      toast.error('❌ Debes agregar al menos una competencia o un KPI');
       return;
     }
 
@@ -361,10 +362,10 @@ export function TechSheetsABM() {
       setEditingCompetencies('');
       setEditingKpis('');
       await fetchTechSheets();
-      alert('✅ Ficha técnica completada exitosamente.');
+      toast.success('✅ Ficha técnica completada exitosamente.');
     } catch (error) {
       console.error('Error updating tech sheet:', error);
-      alert(`❌ Error al completar la ficha: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      toast.error(`❌ Error al completar la ficha: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   };
 

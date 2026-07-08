@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner';
 import React, { useState, useEffect } from 'react';
 
 interface Course {
@@ -98,7 +99,7 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
 
   const handleGenerateWithAI = async () => {
     if (!selectedKPIs.length || !aiRole) {
-      alert('Debes seleccionar al menos un KPI y definir el rol IA');
+      toast.error('Debes seleccionar al menos un KPI y definir el rol IA');
       return;
     }
 
@@ -121,7 +122,7 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
       }
     } catch (error) {
       console.error('Error generating prompt:', error);
-      alert('Error generando prompt');
+      toast.error('Error generando prompt');
     } finally {
       setIsGenerating(false);
     }
@@ -147,13 +148,13 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
       });
 
       if (response.ok) {
-        alert('Configuración guardada exitosamente');
+        toast.success('Configuración guardada exitosamente');
         onSave(promptData);
         onClose();
       }
     } catch (error) {
       console.error('Error saving prompt:', error);
-      alert('Error guardando configuración');
+      toast.error('Error guardando configuración');
     }
   };
 
@@ -169,8 +170,8 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">⚙️ Configurar Prompts de IA</h2>
           <button
@@ -376,10 +377,11 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
                         placeholder="impaciente, exigente..."
                       />
                       <button
+                        type="button"
                         onClick={addTrait}
                         className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                       >
-                        +
+                        Agregar
                       </button>
                     </div>
                     <div className="flex flex-wrap gap-2">

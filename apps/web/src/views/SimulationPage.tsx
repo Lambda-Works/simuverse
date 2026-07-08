@@ -95,8 +95,7 @@ const SimulationPage: React.FC = () => {
 
         // Create simulation (correct endpoint)
         const simRes = await apiClient.post('/simulations/start', {
-          course_id: courseId,
-          user_id: user?.id
+          course_id: courseId
         });
         setSimId(simRes.data.id);
 
@@ -138,9 +137,7 @@ const SimulationPage: React.FC = () => {
     try {
       const res = await apiClient.post(`/simulations/${simId}/message`, {
         message: chatInput,
-        user_id: user?.id,
-        course_id: courseId,
-        conversationHistory: chatMessages.map(m => ({ role: m.role === 'ai' ? 'model' : 'user', parts: [{ text: m.message }] }))
+        conversationHistory: chatMessages.map(m => ({ role: m.role === 'ai' ? 'model' : 'user', content: m.message }))
       });
       const aiMsg = { role: 'ai' as const, message: res.data.ai_response, timestamp: new Date() };
       setChatMessages(prev => [...prev, aiMsg]);
@@ -202,17 +199,17 @@ const SimulationPage: React.FC = () => {
       <main className="container mx-auto px-4 py-8">
         {/* Dynamic tabs driven by course.modules */}
         {(() => {
-          const mods: string[] = Array.isArray(course?.modules) ? course.modules : [];
-          const hasChatIA    = mods.includes('chat_ia');
+          const mods: string[] = Array.isArray(course?.modules) ? course.modules.map((m: string) => m.toLowerCase()) : [];
+          const hasChatIA    = mods.includes('chat_ia') || mods.includes('chat') || true; // Siempre mostrar chat por ahora
           const hasEmail     = mods.includes('email_simulado') || mods.includes('email');
-          const hasDocs      = mods.includes('documentos');
-          const hasCalc      = mods.includes('hoja_calculo') || mods.includes('calculator');
+          const hasDocs      = mods.includes('documentos') || mods.includes('word');
+          const hasCalc      = mods.includes('hoja_calculo') || mods.includes('calculator') || mods.includes('excel');
           const defaultTab   = hasChatIA ? 'chat' : hasEmail ? 'email' : hasDocs ? 'docs' : 'sheet';
           const colCount     = [hasChatIA, hasEmail, hasDocs, hasCalc].filter(Boolean).length || 1;
 
           return (
             <Tabs defaultValue={defaultTab} className="w-full">
-              <TabsList className={`grid w-full grid-cols-${colCount} mb-8`}>
+              <TabsList className="flex flex-wrap w-full h-auto mb-8 gap-1 justify-start sm:justify-center">
                 {hasChatIA && (
                   <TabsTrigger value="chat" className="gap-2">
                     <MessageSquare className="w-4 h-4" />

@@ -12,7 +12,7 @@ import {
   ArrowLeft, BarChart3, Clock, MessageCircle, Users, AlertTriangle,
   CheckCircle, Loader2, Brain, Zap, Trophy, FileText,
 } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 const EvaluationsPage = () => {
   const { user, hasRole, loading } = useAuth();
@@ -64,13 +64,12 @@ const EvaluationsPage = () => {
         setEvaluations(prev => ({ ...prev, [simId]: res.data }));
         // Update local score on the simulation
         setSimulations(prev => prev.map(s => s.id === simId ? { ...s, score: res.data.score } : s));
-        toast({
-          title: res.data.passed ? '✅ Evaluación completada' : '⚠️ Evaluación completada',
-          description: `Puntaje: ${res.data.score}/100 · Modo: ${res.data.ai_mode === 'live' ? 'IA en vivo' : 'Evaluación heurística'}`,
-        });
+        toast[res.data.passed ? 'success' : 'warning'](
+          `Evaluación completada: Puntaje ${res.data.score}/100 · Modo: ${res.data.ai_mode === 'live' ? 'IA en vivo' : 'Evaluación heurística'}`
+        );
       }
     } catch (error: any) {
-      toast({ title: 'Error al evaluar', description: error.message, variant: 'destructive' });
+      toast.error(`Error al evaluar: ${error.message}`);
     } finally {
       setEvaluating(prev => ({ ...prev, [simId]: false }));
     }

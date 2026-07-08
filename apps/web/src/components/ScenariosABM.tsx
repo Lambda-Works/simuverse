@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner';
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -152,7 +153,7 @@ export function ScenariosABM() {
 
   const handleSave = async () => {
     if (!form.course_id || !form.title) {
-      alert('El curso y el título son obligatorios');
+      toast.error('El curso y el título son obligatorios');
       return;
     }
     setSaving(true);
@@ -167,7 +168,7 @@ export function ScenariosABM() {
       setForm(emptyForm());
       await loadScenarios();
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Error al guardar el escenario');
+      toast.error(err?.response?.data?.message || 'Error al guardar el escenario');
     } finally {
       setSaving(false);
     }
@@ -205,7 +206,7 @@ export function ScenariosABM() {
       await apiClient.delete(`/scenarios/${id}`);
       await loadScenarios();
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Error al eliminar');
+      toast.error(err?.response?.data?.message || 'Error al eliminar');
     }
   };
 
@@ -224,7 +225,7 @@ export function ScenariosABM() {
       await apiClient.post('/scenarios', payload);
       await loadScenarios();
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Error al duplicar');
+      toast.error(err?.response?.data?.message || 'Error al duplicar');
     }
   };
 

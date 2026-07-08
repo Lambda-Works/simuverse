@@ -278,7 +278,7 @@ const AdminPanel = () => {
       tech_sheet_id: course.tech_sheet_id || null,
       simulated_company_id: course.simulated_company_id || null,
     });
-    setEditingId(course.course_id);
+    setEditingId(course.id);
     setDialogOpen(true);
   };
 

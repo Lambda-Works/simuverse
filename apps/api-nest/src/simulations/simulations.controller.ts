@@ -16,6 +16,7 @@ import { SendMessageDto } from './dto/send-message.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
+@UseGuards(JwtAuthGuard)
 @Controller('simulations')
 export class SimulationsController {
   constructor(
@@ -27,7 +28,7 @@ export class SimulationsController {
 
   @Post('start')
   async start(
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('id') userId: string,
     @Body() dto: CreateSimulationDto,
   ) {
     return this.simulationsService.create(userId, dto.course_id, dto.scenario_id);
@@ -35,7 +36,7 @@ export class SimulationsController {
 
   @Get()
   async findAll(@CurrentUser() user?: any) {
-    return this.simulationsService.findAll(user?.sub, user?.role);
+    return this.simulationsService.findAll(user?.id, user?.role);
   }
 
   @Get('user/:userId')
@@ -81,7 +82,7 @@ export class SimulationsController {
 
   @Post('instances/start')
   async startInstance(
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('id') userId: string,
     @Body() body: { course_id: string; scenario_id: string },
   ) {
     return this.instanceService.start(userId, body.course_id, body.scenario_id);

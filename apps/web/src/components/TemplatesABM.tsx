@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner';
 /**
  * TemplatesABM.tsx
  * Creador de Plantillas de Curso con Asistente IA
@@ -284,7 +285,7 @@ export function TemplatesABM() {
 
   const handleSave = async () => {
     if (!form.title || !form.code) {
-      alert('El código y título son obligatorios');
+      toast.error('El código y título son obligatorios');
       return;
     }
     setSaving(true);
@@ -311,7 +312,7 @@ export function TemplatesABM() {
       setEditDialogOpen(false);
       setEditingId(null);
       await loadTemplates();
-    } catch { alert('Error al guardar la plantilla'); }
+    } catch { toast.error('Error al guardar la plantilla'); }
     finally { setSaving(false); }
   };
 
