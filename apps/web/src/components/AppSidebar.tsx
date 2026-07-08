@@ -137,31 +137,33 @@ export function AppSidebar() {
       <SidebarContent
         className="group-data-[collapsible=icon]:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
       >
-        <SidebarMenu className="group-data-[collapsible=icon]:items-center">
-          {loading ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <SidebarMenuItem key={i} className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
-                <SidebarMenuButton disabled>
-                  <Skeleton className="size-4 shrink-0 rounded-md" />
-                  <Skeleton className="h-4 w-24 rounded-md group-data-[collapsible=icon]:hidden" />
+        <SidebarGroup className="group-data-[collapsible=icon]:px-0">
+          <SidebarMenu className="group-data-[collapsible=icon]:items-center">
+            {loading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <SidebarMenuItem key={i} className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+                  <SidebarMenuButton disabled>
+                    <Skeleton className="size-4 shrink-0 rounded-md" />
+                    <Skeleton className="h-4 w-24 rounded-md group-data-[collapsible=icon]:hidden" />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))
+            ) : navItems.map((item) => (
+              <SidebarMenuItem key={item.href} className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive(item.href)}
+                  tooltip={item.label}
+                >
+                  <Link href={item.href}>
+                    <item.icon className="size-4 shrink-0" />
+                    <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            ))
-          ) : navItems.map((item) => (
-            <SidebarMenuItem key={item.href} className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
-              <SidebarMenuButton
-                asChild
-                isActive={isActive(item.href)}
-                tooltip={item.label}
-              >
-                <Link href={item.href}>
-                  <item.icon className="size-4 shrink-0" />
-                  <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
 
         {isAdmin && (
           <>
