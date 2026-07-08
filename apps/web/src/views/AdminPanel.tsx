@@ -195,7 +195,7 @@ const AdminPanel = () => {
   const [courseFilter, setCourseFilter] = useState<'all' | 'active' | 'inactive'>('all'); // Filtro de cursos
 
   useEffect(() => {
-    if (!loading && (!user || !hasRole('admin'))) router.push('/dashboard');
+    if (!loading && (!user || (!hasRole('admin') && !hasRole('ministerio')))) router.push('/dashboard');
   }, [user, loading, hasRole, router]);
 
   const fetchCourses = async () => {
@@ -347,6 +347,12 @@ const AdminPanel = () => {
   return (
     <div className="min-h-screen bg-background">
       <main className="container mx-auto px-4 py-8">
+        {hasRole('ministerio') && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-lg text-sm text-amber-800 flex items-center gap-3">
+            <Shield className="w-5 h-5 shrink-0" />
+            <span><strong>Modo solo lectura — Ministerio.</strong> Podés ver toda la configuración pero no crear, editar ni eliminar.</span>
+          </div>
+        )}
         {/* Courses Tab */}
         {currentTab === 'courses' && (
           <div>

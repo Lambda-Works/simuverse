@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, ArrowLeft, Copy, Trash2, Save, Eye, FileJson, Code2, Zap, AlertTriangle, Clock } from 'lucide-react';
+import { Plus, ArrowLeft, Copy, Trash2, Save, Eye, FileJson, Code2, Zap, AlertTriangle, Clock, Shield } from 'lucide-react';
 import { FlowTemplate, FLOW_TEMPLATES, getAllTemplates } from '@/data/flowTemplates';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -30,7 +30,7 @@ const TemplatesPanel = () => {
   const [filterFamily, setFilterFamily] = useState('all');
 
   useEffect(() => {
-    if (!loading && (!user || !hasRole('admin'))) {
+    if (!loading && (!user || (!hasRole('admin') && !hasRole('ministerio')))) {
       router.push('/dashboard');
     }
   }, [user, loading, hasRole, router]);
@@ -181,6 +181,15 @@ const TemplatesPanel = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Read-only banner for ministerio */}
+      {hasRole('ministerio') && (
+        <div className="container mx-auto px-4 pt-4">
+          <div className="p-3 bg-amber-50 border border-amber-300 rounded-lg text-sm text-amber-800 flex items-center gap-3">
+            <Shield className="w-4 h-4 shrink-0" />
+            <span><strong>Modo solo lectura — Ministerio.</strong> Podés ver las plantillas pero no crear, editar ni eliminar.</span>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="border-b bg-card/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">

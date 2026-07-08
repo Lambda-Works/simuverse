@@ -53,7 +53,7 @@ export function AppSidebar() {
 
   const role = (user?.role || 'student') as string;
   const navItems = ROLE_NAV[role as keyof typeof ROLE_NAV] || ROLE_NAV.student;
-  const isAdmin = role === 'admin';
+  const isAdmin = role === 'admin' || role === 'ministerio';
   const { currentTab, setCurrentTab } = useAdmin();
 
   // Pin state (separate from sidebar open state)
