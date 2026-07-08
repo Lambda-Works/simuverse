@@ -13,7 +13,6 @@ import {
   Trash2, Plus, Edit2, BookOpen, Target, Mail, FileText,
   ChevronRight, GraduationCap, Layers, Clock, CheckCircle, Copy
 } from 'lucide-react';
-import { API_BASE } from '@/lib/api';
 import { useAdmin } from '@/lib/admin-context';
 import { apiClient } from '@/services/ApiClient';
 

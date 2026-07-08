@@ -56,9 +56,8 @@ export function UsersABM() {
 
   const fetchRoles = async () => {
     try {
-      const res = await fetch(`${API}/roles`);
-      const data = await res.json();
-      setRolesList(Array.isArray(data) ? data : []);
+      const res = await apiClient.get('/roles');
+      setRolesList(Array.isArray(res.data) ? res.data : []);
     } catch { toast.error('Error al cargar roles'); }
   };
 

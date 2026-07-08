@@ -12,9 +12,6 @@ import { BookOpen, Play, Settings, Shield, GraduationCap, Mail, Clock, CheckCirc
 import { StudentReviewModal } from '@/components/StudentReviewModal';
 import { SimulationCalendar } from '@/components/SimulationCalendar';
 
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
-
 interface Course {
   id: string;
   title: string;

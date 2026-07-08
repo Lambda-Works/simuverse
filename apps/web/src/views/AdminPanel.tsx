@@ -216,9 +216,8 @@ const AdminPanel = () => {
     if (user) {
       fetchCourses();
       // Cargar categorías
-      fetch(`${API_BASE}/categories`)
-        .then(r => r.json())
-        .then(d => setDbCategories(Array.isArray(d) ? d : []))
+      apiClient.get('/categories')
+        .then(r => setDbCategories(Array.isArray(r.data) ? r.data : []))
         .catch(() => {});
       // Cargar SOLO fichas técnicas válidas (con competencies o kpi_requirements)
       apiClient.get('/tech-sheets/valid/list')
