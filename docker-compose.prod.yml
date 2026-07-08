@@ -35,9 +35,17 @@ services:
       sh -c "
         echo 'Running migrations...' &&
         npx prisma migrate deploy &&
-        echo 'Running seed...' &&
+        echo '=== Seed 1/5: usuarios ===' &&
         npx ts-node src/prisma/seed.ts &&
-        echo 'Seed completed!'
+        echo '=== Seed 2/5: empresas y cursos ===' &&
+        npx ts-node src/prisma/seed-companies.ts &&
+        echo '=== Seed 3/5: fundacion + avaladores + KPIs ===' &&
+        npx ts-node src/prisma/seed-demo.ts &&
+        echo '=== Seed 4/5: asignaciones + archivos ===' &&
+        npx ts-node src/prisma/seed-demo-2.ts &&
+        echo '=== Seed 5/5: ministry requirements extra ===' &&
+        npx ts-node src/prisma/seed-demo-3.ts &&
+        echo '=== All seeds completed ==='
       "
     networks:
       - app-network

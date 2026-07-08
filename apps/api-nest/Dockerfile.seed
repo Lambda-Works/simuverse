@@ -15,11 +15,23 @@ ENV CYPRESS_INSTALL_BINARY=0
 RUN npm ci
 
 COPY apps/api-nest/prisma ./apps/api-nest/prisma/
-COPY apps/api-nest/src/prisma/seed.ts ./apps/api-nest/src/prisma/
+COPY apps/api-nest/src/prisma/seed*.ts ./apps/api-nest/src/prisma/
 COPY apps/api-nest/tsconfig.json ./apps/api-nest/
 
 RUN npx prisma generate --schema=apps/api-nest/prisma/schema.prisma
 
 WORKDIR /app/apps/api-nest
 
-CMD ["npx", "ts-node", "src/prisma/seed.ts"]
+CMD sh -c " \
+  echo '=== Seed 1/5: usuarios ===' && \
+  npx ts-node src/prisma/seed.ts && \
+  echo '=== Seed 2/5: empresas y cursos ===' && \
+  npx ts-node src/prisma/seed-companies.ts && \
+  echo '=== Seed 3/5: fundacion + avaladores + KPIs ===' && \
+  npx ts-node src/prisma/seed-demo.ts && \
+  echo '=== Seed 4/5: asignaciones + archivos ===' && \
+  npx ts-node src/prisma/seed-demo-2.ts && \
+  echo '=== Seed 5/5: ministry requirements extra ===' && \
+  npx ts-node src/prisma/seed-demo-3.ts && \
+  echo '=== All seeds completed ===' \
+"
