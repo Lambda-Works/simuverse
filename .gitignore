@@ -105,6 +105,9 @@ simuverse/
 # Bug tracker (local, not shared)
 BUGGS/
 
+# Task tracker (local, not shared)
+Cosas-que-hacer/
+
 # SDD / OpenSpec (spec files not tracked in git)
 # ============================================
 openspec/
