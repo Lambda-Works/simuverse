@@ -7,9 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Award, MessageSquare, XCircle, CheckCircle2, Clock, TrendingUp, ExternalLink } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
+import { apiClient } from '@/services/ApiClient';
 
 interface ChatLog {
   id: number;
@@ -46,9 +44,8 @@ export function StudentReviewModal({ instanceId, studentId, courseTitle, open, o
   useEffect(() => {
     if (!open || !instanceId) return;
     setLoading(true);
-    fetch(`${API}/student-review/${instanceId}?student_id=${studentId}`)
-      .then(r => r.json())
-      .then(d => setData(d))
+    apiClient.get(`/student-review/${instanceId}?student_id=${studentId}`)
+      .then(r => setData(r.data))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [open, instanceId, studentId]);
@@ -118,7 +115,7 @@ export function StudentReviewModal({ instanceId, studentId, courseTitle, open, o
             <Tabs defaultValue={incorrectLogs.length > 0 ? 'errors' : 'dialog'}>
               <TabsList className="w-full mb-4">
                 <TabsTrigger value="dialog" className="flex-1">
-                  <MessageSquare className="w-3.5 h-3.5 mr-1" /> Diálogo ({data.logs.length})
+                  <MessageSquare className="w-3.5 h-3.5 mr-1" /> Diálogo ({data.logs?.length ?? 0})
                 </TabsTrigger>
                 <TabsTrigger value="errors" className="flex-1">
                   <XCircle className="w-3.5 h-3.5 mr-1 text-red-500" /> Mis Errores ({incorrectLogs.length})
@@ -132,7 +129,7 @@ export function StudentReviewModal({ instanceId, studentId, courseTitle, open, o
 
               {/* Tab: Diálogo completo */}
               <TabsContent value="dialog">
-                {data.logs.length === 0 ? (
+                {data.logs?.length === 0 ? (
                   <div className="text-center py-10 text-muted-foreground">
                     <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-30" />
                     <p className="text-sm">No hay registros de diálogo para esta sesión.</p>
@@ -140,7 +137,7 @@ export function StudentReviewModal({ instanceId, studentId, courseTitle, open, o
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {data.logs.map(log => (
+                    {data.logs?.map(log => (
                       <div key={log.id} className={`flex ${log.speaker === 'student' ? 'justify-end' : log.speaker === 'system' ? 'justify-center' : 'justify-start'}`}>
                         {log.speaker === 'system' ? (
                           <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 text-xs px-3 py-1.5 rounded-full max-w-xs text-center">
