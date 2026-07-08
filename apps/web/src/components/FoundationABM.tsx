@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Plus, Settings, GraduationCap } from 'lucide-react';
 
 import { apiClient } from '@/services/ApiClient';
+import { useAdmin } from '@/lib/admin-context';
 interface FoundationConfig {
   id: number;
   name: string;
@@ -51,6 +52,7 @@ const emptyForm = (): Omit<FoundationConfig, 'id' | 'is_active'> => ({
 });
 
 export function FoundationABM() {
+  const { readOnly } = useAdmin();
   const [foundations, setFoundations] = useState<FoundationConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -121,9 +123,9 @@ export function FoundationABM() {
           <p className="text-gray-600 mt-1">Datos de la institución que avala y emite los certificados. Su logo aparece en los certificados.</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={o => { setDialogOpen(o); if (!o) { setForm(emptyForm()); setEditingId(null); } }}>
-          <DialogTrigger asChild>
-            <Button><Plus className="w-4 h-4 mr-2" /> Nueva Institución</Button>
-          </DialogTrigger>
+{!readOnly && <DialogTrigger asChild>
+              <Button><Plus className="w-4 h-4 mr-2" /> Nueva Institución</Button>
+            </DialogTrigger>}
           <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingId ? 'Editar Institución' : 'Nueva Institución Educativa'}</DialogTitle>
@@ -229,9 +231,9 @@ export function FoundationABM() {
                 </div>
               )}
               <div className="flex justify-end mt-3">
-                <Button variant="outline" size="sm" onClick={() => handleEdit(f)}>
+                {!readOnly && <Button variant="outline" size="sm" onClick={() => handleEdit(f)}>
                   <Settings className="w-3.5 h-3.5 mr-1" /> Editar
-                </Button>
+                </Button>}
               </div>
             </CardContent>
           </Card>

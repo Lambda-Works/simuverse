@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { API_BASE } from '@/lib/api';
+import { useAdmin } from '@/lib/admin-context';
 import { Trash2, Edit2, Plus, FileText } from 'lucide-react';
 
 interface Document {
@@ -23,6 +24,7 @@ interface Course {
 }
 
 export function DocumentsABM() {
+  const { readOnly } = useAdmin();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -153,7 +155,7 @@ export function DocumentsABM() {
           <h2 className="text-2xl font-bold">Gestión de Documentos</h2>
           <p className="text-gray-600 mt-1">Carga documentos para que el Chat IA los use como base de conocimiento</p>
         </div>
-        {!isAddingNew && (
+{!isAddingNew && !readOnly && (
           <Button
             onClick={() => setIsAddingNew(true)}
             className="bg-blue-600 hover:bg-blue-700"
@@ -257,15 +259,15 @@ export function DocumentsABM() {
                   Creado: {new Date(doc.created_at).toLocaleDateString()}
                 </p>
               </div>
-              <div className="flex gap-2 ml-4">
-                <Button
+<div className="flex gap-2 ml-4">
+                {!readOnly && <Button
                   onClick={() => handleDelete(doc.id)}
                   size="sm"
                   variant="outline"
                   className="text-red-600"
                 >
                   <Trash2 className="w-4 h-4" />
-                </Button>
+                </Button>}
               </div>
             </div>
           </Card>

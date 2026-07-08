@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { Plus, Trash2, Settings, Building2 } from 'lucide-react';
 
 import { API_BASE } from '@/lib/api';
+import { useAdmin } from '@/lib/admin-context';
 const API = API_BASE;
 
 interface SimulatedCompany {
@@ -55,6 +56,7 @@ const emptyCompany = (): Omit<SimulatedCompany, 'id'> => ({
 });
 
 export function CompaniesABM() {
+  const { readOnly } = useAdmin();
   const [companies, setCompanies] = useState<SimulatedCompany[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -139,9 +141,9 @@ export function CompaniesABM() {
           <p className="text-gray-600 mt-1">Empresas reales o ficticias que se simulan en los cursos. Si no hay logo, se muestran las iniciales.</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={o => { setDialogOpen(o); if (!o) { setForm(emptyCompany()); setEditingId(null); setLogoError(false); } }}>
-          <DialogTrigger asChild>
+          {!readOnly && <DialogTrigger asChild>
             <Button><Plus className="w-4 h-4 mr-2" /> Nueva Empresa</Button>
-          </DialogTrigger>
+          </DialogTrigger>}
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingId ? 'Editar Empresa' : 'Nueva Empresa Simulada'}</DialogTitle>
@@ -242,8 +244,8 @@ export function CompaniesABM() {
                   {c.short_name && <Badge variant="secondary" className="text-xs">{c.short_name}</Badge>}
                 </div>
                 <div className="flex gap-1">
-                  <Button variant="outline" size="sm" onClick={() => handleEdit(c)}><Settings className="w-3.5 h-3.5" /></Button>
-                  <Button variant="destructive" size="sm" onClick={() => handleDelete(c.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                  {!readOnly && <Button variant="outline" size="sm" onClick={() => handleEdit(c)}><Settings className="w-3.5 h-3.5" /></Button>}
+                  {!readOnly && <Button variant="destructive" size="sm" onClick={() => handleDelete(c.id)}><Trash2 className="w-3.5 h-3.5" /></Button>}
                 </div>
               </div>
             </CardContent>
