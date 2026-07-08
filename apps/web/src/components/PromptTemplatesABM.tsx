@@ -134,6 +134,8 @@ export const PromptTemplatesABM: React.FC = () => {
         personality_traits: [...formData.personality_traits, traitInput.trim()]
       });
       setTraitInput('');
+    } else {
+      toast.warning('Por favor, escribí un rasgo primero (ej. impaciente) antes de agregarlo.');
     }
   };
 
@@ -295,14 +297,14 @@ export const PromptTemplatesABM: React.FC = () => {
                     onChange={(e) => setTraitInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && addTrait()}
                     className="flex-1 border rounded p-2"
-                    placeholder="impaciente, exigente..."
+                    placeholder="Escribí un rasgo (ej. impaciente) y presioná Enter o Agregar..."
                   />
                   <button
                     type="button"
                     onClick={addTrait}
                     className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                   >
-                    Agregar
+                    Agregar Rasgo
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
