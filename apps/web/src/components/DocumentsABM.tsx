@@ -77,7 +77,7 @@ export function DocumentsABM() {
     try {
       const payload = {
         ...formData,
-        uploaded_by: localStorage.getItem('userId') || 'system',
+        uploaded_by: sessionStorage.getItem('userId') || 'system',
       };
 
       await fetch(`${API_BASE}/documents`, {

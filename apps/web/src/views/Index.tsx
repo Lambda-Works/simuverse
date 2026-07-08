@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Shield, ArrowRight, BookOpen, BarChart3, Settings, Zap } from 'lucide-react';
 
 const Index = () => {
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
   const router = useRouter();
 
   return (
@@ -24,8 +24,8 @@ const Index = () => {
             Plataforma educativa inmersiva con IA. Simulaciones adaptables tipo Lego para cualquier curso — de seguros a oratoria, de contabilidad a RRHH.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button size="lg" onClick={() => router.push(user ? '/dashboard' : '/auth')} className="gap-2" disabled={loading}>
-              {loading ? 'Cargando...' : user ? 'Ir al Dashboard' : 'Comenzar'} <ArrowRight className="w-4 h-4" />
+            <Button size="lg" onClick={() => router.push('/auth')} className="gap-2" disabled={loading}>
+              {loading ? 'Cargando...' : 'Comenzar'} <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
 

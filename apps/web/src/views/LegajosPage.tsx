@@ -51,7 +51,7 @@ const LegajosPage = () => {
 
   useEffect(() => {
     if (!user) return;
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     fetch(`${API}/legajo/students`, {
       headers: { Authorization: `Bearer ${token}` },
     })

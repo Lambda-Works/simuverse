@@ -158,7 +158,7 @@ export function AssignmentsABM() {
             max_attempts: maxAttempts,
             start_date: startDate || null,
             end_date: endDate || null,
-            assigned_by: localStorage.getItem('userId') || 'system',
+            assigned_by: sessionStorage.getItem('userId') || 'system',
         });
         if (res.status === 201 || res.status === 200) created++;
         else errors++;

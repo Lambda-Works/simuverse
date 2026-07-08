@@ -176,7 +176,7 @@ export function TechSheetsABM() {
       if (hasFile) {
         const formDataObj = new FormData();
         formDataObj.append('file', hasFile);
-        formDataObj.append('uploaded_by_id', JSON.parse(localStorage.getItem('user') || '{}').id || 'system');
+        formDataObj.append('uploaded_by_id', JSON.parse(sessionStorage.getItem('user') || '{}').id || 'system');
         formDataObj.append('upload_type', 'tech_sheet');
 
         const uploadResponse = await authFetch(`${API_BASE}/files/upload`, {
@@ -201,7 +201,7 @@ export function TechSheetsABM() {
         ministry_code: formData.ministry_code || undefined,
         description: formData.description || undefined,
         file_url: fileUrl || undefined,
-        uploaded_by: JSON.parse(localStorage.getItem('user') || '{}').id || 'system',
+        uploaded_by: JSON.parse(sessionStorage.getItem('user') || '{}').id || 'system',
       };
 
       const createResponse = await authFetch(`${API_BASE}/tech-sheets`, {
