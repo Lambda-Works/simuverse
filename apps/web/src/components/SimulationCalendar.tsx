@@ -5,9 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChevronLeft, ChevronRight, Calendar, Clock, CheckCircle2, AlertTriangle, BookOpen } from 'lucide-react';
-
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
+import { apiClient } from '@/services/ApiClient';
 
 interface Assignment {
   id: number;
@@ -63,16 +61,15 @@ export function SimulationCalendar({ studentId }: { studentId?: string }) {
       setLoading(true);
       try {
         if (studentId) {
-          const res = await fetch(`${API}/student-assignments/${studentId}`);
-          setAssignments(await res.json());
+          const res = await apiClient.get(`/student-assignments/${studentId}`);
+          setAssignments(Array.isArray(res.data) ? res.data : []);
         } else {
-          // Admin view: load all assignments via existing endpoint
           const [assignRes, usersRes] = await Promise.all([
-            fetch(`${API}/assignments`).then(r => r.json()),
-            fetch(`${API}/users/all`).then(r => r.json()),
+            apiClient.get('/assignments'),
+            apiClient.get('/users/all'),
           ]);
-          setAllAssignments(assignRes || []);
-          setStudents((usersRes || []).filter((u: any) => u.role === 'student'));
+          setAllAssignments(assignRes.data || []);
+          setStudents((usersRes.data || []).filter((u: any) => u.role === 'student'));
         }
       } finally {
         setLoading(false);

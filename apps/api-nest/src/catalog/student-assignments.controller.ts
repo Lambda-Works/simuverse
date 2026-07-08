@@ -26,7 +26,7 @@ export class StudentAssignmentsController {
         });
 
         return {
-          assignment_id: a.id,
+          id: a.id,
           course_id: a.course_id,
           course_name: course?.title || '',
           category: course?.category || '',
