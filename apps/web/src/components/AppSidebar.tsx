@@ -210,7 +210,9 @@ export function AppSidebar() {
         {isAdmin && (
           <>
         <SidebarSeparator />
-            {ADMIN_NAV_GROUPS.map((group) => (
+            {ADMIN_NAV_GROUPS
+              .filter(g => !g.excludeRoles?.includes(role))
+              .map((group) => (
               <SidebarGroup key={group.id} className="group-data-[collapsible=icon]:p-0">
                 <SidebarMenu className="group-data-[collapsible=icon]:items-center">
                   <SidebarMenuItem className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
@@ -234,7 +236,9 @@ export function AppSidebar() {
                 {expandedGroups[group.id] && (
                   <SidebarGroupContent>
                     <SidebarMenu className="group-data-[collapsible=icon]:items-center">
-                      {group.items.map((item) => (
+                      {group.items
+                        .filter(item => !item.excludeRoles?.includes(role))
+                        .map((item) => (
                         <SidebarMenuItem key={item.id} className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
                           <SidebarMenuButton
                             isActive={pathname === '/admin' && currentTab === item.id}

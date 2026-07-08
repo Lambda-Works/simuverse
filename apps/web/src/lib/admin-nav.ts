@@ -31,6 +31,7 @@ export interface AdminNavItem {
   id: string;
   label: string;
   icon: LucideIcon;
+  excludeRoles?: string[];
 }
 
 export interface AdminNavGroup {
@@ -38,6 +39,7 @@ export interface AdminNavGroup {
   label: string;
   icon: LucideIcon;
   items: AdminNavItem[];
+  excludeRoles?: string[];
 }
 
 export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
@@ -69,15 +71,16 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     icon: Users,
     items: [
       { id: 'users', label: 'Usuarios', icon: UserRound },
-      { id: 'roles', label: 'Roles y Permisos', icon: ShieldCheck },
+      { id: 'roles', label: 'Roles y Permisos', icon: ShieldCheck, excludeRoles: ['ministerio'] },
       { id: 'groups', label: 'Grupos', icon: Users2 },
-      { id: 'requests', label: 'Solicitudes', icon: UserRoundPlus },
+      { id: 'requests', label: 'Solicitudes', icon: UserRoundPlus, excludeRoles: ['ministerio'] },
     ],
   },
   {
     id: 'operaciones',
     label: 'Operaciones',
     icon: Wrench,
+    excludeRoles: ['ministerio'],
     items: [
       { id: 'assignments', label: 'Asignaciones', icon: ArrowRightLeft },
       { id: 'calendar', label: 'Calendario', icon: CalendarDays },
