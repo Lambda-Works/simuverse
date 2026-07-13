@@ -219,6 +219,14 @@ export function ScenariosABM() {
     });
   };
 
+  const handleReactivate = async (id: string) => {
+    try {
+      await apiClient.put(`/scenarios/${id}`, { is_active: true });
+      await loadScenarios();
+      toast.success('Escenario reactivado');
+    } catch { toast.error('Error al reactivar'); }
+  };
+
   const handleDuplicate = async (s: Scenario) => {
     const payload = {
       course_id: s.course_id,
@@ -368,8 +376,9 @@ export function ScenariosABM() {
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-2 mb-1">
                     <span className={`text-xs font-bold px-2 py-0.5 rounded border ${typeBadgeClass(s.scenario_type)}`}>
-                      {typeLabel(s.scenario_type)}
+                      {s.scenario_type === 'practice' ? 'Práctica' : s.scenario_type === 'evaluation' ? 'Evaluación' : s.scenario_type}
                     </span>
+                    {s.is_active === false && <Badge variant="secondary" className="text-xs bg-gray-400">Inactivo</Badge>}
                     <span className={`text-xs px-2 py-0.5 rounded ${diffBadgeClass(s.difficulty)}`}>
                       {s.difficulty === 'easy' ? 'Fácil' : s.difficulty === 'medium' ? 'Medio' : 'Difícil'}
                     </span>
@@ -403,8 +412,11 @@ export function ScenariosABM() {
                   {!readOnly && <Button size="sm" variant="outline" onClick={() => handleEdit(s)}>
                     <Edit2 className="w-4 h-4" />
                   </Button>}
-                  {!readOnly && <Button size="sm" variant="outline" className="text-red-600" onClick={() => handleDelete(s.id)}>
+                  {!readOnly && s.is_active !== false && <Button size="sm" variant="outline" className="text-red-600" onClick={() => handleDelete(s.id)}>
                     <Trash2 className="w-4 h-4" />
+                  </Button>}
+                  {!readOnly && s.is_active === false && <Button size="sm" variant="outline" className="text-green-600 border-green-300" onClick={() => handleReactivate(s.id)}>
+                    <CheckCircle2 className="w-4 h-4" />
                   </Button>}
                 </div>
               </div>

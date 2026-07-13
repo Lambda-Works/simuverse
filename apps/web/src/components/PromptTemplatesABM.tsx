@@ -113,6 +113,14 @@ export const PromptTemplatesABM: React.FC = () => {
     });
   };
 
+  const handleReactivate = async (id: number) => {
+    try {
+      await apiClient.put(`/prompt-templates/${id}`, { is_active: true });
+      fetchTemplates();
+      toast.success('Plantilla reactivada');
+    } catch { toast.error('Error al reactivar'); }
+  };
+
   const handleEdit = (template: PromptTemplate) => {
     setEditingId(template.id);
     setFormData({
@@ -223,11 +231,17 @@ export const PromptTemplatesABM: React.FC = () => {
                     >
                       📋
                     </button>}
-                    {!readOnly && <button
+                    {!readOnly && template.is_active !== false && <button
                       onClick={() => handleDelete(template.id)}
                       className="px-2 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
                     >
                       🗑️
+                    </button>}
+                    {!readOnly && template.is_active === false && <button
+                      onClick={() => handleReactivate(template.id)}
+                      className="px-2 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
+                    >
+                      🔄
                     </button>}
                   </td>
                 </tr>

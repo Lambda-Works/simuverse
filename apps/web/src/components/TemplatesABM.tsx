@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import {
-  Bot, Send, Plus, Trash2, Edit2, Wand2, Save, RefreshCw,
+  Bot, Send, Plus, Trash2, Edit2, Wand2, Save, RefreshCw, CheckCircle2,
   Layers, MessageSquare, FileText, Calculator, Mail, Zap, ChevronRight, Copy
 } from 'lucide-react';
 import { apiClient } from '@/services/ApiClient';
@@ -334,6 +334,14 @@ export function TemplatesABM() {
     });
   };
 
+  const handleReactivate = async (id: string) => {
+    try {
+      await apiClient.put(`/templates/flow/${id}`, { is_active: true });
+      await loadTemplates();
+      toast.success('Plantilla reactivada');
+    } catch { toast.error('Error al reactivar'); }
+  };
+
   const handleDuplicate = async (t: Template) => {
     const data = typeof t.template_data === 'string' ? JSON.parse(t.template_data || '{}') : (t.template_data || {});
     await apiClient.post('/templates/flow', {
@@ -432,6 +440,7 @@ export function TemplatesABM() {
                     <div className="flex flex-wrap gap-2 mb-1">
                       <Badge variant="outline">{t.family}</Badge>
                       <Badge variant="secondary">v{t.version}</Badge>
+                      {t.is_active === false && <Badge variant="secondary" className="text-xs bg-gray-400">Inactivo</Badge>}
                     </div>
                     <h3 className="font-semibold">{t.title}</h3>
                     <p className="text-xs text-gray-500 mt-0.5">{t.course_code}</p>
@@ -449,8 +458,11 @@ export function TemplatesABM() {
                     {!readOnly && <Button size="sm" variant="outline" onClick={() => handleEdit(t)}>
                       <Edit2 className="w-4 h-4" />
                     </Button>}
-                    {!readOnly && <Button size="sm" variant="outline" className="text-red-600" onClick={() => handleDelete(t.id)}>
+                    {!readOnly && t.is_active !== false && <Button size="sm" variant="outline" className="text-red-600" onClick={() => handleDelete(t.id)}>
                       <Trash2 className="w-4 h-4" />
+                    </Button>}
+                    {!readOnly && t.is_active === false && <Button size="sm" variant="outline" className="text-green-600 border-green-300" onClick={() => handleReactivate(t.id)}>
+                      <CheckCircle2 className="w-4 h-4" />
                     </Button>}
                   </div>
                 </div>

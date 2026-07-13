@@ -119,6 +119,14 @@ function RolesTab({ roles, onRefresh }: { roles: Role[]; onRefresh: () => void }
     });
   };
 
+  const handleReactivate = async (id: number) => {
+    try {
+      await apiClient.put(`/admin/roles/${id}/reactivate`);
+      onRefresh();
+      toast.success('Rol reactivado');
+    } catch { toast.error('Error al reactivar'); }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -147,9 +155,15 @@ function RolesTab({ roles, onRefresh }: { roles: Role[]; onRefresh: () => void }
                 <Button size="sm" variant="outline" onClick={() => handleOpen(role)}>
                   <Settings className="w-4 h-4" />
                 </Button>
+                {role.is_active ? (
                 <Button size="sm" variant="destructive" onClick={() => handleDelete(role.id)}>
                   <Trash2 className="w-4 h-4" />
                 </Button>
+                ) : (
+                <Button size="sm" variant="outline" className="text-green-600 border-green-300" onClick={() => handleReactivate(role.id)}>
+                  🔄 Reactivar
+                </Button>
+                )}
               </div>
             </div>
           </Card>
