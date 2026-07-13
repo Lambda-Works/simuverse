@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronDown, ChevronRight, LogOut, Shield, ArrowLeft, Menu, PanelLeftClose } from 'lucide-react';
@@ -40,7 +40,13 @@ export function AppSidebar() {
   const { backTo, backLabel } = useSidebarHeader();
   const { open, toggleSidebar } = useSidebar();
 
-  const role = (user?.role || 'student') as string;
+  const lastKnownUser = useRef(user);
+  useEffect(() => {
+    if (user) lastKnownUser.current = user;
+  }, [user]);
+
+  const displayUser = user || lastKnownUser.current;
+  const role = (displayUser?.role || 'student') as string;
   const navItems = ROLE_NAV[role as keyof typeof ROLE_NAV] || ROLE_NAV.student;
   const isAdmin = role === 'admin' || role === 'ministerio';
   const adminPath = role === 'ministerio' ? '/ministerio/admin' : '/admin';
@@ -90,7 +96,7 @@ export function AppSidebar() {
   };
 
   // Get user initial for avatar fallback
-  const userInitial = (user?.name?.charAt(0) || user?.email?.charAt(0) || 'U').toUpperCase();
+  const userInitial = (displayUser?.name?.charAt(0) || displayUser?.email?.charAt(0) || 'U').toUpperCase();
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -197,10 +203,10 @@ export function AppSidebar() {
                       {group.items.map((item) => (
                         <SidebarMenuItem key={item.id} className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
                           <SidebarMenuButton
-                            isActive={pathname === adminPath && currentTab === item.id}
+                            isActive={pathname === `/admin/${item.id}` || (pathname === adminPath && currentTab === item.id)}
                             onClick={() => {
                               setCurrentTab(item.id);
-                              if (pathname !== adminPath) router.push(adminPath);
+                              router.push(`/admin/${item.id}`);
                             }}
                             tooltip={item.label}
                           >
@@ -237,9 +243,9 @@ export function AppSidebar() {
           ) : (
             <div className="flex flex-col gap-0.5 min-w-0 group-data-[collapsible=icon]:hidden">
               <span className="text-sm font-medium text-sidebar-foreground truncate">
-                {user?.name || user?.email?.split('@')[0] || 'Usuario'}
+                {displayUser?.name || displayUser?.email?.split('@')[0] || 'Usuario'}
               </span>
-              <span className="text-xs text-sidebar-foreground/70 truncate">{user?.email}</span>
+              <span className="text-xs text-sidebar-foreground/70 truncate">{displayUser?.email}</span>
             </div>
           )}
         </div>

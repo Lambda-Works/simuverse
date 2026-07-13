@@ -398,7 +398,7 @@ const Dashboard = () => {
                   // Buscar asignación enriquecida para esta course
                   const enriched = enrichedAssignments.find(a => a.course_id === course.id);
                   const attemptsLeft = enriched ? Number(enriched.attempts_remaining ?? 99) : null;
-                  const hasScore = enriched && enriched.overall_score !== null;
+                  const hasScore = enriched && enriched.overall_score !== null && enriched.overall_score !== undefined;
                   const passed = hasScore && Number(enriched.overall_score) >= 70;
                   const calStatus = enriched?.calendar_status;
 

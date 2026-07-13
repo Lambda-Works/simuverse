@@ -162,7 +162,7 @@ const emptyForm: CourseForm = {
   simulated_company_id: null,
 };
 
-const AdminPanel = () => {
+const AdminPanel = ({ tabId }: { tabId?: string }) => {
   const { user, hasRole, loading } = useAuth();
   const router = useRouter();
   const [courses, setCourses] = useState<any[]>([]);
@@ -190,7 +190,8 @@ const AdminPanel = () => {
     ],
   };
   const [newCrisis, setNewCrisis] = useState<CrisisEventConfig>({ ...emtpyCrisisEvent, options: [...emtpyCrisisEvent.options] as CrisisEventConfig['options'] });
-  const { currentTab, setCurrentTab, isInitialized } = useAdmin();
+  const { currentTab: contextTab, setCurrentTab, isInitialized } = useAdmin();
+  const currentTab = tabId || contextTab;
   const [showPromptConfigModal, setShowPromptConfigModal] = useState(false);
   const [selectedCourseForPromptConfig, setSelectedCourseForPromptConfig] = useState<any>(null);
   const [courseFilter, setCourseFilter] = useState<'all' | 'active' | 'inactive'>('all'); // Filtro de cursos

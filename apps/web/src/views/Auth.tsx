@@ -56,10 +56,18 @@ const Auth = () => {
       
       // Forzar redirección después de un delay mínimo
       setTimeout(() => {
-        router.replace(user.role === 'admin' ? '/admin' : user.role === 'ministerio' ? '/ministerio' : '/dashboard');
+        router.replace(user.role === 'ministerio' ? '/ministerio' : user.role === 'admin' ? '/admin/mis-cursos' : user.role === 'teacher' ? '/profesor/cursos' : '/estudiante/cursos');
       }, 150);
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Error al iniciar sesión');
+      let errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || 'Error al iniciar sesión';
+      
+      if (errorMsg === 'Unauthorized' || error.response?.status === 401) {
+        errorMsg = 'Credenciales incorrectas';
+      } else if (errorMsg === 'Bad Request' || errorMsg.includes('code 400') || error.response?.status === 400) {
+        errorMsg = 'Formato inválido';
+      }
+      
+      toast.error(errorMsg);
       // Resetear robot check tras un error para volver a confirmar
       setRobotChecked(false);
     }
@@ -93,10 +101,16 @@ const Auth = () => {
       
       // Forzar redirección después de un delay mínimo
       setTimeout(() => {
-        router.replace(user.role === 'admin' ? '/admin' : user.role === 'ministerio' ? '/ministerio' : '/dashboard');
+        router.replace(user.role === 'ministerio' ? '/ministerio' : user.role === 'admin' ? '/admin/mis-cursos' : user.role === 'teacher' ? '/profesor/cursos' : '/estudiante/cursos');
       }, 150);
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Error al crear cuenta');
+      let errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || 'Error al crear cuenta';
+      
+      if (errorMsg === 'Bad Request' || errorMsg.includes('code 400') || error.response?.status === 400) {
+        errorMsg = 'Faltan datos o el formato es inválido';
+      }
+      
+      toast.error(errorMsg);
     }
     setLoading(false);
   };

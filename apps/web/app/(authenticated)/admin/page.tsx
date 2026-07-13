@@ -1,5 +1,5 @@
-'use client'
-import AdminPanel from '@/views/AdminPanel'
+import { redirect } from 'next/navigation';
+
 export default function AdminPage() {
-  return <AdminPanel />
+  redirect('/admin/courses');
 }

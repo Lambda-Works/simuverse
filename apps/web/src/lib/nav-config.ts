@@ -10,17 +10,17 @@ export interface NavItem {
 
 export const ROLE_NAV: Record<AppRole, NavItem[]> = {
   student: [
-    { label: 'Mis Cursos', href: '/dashboard', icon: Home },
+    { label: 'Mis Cursos', href: '/estudiante/cursos', icon: Home },
   ],
   teacher: [
-    { label: 'Mis Cursos', href: '/dashboard', icon: Home },
-    { label: 'Evaluaciones', href: '/evaluations', icon: BarChart3 },
-    { label: 'Legajos', href: '/legajos', icon: FileText },
+    { label: 'Mis Cursos', href: '/profesor/cursos', icon: Home },
+    { label: 'Evaluaciones', href: '/profesor/evaluaciones', icon: BarChart3 },
+    { label: 'Legajos', href: '/profesor/legajos', icon: FileText },
   ],
   admin: [
-    { label: 'Mis Cursos', href: '/dashboard', icon: Home },
-    { label: 'Evaluaciones', href: '/evaluations', icon: BarChart3 },
-    { label: 'Legajos', href: '/legajos', icon: FileText },
+    { label: 'Mis Cursos', href: '/admin/mis-cursos', icon: Home },
+    { label: 'Evaluaciones', href: '/admin/evaluaciones', icon: BarChart3 },
+    { label: 'Legajos', href: '/admin/legajos', icon: FileText },
   ],
   ministerio: [
     { label: 'Ministerio', href: '/ministerio', icon: Home },
