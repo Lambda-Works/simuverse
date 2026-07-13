@@ -428,7 +428,7 @@ export function ScenariosABM() {
                     <Trash2 className="w-4 h-4" />
                   </Button>}
                   {!readOnly && s.is_active === false && <Button size="sm" variant="outline" className="text-green-600 border-green-300" onClick={() => handleReactivate(s.id)}>
-                    <CheckCircle2 className="w-4 h-4" />
+                    <CheckCircle className="w-4 h-4" />
                   </Button>}
                 </div>
               </div>
