@@ -5,8 +5,10 @@ import { PrismaService } from '../prisma/prisma.service';
 export class ScenariosService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(filters?: { course_id?: string; difficulty?: string; scenario_type?: string }) {
-    const where: any = { is_active: true };
+  async findAll(filters?: { course_id?: string; difficulty?: string; scenario_type?: string; active?: boolean }) {
+    const where: any = {};
+    if (filters?.active !== undefined) where.is_active = filters.active;
+    else where.is_active = true;
 
     if (filters?.course_id) {
       where.course_id = filters.course_id;

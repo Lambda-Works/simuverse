@@ -11,8 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from 'sonner';
 import { Plus, Trash2, Settings, Building2 } from 'lucide-react';
 
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
+import { apiClient } from '@/services/ApiClient';
+import { useAdmin } from '@/lib/admin-context';
 
 interface SimulatedCompany {
   id: number;
@@ -55,6 +55,7 @@ const emptyCompany = (): Omit<SimulatedCompany, 'id'> => ({
 });
 
 export function CompaniesABM() {
+  const { readOnly } = useAdmin();
   const [companies, setCompanies] = useState<SimulatedCompany[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -65,9 +66,8 @@ export function CompaniesABM() {
 
   const fetchCompanies = async () => {
     try {
-      const r = await fetch(`${API}/simulated-companies`);
-      const d = await r.json();
-      setCompanies(Array.isArray(d) ? d : []);
+      const r = await apiClient.get('/simulated-companies');
+      setCompanies(Array.isArray(r.data) ? r.data : []);
     } catch { setCompanies([]); }
     setLoading(false);
   };
@@ -78,13 +78,11 @@ export function CompaniesABM() {
     if (!form.name.trim()) { toast.error('El nombre es obligatorio'); return; }
     setSaving(true);
     try {
-      const url = editingId ? `${API}/simulated-companies/${editingId}` : `${API}/simulated-companies`;
-      const r = await fetch(url, {
-        method: editingId ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      if (!r.ok) { const d = await r.json(); throw new Error(d.error || 'Error al guardar'); }
+      if (editingId) {
+        await apiClient.put(`/simulated-companies/${editingId}`, form);
+      } else {
+        await apiClient.post('/simulated-companies', form);
+      }
       toast.success(editingId ? 'Empresa actualizada' : 'Empresa creada');
       setDialogOpen(false);
       setForm(emptyCompany());
@@ -105,14 +103,28 @@ export function CompaniesABM() {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Eliminar esta empresa? Se desvinculará de los cursos asociados.')) return;
+  const handleDelete = (id: number) => {
+    toast.error('¿Eliminar esta empresa? Se desvinculará de los cursos asociados.', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/simulated-companies/${id}`);
+            toast.success('Empresa eliminada');
+            fetchCompanies();
+          } catch { toast.error('Error al eliminar'); }
+        },
+      },
+      duration: 5000,
+    });
+  };
+
+  const handleReactivate = async (id: number) => {
     try {
-      const r = await fetch(`${API}/simulated-companies/${id}`, { method: 'DELETE' });
-      if (!r.ok) throw new Error('Error al eliminar');
-      toast.success('Empresa eliminada');
+      await apiClient.put(`/simulated-companies/${id}/reactivate`);
       fetchCompanies();
-    } catch { toast.error('Error al eliminar'); }
+      toast.success('Empresa reactivada');
+    } catch { toast.error('Error al reactivar'); }
   };
 
   const LogoDisplay = ({ name, logoUrl, size = 'md' }: { name: string; logoUrl?: string; size?: 'sm' | 'md' | 'lg' }) => {
@@ -139,9 +151,9 @@ export function CompaniesABM() {
           <p className="text-gray-600 mt-1">Empresas reales o ficticias que se simulan en los cursos. Si no hay logo, se muestran las iniciales.</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={o => { setDialogOpen(o); if (!o) { setForm(emptyCompany()); setEditingId(null); setLogoError(false); } }}>
-          <DialogTrigger asChild>
+          {!readOnly && <DialogTrigger asChild>
             <Button><Plus className="w-4 h-4 mr-2" /> Nueva Empresa</Button>
-          </DialogTrigger>
+          </DialogTrigger>}
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingId ? 'Editar Empresa' : 'Nueva Empresa Simulada'}</DialogTitle>
@@ -240,10 +252,12 @@ export function CompaniesABM() {
                 <div className="flex gap-1 flex-wrap">
                   {c.is_fictional && <Badge variant="outline" className="text-xs border-orange-300 text-orange-700">Ficticia</Badge>}
                   {c.short_name && <Badge variant="secondary" className="text-xs">{c.short_name}</Badge>}
+                  {(c as any).is_active === false && <Badge variant="secondary" className="text-xs bg-gray-400">Inactiva</Badge>}
                 </div>
                 <div className="flex gap-1">
-                  <Button variant="outline" size="sm" onClick={() => handleEdit(c)}><Settings className="w-3.5 h-3.5" /></Button>
-                  <Button variant="destructive" size="sm" onClick={() => handleDelete(c.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                  {!readOnly && <Button variant="outline" size="sm" onClick={() => handleEdit(c)}><Settings className="w-3.5 h-3.5" /></Button>}
+                  {!readOnly && (c as any).is_active !== false && <Button variant="destructive" size="sm" onClick={() => handleDelete(c.id)}><Trash2 className="w-3.5 h-3.5" /></Button>}
+                  {!readOnly && (c as any).is_active === false && <Button variant="outline" size="sm" className="text-green-600 border-green-300" onClick={() => handleReactivate(c.id)}>🔄</Button>}
                 </div>
               </div>
             </CardContent>

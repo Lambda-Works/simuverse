@@ -71,6 +71,12 @@ simuverse/
 *.docx
 *.pdf
 *.csv
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.webp
 
 # ============================================
 # Backup/legacy files from refactors
@@ -96,6 +102,12 @@ simuverse/
 .atl/
 .agents/
 
+# Bug tracker (local, not shared)
+BUGGS/
+
+# Task tracker (local, not shared)
+Cosas-que-hacer/
+
 # SDD / OpenSpec (spec files not tracked in git)
 # ============================================
 openspec/
@@ -106,3 +118,13 @@ openspec/
 Thumbs.db
 Desktop.ini
 docker-compose.override.yml
+
+# ============================================
+# Bug Tracking
+# ============================================
+bugs.md
+
+# ============================================
+# Prompts
+# ============================================
+prompts.md

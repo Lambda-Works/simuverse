@@ -21,8 +21,7 @@ import {
   CheckCircle2, XCircle, LayoutGrid, FolderOpen
 } from 'lucide-react';
 
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
+import { apiClient } from '@/services/ApiClient';
 
 interface Role {
   id: number;
@@ -92,9 +91,11 @@ function RolesTab({ roles, onRefresh }: { roles: Role[]; onRefresh: () => void }
     if (!form.name) { toast.error('El nombre es obligatorio'); return; }
     setSaving(true);
     try {
-      const url = editingId ? `${API}/roles/${editingId}` : `${API}/roles`;
-      const method = editingId ? 'PUT' : 'POST';
-      await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+      if (editingId) {
+        await apiClient.put(`/roles/${editingId}`, form);
+      } else {
+        await apiClient.post('/roles', form);
+      }
       toast.success(editingId ? 'Rol actualizado' : 'Rol creado');
       setDialogOpen(false);
       onRefresh();
@@ -102,13 +103,28 @@ function RolesTab({ roles, onRefresh }: { roles: Role[]; onRefresh: () => void }
     setSaving(false);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Eliminar este rol? No se puede deshacer.')) return;
+  const handleDelete = (id: number) => {
+    toast.error('¿Eliminar este rol? No se puede deshacer.', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/roles/${id}`);
+            toast.success('Rol eliminado');
+            onRefresh();
+          } catch { toast.error('Error al eliminar'); }
+        },
+      },
+      duration: 5000,
+    });
+  };
+
+  const handleReactivate = async (id: number) => {
     try {
-      await fetch(`${API}/roles/${id}`, { method: 'DELETE' });
-      toast.success('Rol eliminado');
+      await apiClient.put(`/admin/roles/${id}/reactivate`);
       onRefresh();
-    } catch { toast.error('Error al eliminar'); }
+      toast.success('Rol reactivado');
+    } catch { toast.error('Error al reactivar'); }
   };
 
   return (
@@ -139,9 +155,15 @@ function RolesTab({ roles, onRefresh }: { roles: Role[]; onRefresh: () => void }
                 <Button size="sm" variant="outline" onClick={() => handleOpen(role)}>
                   <Settings className="w-4 h-4" />
                 </Button>
+                {role.is_active ? (
                 <Button size="sm" variant="destructive" onClick={() => handleDelete(role.id)}>
                   <Trash2 className="w-4 h-4" />
                 </Button>
+                ) : (
+                <Button size="sm" variant="outline" className="text-green-600 border-green-300" onClick={() => handleReactivate(role.id)}>
+                  🔄 Reactivar
+                </Button>
+                )}
               </div>
             </div>
           </Card>
@@ -214,9 +236,11 @@ function FunctionalitiesTab({ funcs, onRefresh }: { funcs: Functionality[]; onRe
     if (!form.name) { toast.error('El nombre es obligatorio'); return; }
     setSaving(true);
     try {
-      const url = editingId ? `${API}/functionalities/${editingId}` : `${API}/functionalities`;
-      const method = editingId ? 'PUT' : 'POST';
-      await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+      if (editingId) {
+        await apiClient.put(`/functionalities/${editingId}`, form);
+      } else {
+        await apiClient.post('/functionalities', form);
+      }
       toast.success(editingId ? 'Funcionalidad actualizada' : 'Funcionalidad creada');
       setDialogOpen(false);
       onRefresh();
@@ -224,13 +248,20 @@ function FunctionalitiesTab({ funcs, onRefresh }: { funcs: Functionality[]; onRe
     setSaving(false);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Eliminar esta funcionalidad?')) return;
-    try {
-      await fetch(`${API}/functionalities/${id}`, { method: 'DELETE' });
-      toast.success('Funcionalidad eliminada');
-      onRefresh();
-    } catch { toast.error('Error al eliminar'); }
+  const handleDelete = (id: number) => {
+    toast.error('¿Eliminar esta funcionalidad?', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/functionalities/${id}`);
+            toast.success('Funcionalidad eliminada');
+            onRefresh();
+          } catch { toast.error('Error al eliminar'); }
+        },
+      },
+      duration: 5000,
+    });
   };
 
   // Group by module
@@ -287,18 +318,35 @@ function FunctionalitiesTab({ funcs, onRefresh }: { funcs: Functionality[]; onRe
           <DialogHeader>
             <DialogTitle>{editingId ? 'Editar Funcionalidad' : 'Nueva Funcionalidad'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 mt-2">
-            <div><Label>Nombre *</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Ver reportes avanzados" /></div>
-            <div><Label>Descripción</Label><Input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></div>
+          <div className="space-y-4 mt-4">
+            <div>
+              <Label>Nombre *</Label>
+              <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Ej: ver_reportes_avanzados" />
+              <p className="text-[12px] text-gray-500 mt-1">Identificador corto para la funcionalidad en el sistema.</p>
+            </div>
+            <div>
+              <Label>Descripción</Label>
+              <Input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Ej: Permite al usuario ver los reportes detallados..." />
+              <p className="text-[12px] text-gray-500 mt-1">Explica brevemente qué permite hacer esta funcionalidad.</p>
+            </div>
             <div>
               <Label>Módulo</Label>
               <select value={form.module} onChange={e => setForm(p => ({ ...p, module: e.target.value }))}
                 className="w-full border rounded-md px-3 py-2 text-sm mt-1">
                 {Object.entries(MODULE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
+              <p className="text-[12px] text-gray-500 mt-1">Categoría bajo la cual se agrupará en el panel de permisos.</p>
             </div>
-            <div><Label>Icono (nombre Lucide)</Label><Input value={form.icon} onChange={e => setForm(p => ({ ...p, icon: e.target.value }))} placeholder="BarChart3" /></div>
-            <div><Label>Ruta</Label><Input value={form.route} onChange={e => setForm(p => ({ ...p, route: e.target.value }))} placeholder="/admin/reports" /></div>
+            <div>
+              <Label>Icono (nombre Lucide)</Label>
+              <Input value={form.icon} onChange={e => setForm(p => ({ ...p, icon: e.target.value }))} placeholder="Ej: BarChart3" />
+              <p className="text-[12px] text-gray-500 mt-1">Opcional. Ícono identificativo para mostrar en la interfaz.</p>
+            </div>
+            <div>
+              <Label>Ruta</Label>
+              <Input value={form.route} onChange={e => setForm(p => ({ ...p, route: e.target.value }))} placeholder="Ej: /admin/reports" />
+              <p className="text-[12px] text-gray-500 mt-1">Opcional. Ruta de la app a la que da acceso exclusivo.</p>
+            </div>
             <div className="flex gap-2">
               <Button className="flex-1" onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear'}</Button>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
@@ -321,8 +369,8 @@ function PermissionsTab({ roles }: { roles: Role[] }) {
   const fetchPermissions = async (roleName: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/role-permissions?role_name=${encodeURIComponent(roleName)}`);
-      const data = await res.json();
+      const res = await apiClient.get(`/role-permissions?role_name=${encodeURIComponent(roleName)}`);
+      const data = res.data;
       setPermissions(Array.isArray(data) ? data : []);
       setChanged(false);
     } catch { toast.error('Error al cargar permisos'); }
@@ -343,13 +391,9 @@ function PermissionsTab({ roles }: { roles: Role[] }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await fetch(`${API}/role-permissions`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          role_name: selectedRole,
-          permissions: permissions.map(p => ({ functionality_id: p.functionality_id, enabled: p.enabled }))
-        })
+      await apiClient.put('/role-permissions', {
+        role_name: selectedRole,
+        permissions: permissions.map(p => ({ functionality_id: p.functionality_id, enabled: p.enabled }))
       });
       toast.success(`Permisos de '${selectedRole}' actualizados`);
       setChanged(false);
@@ -465,15 +509,7 @@ function PermissionsTab({ roles }: { roles: Role[] }) {
             </Card>
           ))}
 
-          {changed && (
-            <div className="sticky bottom-4 flex justify-center">
-              <Button onClick={handleSave} disabled={saving}
-                className="bg-green-600 hover:bg-green-700 shadow-lg px-8">
-                <Save className="w-4 h-4 mr-2" />
-                {saving ? 'Guardando...' : 'Guardar todos los cambios'}
-              </Button>
-            </div>
-          )}
+
         </>
       )}
     </div>
@@ -490,8 +526,8 @@ export function RolesABM() {
     setLoading(true);
     try {
       const [rolesRes, funcsRes] = await Promise.all([
-        fetch(`${API}/roles`).then(r => r.json()),
-        fetch(`${API}/functionalities`).then(r => r.json()),
+        apiClient.get('/roles').then(r => r.data),
+        apiClient.get('/functionalities').then(r => r.data),
       ]);
       setRoles(Array.isArray(rolesRes) ? rolesRes : []);
       setFuncs(Array.isArray(funcsRes) ? funcsRes : []);

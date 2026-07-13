@@ -21,52 +21,50 @@ export class AccessRequestsController {
   @Get()
   async findAll(@Query('status') status?: string) {
     if (status) {
-      return this.prisma.$queryRawUnsafe(
-        `SELECT * FROM access_requests WHERE status = $1 ORDER BY created_at DESC`,
-        status,
-      );
+      return this.prisma.accessRequest.findMany({
+        where: { status },
+        orderBy: { created_at: 'desc' },
+      });
     }
-    return this.prisma.$queryRawUnsafe(
-      `SELECT * FROM access_requests ORDER BY created_at DESC`,
-    );
+    return this.prisma.accessRequest.findMany({
+      orderBy: { created_at: 'desc' },
+    });
   }
 
   @Get(':id')
   async findOne(@Param('id') id: string) {
-    const result: any[] = await this.prisma.$queryRawUnsafe(
-      `SELECT * FROM access_requests WHERE id = $1`, parseInt(id),
-    );
-    if (!result?.[0]) {
+    const result = await this.prisma.accessRequest.findUnique({
+      where: { id: parseInt(id) },
+    });
+    if (!result) {
       throw new NotFoundException(`Access request ${id} not found`);
     }
-    return result[0];
+    return result;
   }
 
   @Put(':id')
   async update(@Param('id') id: string, @Body() body: UpdateAccessRequestDto) {
-    await this.prisma.$queryRawUnsafe(
-      `UPDATE access_requests SET status = $1, admin_notes = $2, updated_at = NOW() WHERE id = $3`,
-      body.status, body.admin_notes || null, parseInt(id),
-    );
-    // If approved, create a simulation assignment
+    // Note: admin_notes is in DTO but not in DB schema, so we ignore it
+    const updated = await this.prisma.accessRequest.update({
+      where: { id: parseInt(id) },
+      data: { 
+        status: body.status,
+        updated_at: new Date()
+      },
+    });
+
     if (body.status === 'approved') {
-      const req: any[] = await this.prisma.$queryRawUnsafe(
-        `SELECT * FROM access_requests WHERE id = $1`, parseInt(id),
-      );
-      if (req?.[0]) {
-        const r = req[0];
-        // Create simulation assignment if not exists
-        await this.prisma.$queryRawUnsafe(
-          `INSERT INTO simulation_assignments (simulation_id, student_id, course_id, assigned_by, status)
-           VALUES ($1, $2, $3, 'admin', 'pending')
-           ON CONFLICT DO NOTHING`,
-          'sim-' + Date.now(), r.student_id, r.course_id,
-        );
-      }
+      await this.prisma.simulationAssignment.create({
+        data: {
+          simulation_id: 'sim-' + Date.now(),
+          student_id: updated.student_id,
+          course_id: updated.course_id,
+          assigned_by: 'admin',
+          status: 'pending'
+        }
+      });
     }
-    const result: any[] = await this.prisma.$queryRawUnsafe(
-      `SELECT * FROM access_requests WHERE id = $1`, parseInt(id),
-    );
-    return result?.[0] || { id, ...body };
+
+    return updated;
   }
 }

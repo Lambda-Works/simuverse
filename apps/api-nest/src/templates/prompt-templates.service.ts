@@ -7,8 +7,10 @@ import { UpdatePromptTemplateDto } from './dto/update-prompt-template.dto';
 export class PromptTemplatesService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(category?: string) {
-    const where: any = { is_active: true };
+  async findAll(category?: string, active?: boolean) {
+    const where: any = {};
+    if (active !== undefined) where.is_active = active;
+    else where.is_active = true;
     if (category) where.category = category;
 
     return this.prisma.promptTemplate.findMany({

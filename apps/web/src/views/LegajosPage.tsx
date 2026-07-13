@@ -17,8 +17,7 @@ import {
   CheckCircle2, XCircle, ChevronRight,
 } from 'lucide-react';
 
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
+import { apiClient } from '@/services/ApiClient';
 
 interface StudentSummary {
   id: string;
@@ -51,11 +50,8 @@ const LegajosPage = () => {
 
   useEffect(() => {
     if (!user) return;
-    const token = localStorage.getItem('token');
-    fetch(`${API}/legajo/students`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.json())
+    apiClient.get('/legajo/students')
+      .then(r => r.data)
       .then(data => {
         if (Array.isArray(data)) setStudents(data);
         else if (data.error) setError(data.error);
@@ -104,7 +100,7 @@ const LegajosPage = () => {
           <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
           <p className="text-destructive font-semibold text-lg mb-2">Acceso denegado</p>
           <p className="text-muted-foreground mb-6">{error}</p>
-          <Button onClick={() => router.push('/dashboard')}>Volver al inicio</Button>
+          <Button onClick={() => router.push(hasRole('ministerio') ? '/ministerio' : '/dashboard')}>Volver al inicio</Button>
         </div>
       </div>
     );

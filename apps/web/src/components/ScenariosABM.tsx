@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner';
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +13,7 @@ import {
   Trash2, Plus, Edit2, BookOpen, Target, Mail, FileText,
   ChevronRight, GraduationCap, Layers, Clock, CheckCircle, Copy
 } from 'lucide-react';
-import { API_BASE } from '@/lib/api';
+import { useAdmin } from '@/lib/admin-context';
 import { apiClient } from '@/services/ApiClient';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -111,6 +112,7 @@ const diffBadgeClass = (d: string) => ({
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ScenariosABM() {
+  const { readOnly } = useAdmin();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,6 +122,7 @@ export function ScenariosABM() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm());
+  const [showInactive, setShowInactive] = useState(false);
 
   // mini-state for adding items
   const [newConstraint, setNewConstraint] = useState('');
@@ -132,11 +135,11 @@ export function ScenariosABM() {
 
   useEffect(() => {
     Promise.all([loadScenarios(), loadCourses()]).finally(() => setLoading(false));
-  }, []);
+  }, [showInactive]);
 
   const loadScenarios = async () => {
     try {
-      const res = await apiClient.get('/scenarios');
+      const res = await apiClient.get(`/scenarios?active=${!showInactive}`);
       setScenarios(Array.isArray(res.data) ? res.data : []);
     } catch { setScenarios([]); }
   };
@@ -152,7 +155,7 @@ export function ScenariosABM() {
 
   const handleSave = async () => {
     if (!form.course_id || !form.title) {
-      alert('El curso y el título son obligatorios');
+      toast.error('El curso y el título son obligatorios');
       return;
     }
     setSaving(true);
@@ -167,7 +170,7 @@ export function ScenariosABM() {
       setForm(emptyForm());
       await loadScenarios();
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Error al guardar el escenario');
+      toast.error(err?.response?.data?.message || 'Error al guardar el escenario');
     } finally {
       setSaving(false);
     }
@@ -199,14 +202,30 @@ export function ScenariosABM() {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar este escenario?')) return;
+  const handleDelete = (id: string) => {
+    toast.error('¿Eliminar este escenario?', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/scenarios/${id}`);
+            await loadScenarios();
+            toast.success('Escenario eliminado');
+          } catch (err: any) {
+            toast.error(err?.response?.data?.message || 'Error al eliminar');
+          }
+        },
+      },
+      duration: 5000,
+    });
+  };
+
+  const handleReactivate = async (id: string) => {
     try {
-      await apiClient.delete(`/scenarios/${id}`);
+      await apiClient.put(`/scenarios/${id}`, { is_active: true });
       await loadScenarios();
-    } catch (err: any) {
-      alert(err?.response?.data?.message || 'Error al eliminar');
-    }
+      toast.success('Escenario reactivado');
+    } catch { toast.error('Error al reactivar'); }
   };
 
   const handleDuplicate = async (s: Scenario) => {
@@ -224,7 +243,7 @@ export function ScenariosABM() {
       await apiClient.post('/scenarios', payload);
       await loadScenarios();
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Error al duplicar');
+      toast.error(err?.response?.data?.message || 'Error al duplicar');
     }
   };
 
@@ -239,6 +258,7 @@ export function ScenariosABM() {
   const filtered = scenarios.filter(s => {
     if (filterCourse && s.course_id !== filterCourse) return false;
     if (filterType && s.scenario_type !== filterType) return false;
+    if (!showInactive && s.is_active === false) return false;
     return true;
   });
 
@@ -299,9 +319,9 @@ export function ScenariosABM() {
             <span className="ml-1 text-red-700 font-medium">🎯 Evaluación</span> = único intento, calificado.
           </p>
         </div>
-        <Button onClick={handleNew} className="bg-blue-600 hover:bg-blue-700">
+{!readOnly && <Button onClick={handleNew} className="bg-blue-600 hover:bg-blue-700">
           <Plus className="w-4 h-4 mr-2" /> Nuevo Escenario
-        </Button>
+        </Button>}
       </div>
 
       {/* Info box */}
@@ -344,6 +364,16 @@ export function ScenariosABM() {
         <span className="self-center text-sm text-gray-500">{filtered.length} escenarios</span>
       </div>
 
+      {/* Toggle active/inactive */}
+      <div className="flex gap-2 mb-4">
+        <Button variant={!showInactive ? 'default' : 'outline'} size="sm" onClick={() => { setShowInactive(false); loadScenarios(); }}>
+          Activos ({scenarios.filter(s => s.is_active !== false).length})
+        </Button>
+        <Button variant={showInactive ? 'default' : 'outline'} size="sm" onClick={() => { setShowInactive(true); loadScenarios(); }}>
+          Inactivos ({scenarios.filter(s => s.is_active === false).length})
+        </Button>
+      </div>
+
       {/* Scenario list grouped by course */}
       {filtered.length === 0 ? (
         <Card className="p-8 text-center text-gray-500">
@@ -358,8 +388,9 @@ export function ScenariosABM() {
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-2 mb-1">
                     <span className={`text-xs font-bold px-2 py-0.5 rounded border ${typeBadgeClass(s.scenario_type)}`}>
-                      {typeLabel(s.scenario_type)}
+                      {s.scenario_type === 'practice' ? 'Práctica' : s.scenario_type === 'evaluation' ? 'Evaluación' : s.scenario_type}
                     </span>
+                    {s.is_active === false && <Badge variant="secondary" className="text-xs bg-gray-400">Inactivo</Badge>}
                     <span className={`text-xs px-2 py-0.5 rounded ${diffBadgeClass(s.difficulty)}`}>
                       {s.difficulty === 'easy' ? 'Fácil' : s.difficulty === 'medium' ? 'Medio' : 'Difícil'}
                     </span>
@@ -386,16 +417,19 @@ export function ScenariosABM() {
                     )}
                   </div>
                 </div>
-                <div className="flex gap-2 shrink-0">
-                  <Button size="sm" variant="outline" title="Duplicar" onClick={() => handleDuplicate(s)}>
+<div className="flex gap-2 shrink-0">
+                  {!readOnly && <Button size="sm" variant="outline" title="Duplicar" onClick={() => handleDuplicate(s)}>
                     <Copy className="w-4 h-4" />
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => handleEdit(s)}>
+                  </Button>}
+                  {!readOnly && <Button size="sm" variant="outline" onClick={() => handleEdit(s)}>
                     <Edit2 className="w-4 h-4" />
-                  </Button>
-                  <Button size="sm" variant="outline" className="text-red-600" onClick={() => handleDelete(s.id)}>
+                  </Button>}
+                  {!readOnly && s.is_active !== false && <Button size="sm" variant="outline" className="text-red-600" onClick={() => handleDelete(s.id)}>
                     <Trash2 className="w-4 h-4" />
-                  </Button>
+                  </Button>}
+                  {!readOnly && s.is_active === false && <Button size="sm" variant="outline" className="text-green-600 border-green-300" onClick={() => handleReactivate(s.id)}>
+                    <CheckCircle className="w-4 h-4" />
+                  </Button>}
                 </div>
               </div>
             </Card>

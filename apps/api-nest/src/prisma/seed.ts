@@ -4,6 +4,57 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
+  console.log('🌱 Iniciando seed de roles y funcionalidades...');
+
+  // Roles
+  const rolesData = [
+    { name: 'admin', description: 'Administrador del sistema', color: '#EF4444' },
+    { name: 'teacher', description: 'Profesor o Docente', color: '#3B82F6' },
+    { name: 'student', description: 'Alumno', color: '#10B981' },
+    { name: 'ministerio', description: 'Auditor del Ministerio', color: '#8B5CF6' },
+  ];
+
+  for (const r of rolesData) {
+    await prisma.role.upsert({
+      where: { id: rolesData.indexOf(r) + 1 }, // Simple ID logic for seed
+      update: r,
+      create: { id: rolesData.indexOf(r) + 1, ...r },
+    });
+  }
+  console.log('✅ Roles creados');
+
+  // System Functionalities
+  const functionalitiesData = [
+    { name: 'Gestión de Usuarios', description: 'Permite administrar usuarios', module: 'Usuarios', route: '/admin/users' },
+    { name: 'Configuración de Roles', description: 'Permite configurar roles y permisos', module: 'Seguridad', route: '/admin/roles' },
+    { name: 'Gestión de Cursos', description: 'Creación y edición de cursos', module: 'Académico', route: '/admin/courses' },
+    { name: 'Reportes', description: 'Ver reportes del sistema', module: 'Reportes', route: '/admin/reports' },
+  ];
+
+  for (const f of functionalitiesData) {
+    await prisma.systemFunctionality.upsert({
+      where: { id: functionalitiesData.indexOf(f) + 1 },
+      update: f,
+      create: { id: functionalitiesData.indexOf(f) + 1, ...f },
+    });
+  }
+  console.log('✅ Funcionalidades creados');
+
+  // Asignar permisos básicos (Admin tiene todo habilitado)
+  const allRoles = await prisma.role.findMany();
+  const allFuncs = await prisma.systemFunctionality.findMany();
+  
+  for (const role of allRoles) {
+    for (const func of allFuncs) {
+      await prisma.rolePermission.upsert({
+        where: { role_name_functionality_id: { role_name: role.name, functionality_id: func.id } },
+        update: { enabled: role.name === 'admin' }, // admin tiene true, otros false por ahora
+        create: { role_name: role.name, functionality_id: func.id, enabled: role.name === 'admin' },
+      });
+    }
+  }
+  console.log('✅ Permisos básicos asignados');
+
   console.log('🌱 Iniciando seed de usuarios...');
 
   // Contraseña por defecto para todos los usuarios

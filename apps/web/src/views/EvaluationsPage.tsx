@@ -12,7 +12,7 @@ import {
   ArrowLeft, BarChart3, Clock, MessageCircle, Users, AlertTriangle,
   CheckCircle, Loader2, Brain, Zap, Trophy, FileText,
 } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 const EvaluationsPage = () => {
   const { user, hasRole, loading } = useAuth();
@@ -25,7 +25,7 @@ const EvaluationsPage = () => {
   const [evaluations, setEvaluations] = useState<Record<string, any>>({});
 
   useEffect(() => {
-    if (!loading && (!user || (!hasRole('teacher') && !hasRole('admin')))) {
+    if (!loading && (!user || (!hasRole('teacher') && !hasRole('admin') && !hasRole('ministerio')))) {
       router.push('/dashboard');
     }
   }, [user, loading, hasRole, router]);
@@ -64,13 +64,12 @@ const EvaluationsPage = () => {
         setEvaluations(prev => ({ ...prev, [simId]: res.data }));
         // Update local score on the simulation
         setSimulations(prev => prev.map(s => s.id === simId ? { ...s, score: res.data.score } : s));
-        toast({
-          title: res.data.passed ? '✅ Evaluación completada' : '⚠️ Evaluación completada',
-          description: `Puntaje: ${res.data.score}/100 · Modo: ${res.data.ai_mode === 'live' ? 'IA en vivo' : 'Evaluación heurística'}`,
-        });
+        toast[res.data.passed ? 'success' : 'warning'](
+          `Evaluación completada: Puntaje ${res.data.score}/100 · Modo: ${res.data.ai_mode === 'live' ? 'IA en vivo' : 'Evaluación heurística'}`
+        );
       }
     } catch (error: any) {
-      toast({ title: 'Error al evaluar', description: error.message, variant: 'destructive' });
+      toast.error(`Error al evaluar: ${error.message}`);
     } finally {
       setEvaluating(prev => ({ ...prev, [simId]: false }));
     }
@@ -170,10 +169,10 @@ const EvaluationsPage = () => {
                         <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                         <button
                           className="font-medium hover:text-primary hover:underline flex items-center gap-1 transition-colors"
-                          onClick={e => { e.stopPropagation(); router.push(`/student-ledger/${sim.user_id}`); }}
+                          onClick={e => { e.stopPropagation(); router.push(`/student-ledger/${sim.student_id}`); }}
                           title="Ver legajo del alumno"
                         >
-                          {sim.user_name || sim.user_id?.slice(0, 8) || 'Alumno'}
+                          {sim.user?.name || sim.student_id?.slice(0, 8) || 'Alumno'}
                           <FileText className="w-3 h-3 opacity-60" />
                         </button>
                         <Badge variant="secondary" className={`text-xs ${st.color} gap-1`}>{st.icon}{st.label}</Badge>

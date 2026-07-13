@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { apiClient } from '@/services/ApiClient';
 import './TeacherPanel.css';
 
 interface Simulation {
@@ -61,13 +62,9 @@ export function TeacherPanel({ simulationId }: TeacherPanelProps) {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/simulations/${simulationId}`);
+      const response = await apiClient.get(`/simulations/${simulationId}`);
 
-      if (!response.ok) {
-        throw new Error(`Error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = response.data;
       setSimulation(data);
     } catch (err) {
       console.error('❌ Error loading simulation:', err);

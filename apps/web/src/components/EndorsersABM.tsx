@@ -13,8 +13,8 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { Plus, Trash2, Settings, Handshake, Link, Unlink } from 'lucide-react';
 
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
+import { apiClient } from '@/services/ApiClient';
+import { useAdmin } from '@/lib/admin-context';
 
 interface Endorser {
   id: number;
@@ -79,6 +79,7 @@ function LogoDisplay({ name, logoUrl, size = 'md' }: { name: string; logoUrl?: s
 }
 
 export function EndorsersABM() {
+  const { readOnly } = useAdmin();
   const [endorsers, setEndorsers] = useState<Endorser[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseEndorsers, setCourseEndorsers] = useState<CourseEndorser[]>([]);
@@ -93,8 +94,8 @@ export function EndorsersABM() {
   const fetchAll = async () => {
     try {
       const [eRes, cRes] = await Promise.all([
-        fetch(`${API}/endorsers`).then(r => r.json()),
-        fetch(`${API}/courses`).then(r => r.json()),
+        apiClient.get('/endorsers').then(r => r.data),
+        apiClient.get('/courses').then(r => r.data),
       ]);
       setEndorsers(Array.isArray(eRes) ? eRes : []);
       setCourses(Array.isArray(cRes) ? cRes : []);
@@ -104,8 +105,8 @@ export function EndorsersABM() {
 
   const fetchCourseEndorsers = async (courseId: string) => {
     try {
-      const r = await fetch(`${API}/course-endorsers/${courseId}`);
-      const d = await r.json();
+      const r = await apiClient.get(`/course-endorsers/${courseId}`);
+      const d = r.data;
       setCourseEndorsers(Array.isArray(d) ? d : []);
     } catch { setCourseEndorsers([]); }
   };
@@ -121,13 +122,11 @@ export function EndorsersABM() {
     if (!form.name.trim()) { toast.error('El nombre es obligatorio'); return; }
     setSaving(true);
     try {
-      const url = editingId ? `${API}/endorsers/${editingId}` : `${API}/endorsers`;
-      const r = await fetch(url, {
-        method: editingId ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      if (!r.ok) { const d = await r.json(); throw new Error(d.error || 'Error al guardar'); }
+      if (editingId) {
+        await apiClient.put(`/endorsers/${editingId}`, form);
+      } else {
+        await apiClient.post('/endorsers', form);
+      }
       toast.success(editingId ? 'Avalador actualizado' : 'Avalador creado');
       setDialogOpen(false);
       setForm(emptyForm());
@@ -143,13 +142,28 @@ export function EndorsersABM() {
     setDialogOpen(true);
   };
 
-  const handleDeactivate = async (id: number) => {
-    if (!confirm('¿Desactivar este avalador?')) return;
+  const handleDeactivate = (id: number) => {
+    toast.error('¿Desactivar este avalador?', {
+      action: {
+        label: 'Desactivar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/endorsers/${id}`);
+            toast.success('Avalador desactivado');
+            fetchAll();
+          } catch { toast.error('Error al desactivar'); }
+        },
+      },
+      duration: 5000,
+    });
+  };
+
+  const handleReactivate = async (id: number) => {
     try {
-      await fetch(`${API}/endorsers/${id}`, { method: 'DELETE' });
-      toast.success('Avalador desactivado');
+      await apiClient.put(`/endorsers/${id}/reactivate`);
       fetchAll();
-    } catch { toast.error('Error al desactivar'); }
+      toast.success('Avalador reactivado');
+    } catch { toast.error('Error al reactivar'); }
   };
 
   const handleToggleLink = async (endorserId: number) => {
@@ -158,18 +172,10 @@ export function EndorsersABM() {
     const isLinked = courseEndorsers.some(ce => ce.endorser_id === endorserId);
     try {
       if (isLinked) {
-        await fetch(`${API}/course-endorsers`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ course_id: selectedCourse, endorser_id: endorserId }),
-        });
+        await apiClient.delete('/course-endorsers', { data: { course_id: selectedCourse, endorser_id: endorserId } });
         toast.success('Vínculo eliminado');
       } else {
-        await fetch(`${API}/course-endorsers`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ course_id: selectedCourse, endorser_id: endorserId }),
-        });
+        await apiClient.post('/course-endorsers', { course_id: selectedCourse, endorser_id: endorserId });
         toast.success('Avalador vinculado al curso');
       }
       fetchCourseEndorsers(selectedCourse);
@@ -188,9 +194,9 @@ export function EndorsersABM() {
           <p className="text-gray-600 mt-1">Organizaciones o instituciones que avalan las simulaciones. Se pueden vincular a cursos específicos.</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={o => { setDialogOpen(o); if (!o) { setForm(emptyForm()); setEditingId(null); } }}>
-          <DialogTrigger asChild>
-            <Button><Plus className="w-4 h-4 mr-2" /> Nuevo Avalador</Button>
-          </DialogTrigger>
+{!readOnly && <DialogTrigger asChild>
+              <Button><Plus className="w-4 h-4 mr-2" /> Nuevo Avalador</Button>
+            </DialogTrigger>}
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingId ? 'Editar Avalador' : 'Nuevo Avalador'}</DialogTitle>
@@ -260,13 +266,15 @@ export function EndorsersABM() {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm leading-tight truncate">{e.name}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{ENDORSEMENT_TYPES.find(t => t.value === e.endorsement_type)?.label || e.endorsement_type}</p>
+                  {e.is_active === false && <Badge variant="secondary" className="text-xs bg-gray-400 mt-1">Inactivo</Badge>}
                 </div>
               </div>
               {e.description && <p className="text-xs text-gray-600 mb-3 line-clamp-2">{e.description}</p>}
               {e.website && <a href={e.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline block mb-3 truncate">🌐 {e.website}</a>}
               <div className="flex justify-end gap-1">
-                <Button variant="outline" size="sm" onClick={() => handleEdit(e)}><Settings className="w-3 h-3" /></Button>
-                <Button variant="ghost" size="sm" onClick={() => handleDeactivate(e.id)} className="text-red-500 hover:bg-red-50"><Trash2 className="w-3 h-3" /></Button>
+                {!readOnly && <Button variant="outline" size="sm" onClick={() => handleEdit(e)}><Settings className="w-3 h-3" /></Button>}
+                {!readOnly && e.is_active !== false && <Button variant="ghost" size="sm" onClick={() => handleDeactivate(e.id)} className="text-red-500 hover:bg-red-50"><Trash2 className="w-3 h-3" /></Button>}
+                {!readOnly && e.is_active === false && <Button variant="ghost" size="sm" onClick={() => handleReactivate(e.id)} className="text-green-500 hover:bg-green-50">🔄</Button>}
               </div>
             </CardContent>
           </Card>

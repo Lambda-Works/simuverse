@@ -36,18 +36,18 @@ export class CoursesController {
     return this.coursesService.create(dto);
   }
 
-  @Put(':courseId')
+  @Put(':id')
   async update(
-    @Param('courseId') courseId: string,
+    @Param('id') id: string,
     @Body() dto: UpdateCourseDto,
   ) {
-    return this.coursesService.update(courseId, dto);
+    return this.coursesService.update(id, dto);
   }
 
-  @Delete(':courseId')
+  @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  async remove(@Param('courseId') courseId: string) {
-    await this.coursesService.remove(courseId);
+  async remove(@Param('id') id: string) {
+    await this.coursesService.remove(id);
     return { message: 'Course deactivated successfully' };
   }
 }

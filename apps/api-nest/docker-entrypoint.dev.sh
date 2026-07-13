@@ -12,6 +12,7 @@ npx ts-node src/prisma/seed-companies.ts || echo "⚠️  seed-companies.ts skip
 npx ts-node src/prisma/seed-demo.ts || echo "⚠️  seed-demo.ts skipped"
 npx ts-node src/prisma/seed-demo-2.ts || echo "⚠️  seed-demo-2.ts skipped"
 npx ts-node src/prisma/seed-demo-3.ts || echo "⚠️  seed-demo-3.ts skipped"
+npx ts-node src/prisma/seed-review.ts || echo "⚠️  seed-review.ts skipped"
 
 echo "👁️  Starting Prisma file watcher..."
 node scripts/watch-prisma.js &

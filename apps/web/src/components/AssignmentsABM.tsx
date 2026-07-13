@@ -3,11 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, Send, CheckSquare, Square } from 'lucide-react';
+import { Trash2, Plus, Send, CheckSquare, Square, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
+import { apiClient } from '@/services/ApiClient';
 
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
 interface Assignment {
   id: number;
   simulation_id: string;
@@ -53,6 +52,11 @@ export function AssignmentsABM() {
   const [loading, setLoading] = useState(true);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
+  const [editMaxAttempts, setEditMaxAttempts] = useState(1);
+  const [editStatus, setEditStatus] = useState('');
 
   // Formulario con multi-selección de escenarios y alumnos
   const [selectedCourse, setSelectedCourse] = useState('');
@@ -86,9 +90,8 @@ export function AssignmentsABM() {
   useEffect(() => {
     setSelectedScenarios([]);
     if (selectedCourse) {
-      fetch(`${API}/scenarios?course_id=${selectedCourse}`)
-        .then(r => r.json())
-        .then(d => setScenarios(Array.isArray(d) ? d : []))
+      apiClient.get(`/scenarios?course_id=${selectedCourse}`)
+        .then(r => setScenarios(Array.isArray(r.data) ? r.data : []))
         .catch(() => setScenarios([]));
     } else {
       setScenarios([]);
@@ -106,9 +109,8 @@ export function AssignmentsABM() {
 
   const fetchAssignments = async () => {
     try {
-      const response = await fetch(`${API}/assignments`);
-      const data = await response.json();
-      setAssignments(Array.isArray(data) ? data : []);
+      const response = await apiClient.get('/assignments');
+      setAssignments(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching assignments:', error);
       setAssignments([]);
@@ -117,9 +119,8 @@ export function AssignmentsABM() {
 
   const fetchCourses = async () => {
     try {
-      const response = await fetch(`${API}/courses`);
-      const data = await response.json();
-      setCourses(Array.isArray(data) ? data : []);
+      const response = await apiClient.get('/courses');
+      setCourses(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching courses:', error);
       setCourses([]);
@@ -128,9 +129,8 @@ export function AssignmentsABM() {
 
   const fetchStudents = async () => {
     try {
-      const response = await fetch(`${API}/users?role=student`);
-      const data = await response.json();
-      setUsers(Array.isArray(data) ? data : []);
+      const response = await apiClient.get('/users?role=student');
+      setUsers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching students:', error);
       setUsers([]);
@@ -156,20 +156,16 @@ export function AssignmentsABM() {
 
     for (const pair of pairs) {
       try {
-        const res = await fetch(`${API}/assignments`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        const res = await apiClient.post('/assignments', {
             simulation_id: pair.simulation_id,
             student_id: pair.student_id,
             course_id: selectedCourse,
             max_attempts: maxAttempts,
             start_date: startDate || null,
             end_date: endDate || null,
-            assigned_by: localStorage.getItem('userId') || 'system',
-          }),
+            assigned_by: sessionStorage.getItem('userId') || 'system',
         });
-        if (res.ok) created++;
+        if (res.status === 201 || res.status === 200) created++;
         else errors++;
       } catch { errors++; }
     }
@@ -210,13 +206,45 @@ export function AssignmentsABM() {
     return simId?.substring(0, 8) + '...';
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Eliminar esta asignación?')) return;
+  const handleDelete = (id: number) => {
+    toast.error('¿Eliminar esta asignación?', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/assignments/${id}`);
+            await fetchAssignments();
+            toast.success('Asignación eliminada');
+          } catch { toast.error('Error al eliminar'); }
+        },
+      },
+      duration: 5000,
+    });
+  };
+
+  const handleEditOpen = (a: Assignment) => {
+    setEditingAssignment(a);
+    setEditStartDate(a.start_date ? a.start_date.split('T')[0] : '');
+    setEditEndDate(a.end_date ? a.end_date.split('T')[0] : '');
+    setEditMaxAttempts(a.max_attempts);
+    setEditStatus(a.status);
+  };
+
+  const handleEditSave = async () => {
+    if (!editingAssignment) return;
     try {
-      await fetch(`${API}/assignments/${id}`, { method: 'DELETE' });
+      await apiClient.put(`/assignments/${editingAssignment.id}`, {
+        start_date: editStartDate || undefined,
+        end_date: editEndDate || undefined,
+        max_attempts: editMaxAttempts,
+        status: editStatus,
+      });
+      toast.success('Asignación actualizada');
+      setEditingAssignment(null);
       await fetchAssignments();
-      toast.success('Asignación eliminada');
-    } catch { toast.error('Error al eliminar'); }
+    } catch {
+      toast.error('Error al actualizar la asignación');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -429,6 +457,9 @@ export function AssignmentsABM() {
               </div>
 
               <div className="flex gap-2 ml-4">
+                <Button onClick={() => handleEditOpen(assignment)} size="sm" variant="outline">
+                  <Pencil className="w-4 h-4" />
+                </Button>
                 <Button
                   onClick={() => handleDelete(assignment.id)}
                   size="sm"
@@ -447,6 +478,43 @@ export function AssignmentsABM() {
         <Card className="p-8 text-center">
           <p className="text-gray-600">No hay asignaciones. Crea una nueva asignación para empezar.</p>
         </Card>
+      )}
+
+      {/* Edit Dialog */}
+      {editingAssignment && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setEditingAssignment(null)}>
+          <Card className="p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-4">Editar Asignación</h3>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-500 mb-1">
+                  {getStudentName(editingAssignment.student_id)} — {getCourseName(editingAssignment.course_id)}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Inicio</label>
+                  <input type="date" value={editStartDate} onChange={e => setEditStartDate(e.target.value)} className="w-full p-2 border rounded-md" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Vencimiento</label>
+                  <input type="date" value={editEndDate} onChange={e => setEditEndDate(e.target.value)} className="w-full p-2 border rounded-md" />
+                </div>
+              </div>
+                            <div>
+                <label className="block text-sm font-medium mb-1">Intentos máx.</label>
+                <input type="number" value={editMaxAttempts} onChange={e => setEditMaxAttempts(Number(e.target.value))} min={1} max={10} className="w-full p-2 border rounded-md" />
+              </div>
+              <div className="flex gap-3 justify-end">
+
+
+
+                <Button variant="outline" onClick={() => setEditingAssignment(null)}>Cancelar</Button>
+                <Button onClick={handleEditSave}>Guardar</Button>
+              </div>
+            </div>
+          </Card>
+        </div>
       )}
     </div>
   );

@@ -17,8 +17,7 @@ import {
   Info, ChevronDown, ChevronUp, Filter
 } from 'lucide-react';
 
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
+import { apiClient } from '@/services/ApiClient';
 
 interface ChatLog {
   id: number;
@@ -165,8 +164,8 @@ function SessionDetailDialog({
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${API}/simulation-sessions/${instanceId}`);
-        setData(await res.json());
+        const res = await apiClient.get(`/simulation-sessions/${instanceId}`);
+        setData(res.data);
       } catch { setData(null); }
       finally { setLoading(false); }
     })();
@@ -463,8 +462,8 @@ export function SimulationSessionViewer() {
   const fetchSessions = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/simulation-sessions`);
-      const data = await res.json();
+      const res = await apiClient.get('/simulation-sessions');
+      const data = res.data;
       setSessions(Array.isArray(data) ? data : []);
     } catch { setSessions([]); }
     finally { setLoading(false); }
@@ -478,9 +477,8 @@ export function SimulationSessionViewer() {
     setRefError('');
     setRefResult(null);
     try {
-      const res = await fetch(`${API}/simulation-sessions/ref/${encodeURIComponent(refSearch.trim())}`);
-      if (!res.ok) { setRefError('Referencia no encontrada'); }
-      else { setRefResult(await res.json()); }
+      const res = await apiClient.get(`/simulation-sessions/ref/${encodeURIComponent(refSearch.trim())}`);
+      setRefResult(res.data);
     } catch { setRefError('Error al buscar la referencia'); }
     finally { setRefLoading(false); }
   };

@@ -25,11 +25,13 @@ export class ScenariosController {
     @Query('course_id') courseId?: string,
     @Query('difficulty') difficulty?: string,
     @Query('scenario_type') scenarioType?: string,
+    @Query('active') active?: string,
   ) {
     return this.scenariosService.findAll({
       course_id: courseId,
       difficulty,
       scenario_type: scenarioType,
+      active: active === undefined ? undefined : active === 'true',
     });
   }
 

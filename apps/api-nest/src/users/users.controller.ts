@@ -86,6 +86,13 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   async remove(@Param('id') id: string) {
     await this.usersService.remove(id);
-    return { message: 'User deleted successfully' };
+    return { message: 'User deactivated' };
+  }
+
+  @Put(':id/reactivate')
+  @HttpCode(HttpStatus.OK)
+  async reactivate(@Param('id') id: string) {
+    await this.usersService.reactivate(id);
+    return { message: 'User reactivated' };
   }
 }

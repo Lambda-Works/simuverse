@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner';
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Trash2, X, Edit2 } from 'lucide-react';
 import { API_BASE, authFetch } from '@/lib/api';
+import { apiClient } from '@/services/ApiClient';
 
 interface Competency {
   id: string;
@@ -91,11 +93,11 @@ export function ConfigureTechSheetModal({
         // Non-critical — config still loads
       }
 
-      const response = await fetch(
-        `${API_BASE}/tech-sheets/${techSheetId}/config`
+      const response = await apiClient.get(
+        `/tech-sheets/${techSheetId}/config`
       );
-      if (response.ok) {
-        const data = await response.json();
+      if (response.data) {
+        const data = response.data;
         // Normalizar: asegurar defaults para KPIs y tareas
         setConfig({
           tech_sheet_id: techSheetId,
@@ -145,27 +147,20 @@ export function ConfigureTechSheetModal({
     if (!config) return;
 
     try {
-      const response = await fetch(
-        `${API_BASE}/tech-sheets/${techSheetId}/config`,
+      await apiClient.put(
+        `/tech-sheets/${techSheetId}/config`,
         {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            competencies: config.competencies,
-            kpis: config.kpis,
-            tasks: config.tasks,
-            prompts: config.prompts,
-          }),
+          competencies: config.competencies,
+          kpis: config.kpis,
+          tasks: config.tasks,
+          prompts: config.prompts,
         }
       );
-
-      if (response.ok) {
-        setEditing(false);
-        alert('Configuración guardada exitosamente');
-      }
+      setEditing(false);
+      toast.success('Configuración guardada exitosamente');
     } catch (error) {
       console.error('Error saving config:', error);
-      alert('Error al guardar configuración');
+      toast.error('Error al guardar configuración');
     }
   };
 
@@ -193,8 +188,8 @@ export function ConfigureTechSheetModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-auto">
-      <Card className="w-full max-w-4xl m-4 p-6">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-auto" onClick={onClose}>
+      <Card className="w-full max-w-4xl m-4 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold">Configurar Ficha Tecnica</h2>
