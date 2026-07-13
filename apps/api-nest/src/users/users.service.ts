@@ -116,19 +116,26 @@ export class UsersService {
 
   async remove(id: string) {
     try {
-      return await this.prisma.user.delete({
+      return await this.prisma.user.update({
         where: { id },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-        },
+        data: { is_active: false },
+        select: { id: true, name: true, email: true, role: true },
       });
     } catch (error: any) {
-      if (error.code === 'P2025') {
-        throw new NotFoundException('User not found');
-      }
+      if (error.code === 'P2025') throw new NotFoundException('User not found');
+      throw error;
+    }
+  }
+
+  async reactivate(id: string) {
+    try {
+      return await this.prisma.user.update({
+        where: { id },
+        data: { is_active: true },
+        select: { id: true, name: true, email: true, role: true },
+      });
+    } catch (error: any) {
+      if (error.code === 'P2025') throw new NotFoundException('User not found');
       throw error;
     }
   }

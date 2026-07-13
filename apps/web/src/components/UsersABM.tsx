@@ -110,6 +110,15 @@ export function UsersABM() {
     } catch { toast.error('Error al eliminar usuario'); }
   };
 
+  const handleReactivateUser = async (id: string) => {
+    try {
+      await apiClient.put(`/users/${id}/reactivate`);
+      toast.success('Usuario reactivado');
+      setDeleteConfirm(null);
+      fetchUsers();
+    } catch { toast.error('Error al reactivar usuario'); }
+  };
+
   const roleInfo = (role: string) => {
     const r = rolesList.find(x => x.name === role);
     return r ? { label: r.description || r.name, color: r.color } : { label: role, color: '#9CA3AF' };
@@ -218,12 +227,15 @@ export function UsersABM() {
                     <Mail className="w-3 h-3 text-gray-400" /> {u.email}
                   </td>
                   <td className="px-4 py-3 text-center">
+                    <div className="flex flex-col items-center gap-1">
                     <span 
                       className="text-xs font-semibold px-2 py-1 rounded border text-white"
                       style={{ backgroundColor: roleInfo(u.role).color, borderColor: roleInfo(u.role).color }}
                     >
                       {roleInfo(u.role).label}
                     </span>
+                    {(u as any).is_active === false && <Badge variant="secondary" className="text-xs bg-gray-400">Inactivo</Badge>}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-500">
                     {u.created_at ? new Date(u.created_at).toLocaleDateString('es-AR') : '—'}
@@ -234,10 +246,12 @@ export function UsersABM() {
                         title="Editar usuario">
                         <Settings className="w-4 h-4" />
                       </Button>}
-                      {!readOnly && <Button size="sm" variant="destructive" onClick={() => setDeleteConfirm(u.id)}
-                        title="Eliminar usuario">
+                      {!readOnly && (u as any).is_active !== false && <Button size="sm" variant="destructive" onClick={() => setDeleteConfirm(u.id)}
+                        title="Desactivar usuario">
                         <Trash2 className="w-4 h-4" />
                       </Button>}
+                      {!readOnly && (u as any).is_active === false && <Button size="sm" variant="outline" className="text-green-600 border-green-300" onClick={() => handleReactivateUser(u.id)}
+                        title="Reactivar usuario">🔄</Button>}
                     </div>
                   </td>
                 </tr>

@@ -95,6 +95,14 @@ export function CategoriesABM() {
     });
   };
 
+  const handleReactivate = async (id: number) => {
+    try {
+      await apiClient.put(`/categories/${id}/reactivate`);
+      await fetchCategories();
+      toast.success('Categoría reactivada');
+    } catch { toast.error('Error al reactivar'); }
+  };
+
   const handleEdit = (category: Category) => {
     setEditingId(category.id);
     setFormData({
@@ -207,7 +215,7 @@ export function CategoriesABM() {
                 >
                   <Edit2 className="w-4 h-4" />
                 </Button>}
-                {!readOnly && <Button
+                {!readOnly && category.is_active !== false && <Button
                   onClick={() => handleDelete(category.id)}
                   size="sm"
                   variant="outline"
@@ -215,6 +223,12 @@ export function CategoriesABM() {
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>}
+                {!readOnly && category.is_active === false && <Button
+                  onClick={() => handleReactivate(category.id)}
+                  size="sm"
+                  variant="outline"
+                  className="text-green-600 border-green-300"
+                >🔄</Button>}
               </div>
             </div>
           </Card>

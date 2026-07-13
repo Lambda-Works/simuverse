@@ -120,6 +120,14 @@ export function DocumentsABM() {
     });
   };
 
+  const handleReactivate = async (id: number) => {
+    try {
+      await apiClient.put(`/documents/${id}/reactivate`);
+      await fetchDocuments();
+      toast.success('Documento reactivado');
+    } catch { toast.error('Error al reactivar'); }
+  };
+
   const handleCancel = () => {
     setFormData({
       course_id: '',
@@ -261,7 +269,7 @@ export function DocumentsABM() {
                 </p>
               </div>
 <div className="flex gap-2 ml-4">
-                {!readOnly && <Button
+                {!readOnly && (doc as any).is_active !== false && <Button
                   onClick={() => handleDelete(doc.id)}
                   size="sm"
                   variant="outline"
@@ -269,6 +277,12 @@ export function DocumentsABM() {
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>}
+                {!readOnly && (doc as any).is_active === false && <Button
+                  onClick={() => handleReactivate(doc.id)}
+                  size="sm"
+                  variant="outline"
+                  className="text-green-600 border-green-300"
+                >🔄</Button>}
               </div>
             </div>
           </Card>

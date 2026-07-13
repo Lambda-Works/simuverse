@@ -43,7 +43,13 @@ export class DocumentsService {
 
   async remove(id: number) {
     await this.findOne(id);
-    await this.prisma.courseDocument.delete({ where: { id } });
-    return { message: 'Document deleted successfully' };
+    await this.prisma.courseDocument.update({ where: { id }, data: { is_active: false } });
+    return { message: 'Document deactivated' };
+  }
+
+  async reactivate(id: number) {
+    await this.findOne(id);
+    await this.prisma.courseDocument.update({ where: { id }, data: { is_active: true } });
+    return { message: 'Document reactivated' };
   }
 }

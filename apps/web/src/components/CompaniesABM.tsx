@@ -119,6 +119,14 @@ export function CompaniesABM() {
     });
   };
 
+  const handleReactivate = async (id: number) => {
+    try {
+      await apiClient.put(`/simulated-companies/${id}/reactivate`);
+      fetchCompanies();
+      toast.success('Empresa reactivada');
+    } catch { toast.error('Error al reactivar'); }
+  };
+
   const LogoDisplay = ({ name, logoUrl, size = 'md' }: { name: string; logoUrl?: string; size?: 'sm' | 'md' | 'lg' }) => {
     const [imgErr, setImgErr] = useState(false);
     const sizeMap = { sm: 'w-8 h-8 text-xs', md: 'w-12 h-12 text-sm', lg: 'w-16 h-16 text-xl' };
@@ -244,10 +252,12 @@ export function CompaniesABM() {
                 <div className="flex gap-1 flex-wrap">
                   {c.is_fictional && <Badge variant="outline" className="text-xs border-orange-300 text-orange-700">Ficticia</Badge>}
                   {c.short_name && <Badge variant="secondary" className="text-xs">{c.short_name}</Badge>}
+                  {(c as any).is_active === false && <Badge variant="secondary" className="text-xs bg-gray-400">Inactiva</Badge>}
                 </div>
                 <div className="flex gap-1">
                   {!readOnly && <Button variant="outline" size="sm" onClick={() => handleEdit(c)}><Settings className="w-3.5 h-3.5" /></Button>}
-                  {!readOnly && <Button variant="destructive" size="sm" onClick={() => handleDelete(c.id)}><Trash2 className="w-3.5 h-3.5" /></Button>}
+                  {!readOnly && (c as any).is_active !== false && <Button variant="destructive" size="sm" onClick={() => handleDelete(c.id)}><Trash2 className="w-3.5 h-3.5" /></Button>}
+                  {!readOnly && (c as any).is_active === false && <Button variant="outline" size="sm" className="text-green-600 border-green-300" onClick={() => handleReactivate(c.id)}>🔄</Button>}
                 </div>
               </div>
             </CardContent>
