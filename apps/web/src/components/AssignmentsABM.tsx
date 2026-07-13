@@ -501,22 +501,14 @@ export function AssignmentsABM() {
                   <input type="date" value={editEndDate} onChange={e => setEditEndDate(e.target.value)} className="w-full p-2 border rounded-md" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Intentos máx.</label>
-                  <input type="number" value={editMaxAttempts} onChange={e => setEditMaxAttempts(Number(e.target.value))} min={1} max={10} className="w-full p-2 border rounded-md" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Estado</label>
-                  <select value={editStatus} onChange={e => setEditStatus(e.target.value)} className="w-full p-2 border rounded-md">
-                    <option value="pending">Pendiente</option>
-                    <option value="in_progress">En progreso</option>
-                    <option value="completed">Completado</option>
-                    <option value="expired">Vencido</option>
-                  </select>
-                </div>
+                            <div>
+                <label className="block text-sm font-medium mb-1">Intentos máx.</label>
+                <input type="number" value={editMaxAttempts} onChange={e => setEditMaxAttempts(Number(e.target.value))} min={1} max={10} className="w-full p-2 border rounded-md" />
               </div>
               <div className="flex gap-3 justify-end">
+
+
+
                 <Button variant="outline" onClick={() => setEditingAssignment(null)}>Cancelar</Button>
                 <Button onClick={handleEditSave}>Guardar</Button>
               </div>
