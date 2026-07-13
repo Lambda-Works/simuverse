@@ -1,40 +1,38 @@
 'use client'
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
-import { apiClient } from '@/services/ApiClient';
-import { API_BASE } from '@/lib/api';
+import { AccessRequestsPanel } from '@/components/AccessRequestsPanel';
+import { AssignmentsABM } from '@/components/AssignmentsABM';
+import { CategoriesABM } from '@/components/CategoriesABM';
+import { CompaniesABM } from '@/components/CompaniesABM';
+import { DocumentsABM } from '@/components/DocumentsABM';
+import { EndorsersABM } from '@/components/EndorsersABM';
+import { FoundationABM } from '@/components/FoundationABM';
+import { GlobalStatsDashboard } from '@/components/GlobalStatsDashboard';
+import { PromptTemplatesABM } from '@/components/PromptTemplatesABM';
+import { ReportsABM } from '@/components/ReportsABM';
+import { RolesABM } from '@/components/RolesABM';
+import { ScenariosABM } from '@/components/ScenariosABM';
+import { SimulationCalendar } from '@/components/SimulationCalendar';
+import { SimulationSessionViewer } from '@/components/SimulationSessionViewer';
+import { TeacherGroupsABM } from '@/components/TeacherGroupsABM';
+import { TechSheetsABM } from '@/components/TechSheetsABM';
+import { TemplatesABM } from '@/components/TemplatesABM';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { toast } from 'sonner';
-import { useAdmin } from '@/lib/admin-context';
-import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield, FolderOpen, FileUp, UserCheck, BarChart3, ClipboardList, Wand2, Copy, MessageSquare, Bell, CalendarDays, Users2, Building2, GraduationCap, Handshake, AlertTriangle, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
-import { GlobalStatsDashboard } from '@/components/GlobalStatsDashboard';
-import { CompaniesABM } from '@/components/CompaniesABM';
-import { FoundationABM } from '@/components/FoundationABM';
-import { EndorsersABM } from '@/components/EndorsersABM';
-import { AccessRequestsPanel } from '@/components/AccessRequestsPanel';
-import { SimulationCalendar } from '@/components/SimulationCalendar';
-import { TeacherGroupsABM } from '@/components/TeacherGroupsABM';
-import { CategoriesABM } from '@/components/CategoriesABM';
-import { DocumentsABM } from '@/components/DocumentsABM';
-import { TechSheetsABM } from '@/components/TechSheetsABM';
-import { AssignmentsABM } from '@/components/AssignmentsABM';
-import { ReportsABM } from '@/components/ReportsABM';
-import { ScenariosABM } from '@/components/ScenariosABM';
-import { TemplatesABM } from '@/components/TemplatesABM';
-import { SimulationSessionViewer } from '@/components/SimulationSessionViewer';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { UsersABM } from '@/components/UsersABM';
-import { RolesABM } from '@/components/RolesABM';
-import { PromptTemplatesABM } from '@/components/PromptTemplatesABM';
-import { ConfigurePromptModal } from '@/components/ConfigurePromptModal';
+import { useAuth } from '@/hooks/useAuth';
+import { useAdmin } from '@/lib/admin-context';
+import { apiClient } from '@/services/ApiClient';
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Copy, Plus, Save, Settings, Shield, Trash2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 const AVAILABLE_MODULES = [
   { id: 'chat_ia', label: 'Chat IA (Simulación Conversacional)' },
@@ -198,7 +196,7 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
   const [courseFilter, setCourseFilter] = useState<'all' | 'active' | 'inactive'>('all'); // Filtro de cursos
 
   useEffect(() => {
-    if (!loading && (!user || (!hasRole('admin') && !hasRole('ministerio')))) router.push('/dashboard');
+    if (!loading && (!user || (!hasRole('admin') && !hasRole('ministerio')))) router.push('/auth');
   }, [user, loading, hasRole, router]);
 
   const fetchCourses = async () => {
@@ -331,9 +329,9 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
 
   const handleDuplicate = async (course: any) => {
     // Generar ID único con timestamp + random para permitir duplicados múltiples
-    const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
-    const newId = `${course.course_id}-COPIA-${timestamp}-${random}`.substring(0, 50);
+    const safeCourseId = course.course_id.substring(0, 20); // Keep max 20 chars of original
+    const newId = `${safeCourseId}-CPY-${random}`.substring(0, 36);
     
     const payload = {
       course_id: newId,

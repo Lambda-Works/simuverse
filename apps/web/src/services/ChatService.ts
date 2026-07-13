@@ -416,7 +416,7 @@ Plan de negocio incluye:
    */
   validateApiKey(apiKey: string): boolean {
     // Gemini API keys are typically long alphanumeric strings
-    return apiKey && apiKey.length > 20;
+    return Boolean(apiKey && apiKey.length > 20);
   }
 
   /**

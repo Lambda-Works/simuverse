@@ -2,9 +2,9 @@
  * Slice 4 — Environment Variable Migration Tests
  * Ensures all VITE_* env vars are replaced with NEXT_PUBLIC_* equivalents.
  */
-import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'fs';
-import { join, extname } from 'path';
+import { extname, join } from 'path';
+import { describe, expect, it } from 'vitest';
 
 /**
  * Recursively collect all .ts/.tsx files under a directory (skips node_modules, .next, dist).

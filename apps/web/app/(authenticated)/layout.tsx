@@ -1,7 +1,7 @@
-import { SidebarProvider, Sidebar, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
-import { SidebarHeaderProvider } from '@/lib/sidebar-header-context';
+import { Sidebar, SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { AdminReadOnlyProvider } from '@/lib/admin-context';
+import { SidebarHeaderProvider } from '@/lib/sidebar-header-context';
 
 export default function AuthenticatedLayout({
   children,

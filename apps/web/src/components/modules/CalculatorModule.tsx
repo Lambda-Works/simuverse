@@ -1,6 +1,6 @@
 'use client'
-import React, { useState, useMemo } from 'react';
 import { Calculator } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
 
 interface CalculatorModuleProps {
   scenario: any;

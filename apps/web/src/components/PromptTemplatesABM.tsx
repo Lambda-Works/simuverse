@@ -1,9 +1,9 @@
 'use client'
-import { toast } from 'sonner';
-import React, { useState, useEffect } from 'react';
-import { apiClient } from '@/services/ApiClient';
-import { useAdmin } from '@/lib/admin-context';
 import { Button } from '@/components/ui/button';
+import { useAdmin } from '@/lib/admin-context';
+import { apiClient } from '@/services/ApiClient';
+import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 interface PromptTemplate {
   id: number;
@@ -52,7 +52,7 @@ export const PromptTemplatesABM: React.FC = () => {
 
   const fetchTemplates = async () => {
     try {
-      const response = await apiClient.get(`/prompt-templates?active=${!showInactive}`);
+      const response = await apiClient.get(`/prompt-templates`);
       const data = response.data;
       setTemplates(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -131,7 +131,9 @@ export const PromptTemplatesABM: React.FC = () => {
       category: template.category || 'service',
       base_role: template.base_role,
       course_context: template.course_context || '',
-      personality_traits: template.personality_traits || [],
+      personality_traits: Array.isArray(template.personality_traits) 
+        ? template.personality_traits 
+        : (typeof template.personality_traits === 'string' ? JSON.parse(template.personality_traits) : []),
       knowledge_base_prompt: template.knowledge_base_prompt
     });
     setShowModal(true);

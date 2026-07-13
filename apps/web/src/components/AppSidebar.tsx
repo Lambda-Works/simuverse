@@ -1,28 +1,28 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
-import { ChevronDown, ChevronRight, LogOut, Shield, ArrowLeft, Menu, PanelLeftClose } from 'lucide-react';
-import {
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarSeparator,
-  useSidebar,
-} from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+    SidebarContent,
+    SidebarFooter,
+    SidebarGroup,
+    SidebarGroupContent,
+    SidebarHeader,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
+    SidebarSeparator,
+    useSidebar,
+} from '@/components/ui/sidebar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
-import { ROLE_NAV } from '@/lib/nav-config';
-import { ADMIN_NAV_GROUPS } from '@/lib/admin-nav';
-import { useSidebarHeader } from '@/lib/sidebar-header-context';
 import { useAdmin } from '@/lib/admin-context';
+import { ADMIN_NAV_GROUPS } from '@/lib/admin-nav';
+import { ROLE_NAV } from '@/lib/nav-config';
+import { useSidebarHeader } from '@/lib/sidebar-header-context';
+import { ArrowLeft, ChevronDown, ChevronRight, LogOut, Menu, PanelLeftClose, Shield } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const GROUP_STORAGE_KEY = 'admin-sidebar:groups-v2';
 
@@ -50,7 +50,7 @@ export function AppSidebar() {
   const navItems = ROLE_NAV[role as keyof typeof ROLE_NAV] || ROLE_NAV.student;
   const isAdmin = role === 'admin' || role === 'ministerio';
   const adminPath = role === 'ministerio' ? '/ministerio/admin' : '/admin';
-  const homeRoute = role === 'admin' ? '/admin' : role === 'ministerio' ? '/ministerio' : '/dashboard';
+  const homeRoute = role === 'admin' ? '/admin/mis-cursos' : role === 'ministerio' ? '/ministerio' : (navItems[0]?.href || '/auth');
   const { currentTab, setCurrentTab } = useAdmin();
 
   // Admin group expansion state (starts completely closed)
@@ -91,7 +91,7 @@ export function AppSidebar() {
   }, []);
 
   const isActive = (href: string) => {
-    if (href === '/dashboard' || href === '/ministerio') return pathname === href;
+    if (href === '/ministerio') return pathname === href;
     return pathname === href || pathname.startsWith(href + '/');
   };
 

@@ -1,11 +1,11 @@
 'use client'
-import React, { useState, useEffect } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, Send, CheckSquare, Square, Pencil } from 'lucide-react';
-import { toast } from 'sonner';
 import { apiClient } from '@/services/ApiClient';
+import { Pencil, Plus, Send, Trash2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 interface Assignment {
   id: number;
@@ -165,7 +165,7 @@ export function AssignmentsABM() {
             end_date: endDate || null,
             assigned_by: sessionStorage.getItem('userId') || 'system',
         });
-        if (res.status === 201 || res.status === 200) created++;
+        if (res) created++;
         else errors++;
       } catch { errors++; }
     }

@@ -10,22 +10,36 @@ import { toast } from 'sonner';
  * 3. Con las respuestas genera una plantilla completa (módulos + ai_config)
  * 4. El admin la revisa, ajusta y guarda en BD
  */
-import React, { useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import {
-  Bot, Send, Plus, Trash2, Edit2, Wand2, Save, RefreshCw, CheckCircle2,
-  Layers, MessageSquare, FileText, Calculator, Mail, Zap, ChevronRight, Copy
-} from 'lucide-react';
-import { apiClient } from '@/services/ApiClient';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { useAdmin } from '@/lib/admin-context';
+import { apiClient } from '@/services/ApiClient';
+import {
+    Bot,
+    Calculator,
+    CheckCircle2,
+    ChevronRight, Copy,
+    Edit2,
+    FileText,
+    Layers,
+    Mail,
+    MessageSquare,
+    Plus,
+    RefreshCw,
+    Save,
+    Send,
+    Trash2,
+    Wand2,
+    Zap
+} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -175,11 +189,9 @@ export function TemplatesABM() {
   }, [showInactive]);
 
   const loadTemplates = async () => {
-    setLoading(true);
     try {
-      const res = await apiClient.get(`/templates/flow?active=${!showInactive}`);
-      const d = res.data;
-      setTemplates(Array.isArray(d) ? d : []);
+      const res = await apiClient.get(`/templates/flow`);
+      setTemplates(Array.isArray(res.data) ? res.data : []);
     } catch { setTemplates([]); }
     finally { setLoading(false); }
   };

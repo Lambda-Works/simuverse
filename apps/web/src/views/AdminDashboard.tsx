@@ -1,9 +1,8 @@
 'use client'
-import React, { useState, useEffect } from 'react';
-import { msmApi } from '../services/MSMApiClient';
-import { useAuth } from '../hooks/useAuth';
-import { Loader, Users, FileText, Settings, PlayCircle, BookOpen, AlertCircle, BarChart3, Plus, Edit2, Trash2, Download } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AlertCircle, BarChart3, Download, Edit2, Plus, Trash2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '../hooks/useAuth';
 
 interface CourseFamily {
   id: number;
@@ -23,7 +22,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     'dashboard'
   );
   const [families, setFamilies] = useState<CourseFamily[]>([]);
-  const [logs, setLogs] = useState([]);
+  const [logs, setLogs] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -3,7 +3,7 @@
  * Analiza logs de alumno y calcula puntaje contra KPIs
  */
 
-import { FlowTemplate, EvaluationCriteria } from './flowTemplates';
+import { EvaluationCriteria, FlowTemplate } from '../data/flowTemplates';
 
 export interface SimulationLog {
   id: string;

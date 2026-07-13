@@ -1,16 +1,16 @@
 'use client'
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
-import { apiClient } from '@/services/ApiClient';
+import { SimulationCalendar } from '@/components/SimulationCalendar';
+import { StudentReviewModal } from '@/components/StudentReviewModal';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BookOpen, Play, Settings, Shield, GraduationCap, Mail, Clock, CheckCircle2, User, Phone, CreditCard, Award, CalendarDays, Eye, HelpCircle, Sparkles, MessageSquare } from 'lucide-react';
-import { StudentReviewModal } from '@/components/StudentReviewModal';
-import { SimulationCalendar } from '@/components/SimulationCalendar';
+import { useAuth } from '@/hooks/useAuth';
+import { apiClient } from '@/services/ApiClient';
+import { Award, BookOpen, CalendarDays, CheckCircle2, Clock, CreditCard, Eye, GraduationCap, HelpCircle, Mail, MessageSquare, Phone, Play, Settings, Shield, User } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 interface Course {
   id: string;

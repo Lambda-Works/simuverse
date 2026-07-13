@@ -1,8 +1,8 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
-import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { usePathname } from 'next/navigation';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 // ─── Configuración ────────────────────────────────────────────────────────────
 const INACTIVITY_LIMIT_MS   = 2 * 60 * 60 * 1000;  // 2 horas

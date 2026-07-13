@@ -1,23 +1,18 @@
 'use client'
-import Link from 'next/link'
-import { forwardRef } from 'react'
-import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { forwardRef } from 'react'
 
-interface NavLinkCompatProps {
+interface NavLinkCompatProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
   href: string
-  className?: string
   activeClassName?: string
-  children?: React.ReactNode
-  [key: string]: unknown
 }
 
 const NavLink = forwardRef<HTMLAnchorElement, NavLinkCompatProps>(
   ({ className, activeClassName, href, children, ...props }, ref) => {
     const pathname = usePathname()
-    const isActive = href === '/dashboard'
-      ? pathname === '/dashboard'
-      : pathname === href || pathname.startsWith(href + '/')
+    const isActive = pathname === href || pathname.startsWith(href + '/')
     const isPending = false // Next.js doesn't have pending state like React Router
 
     return (

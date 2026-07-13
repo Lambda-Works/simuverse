@@ -1,7 +1,7 @@
 'use client'
-import { toast } from 'sonner';
-import React, { useState, useEffect } from 'react';
 import { apiClient } from '@/services/ApiClient';
+import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 interface Course {
   id: string;
@@ -56,6 +56,7 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
   onSave,
   onClose
 }) => {
+  const [activeTab, setActiveTab] = useState<'info' | 'prompts'>('info');
   const [mode, setMode] = useState<'template' | 'manual' | 'guided'>('template');
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
@@ -175,14 +176,14 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
         {/* Tabs */}
         <div className="flex gap-4 border-b mb-6">
           <button
-            onClick={() => setMode('template')}
-            className={`px-4 py-2 font-semibold border-b-2 ${mode === 'template' ? 'border-blue-600' : 'border-transparent'}`}
+            onClick={() => setActiveTab('info')}
+            className={`px-4 py-2 font-semibold border-b-2 ${activeTab === 'info' ? 'border-blue-600' : 'border-transparent'}`}
           >
             📋 Ficha Técnica
           </button>
           <button
-            onClick={() => setMode('manual')}
-            className={`px-4 py-2 font-semibold border-b-2 ${mode === 'manual' ? 'border-blue-600' : 'border-transparent'}`}
+            onClick={() => setActiveTab('prompts')}
+            className={`px-4 py-2 font-semibold border-b-2 ${activeTab === 'prompts' ? 'border-blue-600' : 'border-transparent'}`}
           >
             ✍️ Prompts
           </button>
@@ -192,7 +193,7 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
         <div className="space-y-6">
           
           {/* TAB: FICHA TECNICA */}
-          {mode === 'template' && (
+          {activeTab === 'info' && (
             <div className="space-y-4">
               <div>
                 <h3 className="font-bold mb-2">📋 Ficha Técnica</h3>
@@ -244,7 +245,7 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
           )}
 
           {/* TAB: CONFIGURAR PROMPTS */}
-          {mode === 'manual' && (
+          {activeTab === 'prompts' && (
             <div className="space-y-6">
               {/* Modalidad */}
               <fieldset>

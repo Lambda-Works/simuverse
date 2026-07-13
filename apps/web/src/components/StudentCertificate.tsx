@@ -1,7 +1,7 @@
 'use client'
+import { certificateService } from '@/services/CertificateService';
+import { Download, Eye, Loader, Mail } from 'lucide-react';
 import React, { useState } from 'react';
-import { Download, Mail, Eye, Loader } from 'lucide-react';
-import { certificateService } from '../../services/CertificateService';
 
 interface StudentCertificateProps {
   studentData: {

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TechSheetsABM } from './TechSheetsABM';
 
 // Mock the api module
@@ -103,11 +103,11 @@ describe('TechSheetsABM', () => {
     await waitFor(() => {
       // Verify two-step: first call to /files/upload (FormData), then /tech-sheets (JSON)
       const calls = mockAuthFetch.mock.calls;
-      const uploadCall = calls.find(([url]: [string, any]) =>
-        typeof url === 'string' && url.includes('/files/upload')
+      const uploadCall = calls.find((call: any) =>
+        typeof call[0] === 'string' && call[0].includes('/files/upload')
       );
-      const createCall = calls.find(([url, opts]: [string, any]) =>
-        typeof url === 'string' && url.includes('/tech-sheets') && opts?.method === 'POST'
+      const createCall = calls.find((call: any) =>
+        typeof call[0] === 'string' && call[0].includes('/tech-sheets') && call[1]?.method === 'POST'
       );
 
       expect(uploadCall).toBeTruthy();

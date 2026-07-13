@@ -290,9 +290,105 @@ export class LegajoController {
 @Controller('simulation-sessions')
 export class SimulationSessionsController {
   constructor(private prisma: PrismaService) {}
-  @Get() async findAll() { return []; }
-  @Get('ref/:ref') async findByRef(@Param('ref') ref: string) { return null; }
-  @Get(':id') async findOne(@Param('id') id: string) { return null; }
+
+  @Get()
+  async findAll() {
+    const instances = await this.prisma.simulationInstance.findMany({
+      include: {
+        student: true,
+        scenario: true,
+        course: true,
+        logs: true,
+      },
+      orderBy: { started_at: 'desc' }
+    });
+
+    return instances.map(inst => ({
+      id: inst.id,
+      status: inst.status,
+      score: inst.score || 0,
+      started_at: inst.started_at,
+      completed_at: inst.completed_at,
+      time_spent_seconds: inst.time_spent_seconds || 0,
+      progress_percentage: inst.progress_percentage || 0,
+      student_name: inst.student ? `${inst.student.first_name} ${inst.student.last_name}` : 'Unknown',
+      student_email: inst.student ? inst.student.email : '',
+      student_id: inst.student_id,
+      scenario_title: inst.scenario ? inst.scenario.title : 'Unknown',
+      scenario_type: inst.scenario ? inst.scenario.type : '',
+      difficulty: inst.scenario ? inst.scenario.difficulty : '',
+      course_title: inst.course ? inst.course.title : 'Unknown',
+      course_id: inst.course_id,
+      total_turns: inst.logs ? inst.logs.length : 0,
+      incorrect_turns: inst.logs ? inst.logs.filter((l: any) => l.is_correct === false).length : 0,
+    }));
+  }
+
+  @Get('ref/:ref')
+  async findByRef(@Param('ref') ref: string) {
+    // Find log by ref_number and return the instance
+    const log = await this.prisma.practiceLogs.findFirst({
+      where: { ref_number: ref },
+    });
+    if (!log) return null;
+    return this.findOne(log.simulation_instance_id);
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    const inst = await this.prisma.simulationInstance.findUnique({
+      where: { id },
+      include: {
+        student: true,
+        scenario: true,
+        course: true,
+        logs: { orderBy: { turn_number: 'asc' } },
+      },
+    });
+    if (!inst) return null;
+
+    const evalData = await this.prisma.simulationEvaluation.findFirst({
+      where: { simulation_id: id },
+    });
+
+    return {
+      instance: {
+        id: inst.id,
+        status: inst.status,
+        score: inst.score || 0,
+        started_at: inst.started_at,
+        completed_at: inst.completed_at,
+        time_spent_seconds: inst.time_spent_seconds || 0,
+        progress_percentage: inst.progress_percentage || 0,
+        student_name: inst.student ? `${inst.student.first_name} ${inst.student.last_name}` : 'Unknown',
+        student_email: inst.student ? inst.student.email : '',
+        student_id: inst.student_id,
+        scenario_title: inst.scenario ? inst.scenario.title : 'Unknown',
+        scenario_type: inst.scenario ? inst.scenario.type : '',
+        difficulty: inst.scenario ? inst.scenario.difficulty : '',
+        course_title: inst.course ? inst.course.title : 'Unknown',
+      },
+      logs: inst.logs.map((l: any) => ({
+        id: l.id,
+        turn_number: l.turn_number,
+        speaker: l.speaker,
+        message_text: l.message,
+        is_correct: l.is_correct === true ? 1 : (l.is_correct === false ? 0 : null),
+        ref_number: l.ref_number,
+        score_impact: 0,
+        ai_solution: l.metadata ? (l.metadata as any).ai_solution : null,
+        correct_answer: l.metadata ? (l.metadata as any).correct_answer : null,
+      })),
+      evaluation: evalData ? {
+        overall_score: evalData.overall_score || 0,
+        overall_feedback: evalData.overall_feedback || '',
+        kpi_results: evalData.kpi_results || {},
+        completion_percentage: evalData.completion_percentage || 0,
+        time_spent_seconds: evalData.time_spent_seconds || 0,
+        evaluated_at: evalData.evaluated_at,
+      } : null,
+    };
+  }
 }
 
 // ── Certificates ─────────────────────────────────────────────────

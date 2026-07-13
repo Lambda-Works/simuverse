@@ -1,15 +1,15 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
-import { Course } from '../types';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Clock, CheckCircle2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Course } from '../types';
 import CommunicationModule from './modules/CommunicationModule';
-import ToolsModule from './modules/ToolsModule';
 import DocumentationModule from './modules/DocumentationModule';
+import ToolsModule from './modules/ToolsModule';
 
 interface DynamicInterfaceProps {
   course: Course;
@@ -33,7 +33,7 @@ const DynamicInterface: React.FC<DynamicInterfaceProps> = ({ course, simulationI
   // Crisis trigger simulation
   useEffect(() => {
     const crisisEvents = course.crisis_events || [];
-    const triggered = crisisEvents.find((e) => e.trigger_minutes === elapsedMinutes);
+    const triggered = crisisEvents.find((e: any) => e.trigger_minutes === elapsedMinutes);
     if (triggered) {
       setCrisisActive(true);
       setTimeout(() => setCrisisActive(false), 10000);
@@ -47,7 +47,7 @@ const DynamicInterface: React.FC<DynamicInterfaceProps> = ({ course, simulationI
     emprendimiento: 'bg-orange-100 text-orange-900',
   };
 
-  const familyBadgeColor = familyColors[course.family] || 'bg-gray-100 text-gray-900';
+  const familyBadgeColor = familyColors[(course as any).family] || 'bg-gray-100 text-gray-900';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6">
@@ -59,7 +59,7 @@ const DynamicInterface: React.FC<DynamicInterfaceProps> = ({ course, simulationI
             <p className="text-gray-600 text-sm mt-1">{course.description}</p>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Badge className={familyBadgeColor}>{course.family.toUpperCase()}</Badge>
+            <Badge className={familyBadgeColor}>{(course as any).family?.toUpperCase() || ''}</Badge>
             <Badge variant="outline">ID: {course.course_id}</Badge>
           </div>
         </div>
@@ -120,7 +120,7 @@ const DynamicInterface: React.FC<DynamicInterfaceProps> = ({ course, simulationI
         {course.modules.includes('chat_ia') && (
           <TabsContent value="communication" className="w-full">
             <CommunicationModule
-              courseFamily={course.family}
+              courseFamily={(course as any).family}
               onMessageSend={async (msg) => {
                 if (onAction) {
                   onAction('message_sent', { message: msg, course_id: course.course_id });
@@ -134,7 +134,7 @@ const DynamicInterface: React.FC<DynamicInterfaceProps> = ({ course, simulationI
         {(course.modules.includes('hoja_calculo') || course.modules.includes('herramientas')) && (
           <TabsContent value="tools" className="w-full">
             <ToolsModule
-              courseFamily={course.family}
+              courseFamily={(course as any).family}
               tools={course.modules}
               onCalculate={(data) => {
                 if (onAction) {
@@ -149,7 +149,7 @@ const DynamicInterface: React.FC<DynamicInterfaceProps> = ({ course, simulationI
         {course.modules.includes('documentos') && (
           <TabsContent value="documents" className="w-full">
             <DocumentationModule
-              courseFamily={course.family}
+              courseFamily={(course as any).family}
               onUpload={async (file) => {
                 if (onAction) {
                   onAction('document_uploaded', { filename: file.name, size: file.size, course_id: course.course_id });
@@ -197,7 +197,7 @@ const DynamicInterface: React.FC<DynamicInterfaceProps> = ({ course, simulationI
       <Card className="mt-6 p-4 bg-blue-50">
         <h3 className="font-bold text-sm text-blue-900 mb-3">Criterios de Evaluación</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {course.eval_criteria.map((criterion, idx) => (
+          {course.eval_criteria.map((criterion: any, idx: number) => (
             <div key={idx} className="flex items-start gap-2">
               <CheckCircle2 className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
               <span className="text-xs text-blue-900">{criterion}</span>

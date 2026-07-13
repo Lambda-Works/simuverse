@@ -1,15 +1,15 @@
 'use client'
-import { toast } from 'sonner';
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Trash2, X, Edit2 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { API_BASE, authFetch } from '@/lib/api';
 import { apiClient } from '@/services/ApiClient';
+import { Edit2, Plus, Trash2, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 interface Competency {
   id: string;

@@ -1,20 +1,20 @@
 'use client'
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
-import { apiClient } from '@/services/ApiClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, MessageSquare, Mail, FileText, BarChart3, Send, Loader } from 'lucide-react';
-import { toast } from 'sonner';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/hooks/useAuth';
+import { apiClient } from '@/services/ApiClient';
+import { ArrowLeft, BarChart3, FileText, Loader, Mail, MessageSquare, Send } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import React, { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
 interface Email {
@@ -88,7 +88,7 @@ const SimulationPage: React.FC = () => {
       return;
     }
     if (!courseId) {
-      router.push('/dashboard');
+      router.push('/auth');
       return;
     }
 
@@ -126,7 +126,7 @@ const SimulationPage: React.FC = () => {
           introLines.push('\n¿Por dónde querés empezar? Podés hacer preguntas, proponer soluciones o analizar la situación.');
         }
         
-        setChatMessages([{ role: 'assistant', message: introLines.join('\n'), timestamp: new Date() }]);
+        setChatMessages([{ role: 'ai', message: introLines.join('\n'), timestamp: new Date() }]);
 
         // Create simulation (correct endpoint)
         const simRes = await apiClient.post('/simulations/start', {
@@ -216,7 +216,12 @@ const SimulationPage: React.FC = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push('/dashboard')}
+            onClick={() => {
+              if (user?.role === 'admin') router.push('/admin/mis-cursos');
+              else if (user?.role === 'teacher') router.push('/profesor/cursos');
+              else if (user?.role === 'ministerio') router.push('/ministerio');
+              else router.push('/estudiante/cursos');
+            }}
             className="gap-1 shrink-0"
           >
             <ArrowLeft className="w-4 h-4" />

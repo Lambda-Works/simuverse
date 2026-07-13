@@ -4,20 +4,20 @@
  * ABM: Alta/Baja/Modificación + asignación de roles
  * Solo accesible por admin.
  */
-import React, { useState, useEffect } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Eye, EyeOff, Mail, Plus, Search, Settings, Trash2, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Plus, Trash2, Settings, Users, Search, Mail, Shield, Eye, EyeOff } from 'lucide-react';
 
-import { apiClient } from '@/services/ApiClient';
 import { useAdmin } from '@/lib/admin-context';
+import { apiClient } from '@/services/ApiClient';
 
 interface UserRow {
   id: string;
@@ -86,11 +86,7 @@ export function UsersABM() {
         await apiClient.put(`/users/${editingId}`, payload);
         toast.success('Usuario actualizado');
       } else {
-        const res = await apiClient.post('/users/create', form);
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || 'Error al crear usuario');
-        }
+        await apiClient.post('/users/create', form);
         toast.success('Usuario creado exitosamente');
       }
       setDialogOpen(false);

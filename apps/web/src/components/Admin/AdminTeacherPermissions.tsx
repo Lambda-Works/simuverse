@@ -6,8 +6,8 @@
  * Allows admin to toggle teacher access to AI configuration
  */
 
-import React, { useState, useEffect } from 'react';
 import { apiClient } from '@/services/ApiClient';
+import { useEffect, useState } from 'react';
 import './AdminTeacherPermissions.css';
 
 interface TeacherPermissions {

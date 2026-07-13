@@ -9,9 +9,9 @@
  * on the server, which will crash when they access browser APIs
  * (useState, useEffect, localStorage, navigator, window, etc.)
  */
-import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
+import { describe, expect, it } from 'vitest'
 
 // ─── Helper ────────────────────────────────────────────────────────────────────
 

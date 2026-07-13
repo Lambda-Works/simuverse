@@ -1,7 +1,7 @@
 'use client'
 
-import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { routeDemoRequest } from '@/services/demoData';
+import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -56,7 +56,7 @@ class ApiClient {
   constructor() {
     this.client = axios.create({
       baseURL: API_BASE_URL,
-      timeout: 10000,
+      timeout: 30000,
       headers: { 'Content-Type': 'application/json' },
     });
 

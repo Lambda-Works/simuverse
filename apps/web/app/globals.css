@@ -157,4 +157,10 @@
     from { opacity: 0; transform: translateX(16px); }
     to { opacity: 1; transform: translateX(0); }
   }
+
+  /* Ocultar el ícono de revelar contraseña nativo de Edge/IE */
+  input[type="password"]::-ms-reveal,
+  input[type="password"]::-ms-clear {
+    display: none;
+  }
 }

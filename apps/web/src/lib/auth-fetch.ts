@@ -57,4 +57,4 @@ if (typeof window !== 'undefined') {
   console.log('[auth-fetch] Global fetch patched with JWT token support');
 }
 
-export {};
+export { };

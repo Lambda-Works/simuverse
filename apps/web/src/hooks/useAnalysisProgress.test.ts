@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, waitFor, act } from '@testing-library/react';
-import { useAnalysisProgress, PipelineStatus } from './useAnalysisProgress';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { PipelineStatus, useAnalysisProgress } from './useAnalysisProgress';
 
 // Mock authFetch
 vi.mock('@/lib/api', () => ({

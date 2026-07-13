@@ -1,5 +1,4 @@
-import { PrismaClient, FileType } from '@prisma/client';
-
+import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
@@ -269,7 +268,7 @@ async function main() {
         course_id: course1!.id,
         uploaded_by_id: admin!.id,
         file_name: 'Resolucion_123_2024_Administracion.pdf',
-        file_type: FileType.pdf,
+        file_type: "pdf",
         file_size_bytes: 245000,
         file_path: '/uploads/ministry/res_123_2024.pdf',
         raw_text: 'Resolución 123/2024 del Ministerio de Educación de Santa Fe. Establece los contenidos mínimos para cursos de administración y ofimática con certificación oficial.',
@@ -284,7 +283,7 @@ async function main() {
         course_id: course3!.id,
         uploaded_by_id: admin!.id,
         file_name: 'Normativa_SENASA_HACCP_2024.pdf',
-        file_type: FileType.pdf,
+        file_type: "pdf",
         file_size_bytes: 380000,
         file_path: '/uploads/ministry/senasa_haccp_2024.pdf',
         raw_text: 'Normativa SENASA para certificación HACCP en plantas elaboradoras de alimentos. Define PCC, límites críticos y requisitos de documentación.',

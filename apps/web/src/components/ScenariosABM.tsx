@@ -1,20 +1,30 @@
 'use client'
-import { toast } from 'sonner';
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import {
-  Trash2, Plus, Edit2, BookOpen, Target, Mail, FileText,
-  ChevronRight, GraduationCap, Layers, Clock, CheckCircle, Copy
-} from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { useAdmin } from '@/lib/admin-context';
 import { apiClient } from '@/services/ApiClient';
+import {
+    BookOpen,
+    CheckCircle,
+    ChevronRight,
+    Clock,
+    Copy,
+    Edit2,
+    FileText,
+    GraduationCap, Layers,
+    Mail,
+    Plus,
+    Target,
+    Trash2
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,8 +96,8 @@ const emptyForm = () => ({
   course_id: '',
   title: '',
   description: '',
-  scenario_type: 'practice' as const,
-  difficulty: 'medium' as const,
+  scenario_type: 'practice' as 'practice' | 'evaluation',
+  difficulty: 'medium' as 'easy' | 'medium' | 'hard',
   categories: [] as string[],
   content: emptyContent(),
   expected_outcomes: emptyOutcomes(),
@@ -139,7 +149,7 @@ export function ScenariosABM() {
 
   const loadScenarios = async () => {
     try {
-      const res = await apiClient.get(`/scenarios?active=${!showInactive}`);
+      const res = await apiClient.get(`/scenarios`);
       setScenarios(Array.isArray(res.data) ? res.data : []);
     } catch { setScenarios([]); }
   };

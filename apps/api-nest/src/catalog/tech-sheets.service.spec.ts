@@ -107,9 +107,10 @@ describe.skip('TechSheetsService', () => {
       expect(result.kpis[0].evaluation_questions).toEqual(['Question 1']);
       expect(result.tasks).toHaveLength(1);
       expect(result.tasks[0].kpi_id).toBe('k1');
-      expect(result.prompts.system_prompt).toBe('System prompt');
-      expect(result.prompts.evaluation_prompt).toBe('Eval prompt');
-      expect(result.prompts.coaching_prompt).toBe('Coach prompt');
+      const prompts: any = result.prompts;
+      expect(prompts.system_prompt).toBe('System prompt');
+      expect(prompts.evaluation_prompt).toBe('Eval prompt');
+      expect(prompts.coaching_prompt).toBe('Coach prompt');
       expect(result.pipeline_status).toBe('completed');
     });
 
@@ -138,7 +139,8 @@ describe.skip('TechSheetsService', () => {
       expect(result.kpis[0].weight).toBe(50);
       expect(result.tasks).toHaveLength(1);
       expect(result.tasks[0].title).toBe('Question JSON');
-      expect(result.prompts.system_prompt).toBe('Sim prompt');
+      const prompts2: any = result.prompts;
+      expect(prompts2.system_prompt).toBe('Sim prompt');
     });
 
     it('should return empty skeleton when no config exists', async () => {

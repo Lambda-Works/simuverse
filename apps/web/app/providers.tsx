@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { AuthProvider } from '@/hooks/useAuth'
-import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster as Sonner } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { AuthProvider } from '@/hooks/useAuth'
 import { InactivityProvider } from '@/hooks/useInactivityTimer'
-import '@/lib/auth-fetch' // Global fetch wrapper with JWT token
+import '@/lib/auth-fetch'; // Global fetch wrapper with JWT token
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useState } from 'react'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient())

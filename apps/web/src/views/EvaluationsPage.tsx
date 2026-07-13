@@ -1,17 +1,25 @@
 'use client'
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
-import { apiClient } from '@/services/ApiClient';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/hooks/useAuth';
+import { apiClient } from '@/services/ApiClient';
 import {
-  ArrowLeft, BarChart3, Clock, MessageCircle, Users, AlertTriangle,
-  CheckCircle, Loader2, Brain, Zap, Trophy, FileText,
+    AlertTriangle,
+    BarChart3,
+    Brain,
+    CheckCircle,
+    Clock,
+    FileText,
+    Loader2,
+    MessageCircle,
+    Trophy,
+    Users,
+    Zap
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 const EvaluationsPage = () => {
@@ -26,7 +34,7 @@ const EvaluationsPage = () => {
 
   useEffect(() => {
     if (!loading && (!user || (!hasRole('teacher') && !hasRole('admin') && !hasRole('ministerio')))) {
-      router.push('/dashboard');
+      router.push('/auth');
     }
   }, [user, loading, hasRole, router]);
 

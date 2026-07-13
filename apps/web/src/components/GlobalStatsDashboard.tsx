@@ -1,9 +1,9 @@
 'use client'
-import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, CheckCircle2, TrendingUp, Clock, BookOpen, AlertCircle, Star, BarChart3 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiClient } from '@/services/ApiClient';
+import { AlertCircle, BarChart3, BookOpen, CheckCircle2, Clock, Star, TrendingUp, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface GlobalStats {
   users: Array<{ role: string; count: number }>;

@@ -1,6 +1,6 @@
 'use client'
-import React, { useState, useRef } from 'react';
-import { FileText, Download, Upload, Eye } from 'lucide-react';
+import { Download, Eye, FileText, Upload } from 'lucide-react';
+import React, { useRef, useState } from 'react';
 
 interface DocumentModuleProps {
   scenario: any;

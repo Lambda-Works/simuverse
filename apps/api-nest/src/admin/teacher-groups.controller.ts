@@ -15,7 +15,7 @@ export class TeacherGroupsController {
     const users = await this.prisma.user.findMany({
       select: { id: true, name: true, email: true }
     });
-    const userMap = new Map(users.map(u => [u.id, u]));
+    const userMap = new Map<string, any>(users.map(u => [u.id, u]));
 
     return groups.map(g => {
       const teacher = userMap.get(g.teacher_id);

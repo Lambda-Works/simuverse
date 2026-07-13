@@ -1,16 +1,16 @@
 'use client'
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { apiClient } from '@/services/ApiClient';
-import { authChangeEvent } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Checkbox } from '@/components/ui/checkbox';
+import { authChangeEvent } from '@/hooks/useAuth';
+import { apiClient } from '@/services/ApiClient';
+import { Bot, Eye, EyeOff, GraduationCap, Shield, ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { toast } from 'sonner';
-import { Shield, GraduationCap, Eye, EyeOff, Bot } from 'lucide-react';
 
 const Auth = () => {
   const router = useRouter();
@@ -116,7 +116,16 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
+      <Button
+        variant="ghost"
+        className="absolute top-4 left-4 gap-2 text-muted-foreground hover:text-foreground hover:bg-muted"
+        onClick={() => router.push('/')}
+      >
+        <ArrowLeft className="w-4 h-4" />
+        <span className="hidden sm:inline">Volver al inicio</span>
+        <span className="sm:hidden">Volver</span>
+      </Button>
       <div className="w-full max-w-md fade-in">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">

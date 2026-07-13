@@ -1,8 +1,8 @@
 'use client'
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Printer, Award, CheckCircle2, XCircle, BookOpen, Clock, Star } from 'lucide-react';
+import { ArrowLeft, Award, BookOpen, CheckCircle2, Clock, Printer, Star, XCircle } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 import { apiClient } from '@/services/ApiClient';
 

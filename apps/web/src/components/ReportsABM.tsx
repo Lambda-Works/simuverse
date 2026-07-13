@@ -2,14 +2,14 @@
 /**
  * ReportsABM.tsx — Panel de Reportes con Historia del Alumno
  */
-import React, { useState, useEffect } from 'react';
-import * as XLSX from 'xlsx';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart3, Download, Filter, GraduationCap, Clock, Calendar, CheckCircle2, XCircle, Target, Timer, Trophy, TrendingUp } from 'lucide-react';
+import { BarChart3, Calendar, CheckCircle2, Clock, Download, Filter, GraduationCap, Target, Timer, TrendingUp, Trophy, XCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import * as XLSX from 'xlsx';
 
 import { apiClient } from '@/services/ApiClient';
 

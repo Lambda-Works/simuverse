@@ -5,17 +5,24 @@
  * Muestra: diálogo completo IA↔Alumno, solución propuesta por IA, número de referencia,
  * resumen de aciertos/desaciertos y evaluación final.
  */
-import React, { useState, useEffect } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Search, MessageSquare, Bot, User, CheckCircle2, XCircle,
-  Clock, Calendar, BookOpen, GraduationCap, Hash, Download,
-  Info, ChevronDown, ChevronUp, Filter
+    Bot,
+    CheckCircle2,
+    Download,
+    Filter,
+    GraduationCap, Hash,
+    Info,
+    MessageSquare,
+    Search,
+    User,
+    XCircle
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import { apiClient } from '@/services/ApiClient';
 

@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { useRouter } from 'next/navigation';
+import React, { useEffect } from 'react';
 
 export type AppRole = 'student' | 'teacher' | 'admin' | 'ministerio';
 
@@ -39,7 +39,7 @@ export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
           router.replace('/ministerio');
           break;
         default:
-          router.replace('/dashboard');
+          router.replace('/auth');
       }
     }
   }, [user, loading, isAuthenticated, allowedRoles, router]);

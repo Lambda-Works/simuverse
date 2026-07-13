@@ -1,4 +1,4 @@
-import { LucideIcon, Home, Settings, BarChart3, FileText } from 'lucide-react';
+import { BarChart3, FileText, Home, LucideIcon } from 'lucide-react';
 
 export type AppRole = 'student' | 'teacher' | 'admin' | 'ministerio';
 

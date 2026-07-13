@@ -1,17 +1,17 @@
 'use client'
-import { toast } from 'sonner';
-import React, { useState, useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Edit2, Plus, Zap, FileUp, Paperclip, Link, Settings, Check, AlertTriangle, RefreshCw } from 'lucide-react';
-import { ConfigureTechSheetModal } from './ConfigureTechSheetModal';
+import { Textarea } from '@/components/ui/textarea';
+import { PipelineOutput, PipelineStatus, useAnalysisProgress } from '@/hooks/useAnalysisProgress';
 import { API_BASE, authFetch } from '@/lib/api';
-import { useAnalysisProgress, PipelineStatus, PipelineOutput } from '@/hooks/useAnalysisProgress';
+import { AlertTriangle, Check, Edit2, FileUp, Link, Paperclip, Plus, RefreshCw, Settings, Trash2, Zap } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
+import { ConfigureTechSheetModal } from './ConfigureTechSheetModal';
 
 interface TechSheet {
   id: number;
@@ -84,9 +84,8 @@ export function TechSheetsABM() {
 
   const fetchCourses = async () => {
     try {
-      const response = await authFetch(`${API_BASE}/courses`);
-      const data = await response.json();
-      setCourses(Array.isArray(data) ? data : []);
+      const response = await apiClient.get('/courses');
+      setCourses(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching courses:', error);
     }
@@ -94,9 +93,8 @@ export function TechSheetsABM() {
 
   const fetchTechSheets = async () => {
     try {
-      const response = await authFetch(`${API_BASE}/tech-sheets`);
-      const data = await response.json();
-      setSheets(Array.isArray(data) ? data : []);
+      const response = await apiClient.get('/tech-sheets');
+      setSheets(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching tech sheets:', error);
       setSheets([]);
@@ -323,7 +321,7 @@ export function TechSheetsABM() {
         name: sheet.name,
         description: sheet.description || undefined,
         ministry_code: sheet.ministry_code || undefined,
-        context_scenario: sheet.context_scenario || undefined,
+        context_scenario: (sheet as any).context_scenario || undefined,
         competencies: competencies.length > 0 ? competencies : sheet.competencies,
         kpi_requirements: kpis.length > 0 ? kpis : sheet.kpi_requirements,
       };
@@ -607,13 +605,13 @@ export function TechSheetsABM() {
                 )}
 
                 {/* Analizar button — pipeline-aware */}
-                {!sheet.processed && sheet.pipeline_status !== 'completed' && (
+                {!sheet.processed && (sheet.pipeline_status as string) !== 'completed' && (
                   <Button
                     onClick={() => handleAnalyze(sheet.id)}
                     disabled={
                       analyzingSheetId === sheet.id ||
                       sheet.pipeline_status === 'running' ||
-                      sheet.pipeline_status === 'completed' ||
+                      (sheet.pipeline_status as string) === 'completed' ||
                       !sheet.course_id
                     }
                     title={
@@ -621,12 +619,12 @@ export function TechSheetsABM() {
                         ? 'Asocia un curso primero'
                         : sheet.pipeline_status === 'running'
                         ? 'Analisis en progreso...'
-                        : sheet.pipeline_status === 'completed'
+                        : (sheet.pipeline_status as string) === 'completed'
                         ? 'Ya fue analizada'
                         : 'Analizar esta ficha tecnica'
                     }
                     className={
-                      sheet.pipeline_status === 'completed'
+                      (sheet.pipeline_status as string) === 'completed'
                         ? 'bg-green-600'
                         : sheet.pipeline_status === 'running' || analyzingSheetId === sheet.id
                         ? 'bg-yellow-600'
@@ -636,13 +634,13 @@ export function TechSheetsABM() {
                     <Zap className="w-4 h-4 mr-2" />
                     {sheet.pipeline_status === 'running' || analyzingSheetId === sheet.id
                       ? 'Analizando...'
-                      : sheet.pipeline_status === 'completed'
+                      : (sheet.pipeline_status as string) === 'completed'
                       ? 'Analizado'
                       : 'Analizar'}
                   </Button>
                 )}
 
-                {sheet.pipeline_status === 'completed' && (
+                {(sheet.pipeline_status as string) === 'completed' && (
                   <>
                     <Button disabled className="bg-green-600">
                       <Zap className="w-4 h-4 mr-2" />
@@ -1038,7 +1036,7 @@ function PipelineProgressStatus({
 /** Render markdown output for completed steps */
 function StepOutput({ output }: { output: PipelineOutput }) {
   const stepsWithOutput = PIPELINE_STEPS.filter(
-    (step) => output[step.field],
+    (step) => (output as any)[step.field],
   );
 
   if (stepsWithOutput.length === 0) return null;
@@ -1053,7 +1051,7 @@ function StepOutput({ output }: { output: PipelineOutput }) {
           </summary>
           <div className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded text-xs max-h-48 overflow-auto">
             <pre className="whitespace-pre-wrap font-mono text-gray-700">
-              {String(output[step.field])}
+              {String((output as any)[step.field])}
             </pre>
           </div>
         </details>

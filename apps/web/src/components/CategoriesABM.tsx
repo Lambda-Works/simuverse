@@ -1,13 +1,13 @@
 'use client'
-import { toast } from 'sonner';
-import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card } from '@/components/ui/card';
-import { Trash2, Edit2, Plus } from 'lucide-react';
-import { apiClient } from '@/services/ApiClient';
 import { useAdmin } from '@/lib/admin-context';
+import { apiClient } from '@/services/ApiClient';
+import { Edit2, Plus, Trash2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 interface Category {
   id: number;
@@ -215,7 +215,7 @@ export function CategoriesABM() {
                 >
                   <Edit2 className="w-4 h-4" />
                 </Button>}
-                {!readOnly && category.is_active !== false && <Button
+                {!readOnly && (category as any).is_active !== false && <Button
                   onClick={() => handleDelete(category.id)}
                   size="sm"
                   variant="outline"
@@ -223,7 +223,7 @@ export function CategoriesABM() {
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>}
-                {!readOnly && category.is_active === false && <Button
+                {!readOnly && (category as any).is_active === false && <Button
                   onClick={() => handleReactivate(category.id)}
                   size="sm"
                   variant="outline"

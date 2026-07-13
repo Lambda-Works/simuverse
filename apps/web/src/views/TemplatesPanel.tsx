@@ -1,21 +1,21 @@
 'use client'
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
-import { apiClient } from '@/services/ApiClient';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from 'sonner';
-import { Plus, ArrowLeft, Copy, Trash2, Save, Eye, FileJson, Code2, Zap, AlertTriangle, Clock, Shield } from 'lucide-react';
-import { FlowTemplate, FLOW_TEMPLATES, getAllTemplates } from '@/data/flowTemplates';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { FlowTemplate, getAllTemplates } from '@/data/flowTemplates';
+import { useAuth } from '@/hooks/useAuth';
+import { apiClient } from '@/services/ApiClient';
+import { ArrowLeft, Code2, Copy, Eye, FileJson, Save, Shield, Trash2, Zap } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 const TemplatesPanel = () => {
   const { user, hasRole, loading } = useAuth();
@@ -31,7 +31,7 @@ const TemplatesPanel = () => {
 
   useEffect(() => {
     if (!loading && (!user || (!hasRole('admin') && !hasRole('ministerio')))) {
-      router.push('/dashboard');
+      router.push('/auth');
     }
   }, [user, loading, hasRole, router]);
 
@@ -422,7 +422,7 @@ const TemplatesPanel = () => {
                   <Label>Rol Base</Label>
                   <Textarea
                     value={editingTemplate.persona?.base_role || ''}
-                    onChange={e => setEditingTemplate(p => ({ ...p, persona: { ...p.persona, base_role: e.target.value } }))}
+                    onChange={e => setEditingTemplate((p: any) => ({ ...p, persona: { ...p?.persona, base_role: e.target.value } }))}
                     placeholder="Eres..."
                     rows={3}
                   />
@@ -431,7 +431,7 @@ const TemplatesPanel = () => {
                   <Label>Contexto del Curso</Label>
                   <Textarea
                     value={editingTemplate.persona?.course_context || ''}
-                    onChange={e => setEditingTemplate(p => ({ ...p, persona: { ...p.persona, course_context: e.target.value } }))}
+                    onChange={e => setEditingTemplate((p: any) => ({ ...p, persona: { ...p?.persona, course_context: e.target.value } }))}
                     placeholder="La simulación se desarrolla en..."
                     rows={3}
                   />
@@ -455,7 +455,7 @@ const TemplatesPanel = () => {
                     min="0"
                     max="100"
                     value={editingTemplate.evaluation?.min_score_to_pass || 70}
-                    onChange={e => setEditingTemplate(p => ({ ...p, evaluation: { ...p.evaluation, min_score_to_pass: parseInt(e.target.value) } }))}
+                    onChange={e => setEditingTemplate((p: any) => ({ ...p, evaluation: { ...p?.evaluation, min_score_to_pass: parseInt(e.target.value) } }))}
                   />
                 </div>
                 <p className="text-sm text-muted-foreground">Criterios: {editingTemplate.evaluation?.criteria.length || 0}</p>

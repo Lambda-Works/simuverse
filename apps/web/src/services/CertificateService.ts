@@ -109,7 +109,7 @@ class CertificateService {
       dark: { bg: '#1f2937', accent: '#60a5fa', text: '#f3f4f6' },
     };
 
-    const selectedTheme = colors[theme] || colors.professional;
+    const selectedTheme = (theme && colors[theme]) ? colors[theme] : colors.professional;
 
     // Draw background
     ctx.fillStyle = selectedTheme.bg;

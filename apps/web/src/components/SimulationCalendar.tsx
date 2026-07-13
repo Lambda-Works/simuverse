@@ -1,11 +1,11 @@
 'use client'
-import { useEffect, useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight, Calendar, Clock, CheckCircle2, AlertTriangle, BookOpen } from 'lucide-react';
 import { apiClient } from '@/services/ApiClient';
+import { AlertTriangle, BookOpen, Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface Assignment {
   id: number;

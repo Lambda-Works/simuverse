@@ -1,8 +1,8 @@
 'use client'
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Shield, ArrowRight, BookOpen, BarChart3, Settings, Zap } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { ArrowRight, BarChart3, BookOpen, Settings, Shield, Zap } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const Index = () => {
   const { loading } = useAuth();

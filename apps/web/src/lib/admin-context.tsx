@@ -1,6 +1,6 @@
 'use client';
-import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
 const STORAGE_KEY = 'admin-sidebar:currentTab';
 
@@ -10,6 +10,7 @@ interface AdminContextValue {
   pendingCount: number;
   setPendingCount: (count: number) => void;
   isInitialized: boolean;
+  readOnly: boolean;
 }
 
 const AdminContext = createContext<AdminContextValue | null>(null);
@@ -38,7 +39,7 @@ export function AdminProvider({ children, readOnly = false }: { children: React.
 
   return (
     <AdminContext.Provider
-      value={{ currentTab, setCurrentTab, pendingCount, setPendingCount, isInitialized }}
+      value={{ currentTab, setCurrentTab, pendingCount, setPendingCount, isInitialized, readOnly }}
     >
       {children}
     </AdminContext.Provider>

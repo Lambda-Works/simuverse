@@ -521,7 +521,7 @@ SITUACIÓN: En 30 minutos esto puede ser viral. Necesito tu respuesta AHORA.
 
 OBJETIVO: Contener la reputación sin generar más conflicto. 
 OPCIONES: Responder publicamente (riesgo), enviar DM privado (humanizar), o ignorar (perder credibilidad)`,
-        priority: 'critical',
+        priority: 'high',
         email_type: 'boss',
       },
     ],

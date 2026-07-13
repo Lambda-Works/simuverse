@@ -1,8 +1,7 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { apiClient } from '@/services/ApiClient';
 import { DEMO_USERS } from '@/services/demoData';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
 type AppRole = 'student' | 'teacher' | 'admin' | 'ministerio';
 
