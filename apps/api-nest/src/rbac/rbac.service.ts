@@ -46,8 +46,8 @@ export class RbacService {
 
   async deleteRole(id: number) {
     await this.getRole(id);
-    await this.prisma.role.delete({ where: { id } });
-    return { message: 'Role deleted successfully' };
+    await this.prisma.role.update({ where: { id }, data: { is_active: false } });
+    return { message: 'Role deactivated' };
   }
 
   // ── System Functionalities ─────────────────────────────────────────
@@ -89,8 +89,8 @@ export class RbacService {
 
   async deleteFunctionality(id: number) {
     await this.getFunctionality(id);
-    await this.prisma.systemFunctionality.delete({ where: { id } });
-    return { message: 'Functionality deleted successfully' };
+    await this.prisma.systemFunctionality.update({ where: { id }, data: { is_active: false } });
+    return { message: 'Functionality deactivated' };
   }
 
   // ── Role Permissions ───────────────────────────────────────────────

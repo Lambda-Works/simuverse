@@ -95,8 +95,16 @@ export class EndorsersController {
   }
 
   @Delete(':id') async remove(@Param('id') id: string) {
-    return (this.prisma as any).endorser.delete({
+    return (this.prisma as any).endorser.update({
       where: { id: Number(id) },
+      data: { is_active: false },
+    });
+  }
+
+  @Put(':id/reactivate') async reactivate(@Param('id') id: string) {
+    return (this.prisma as any).endorser.update({
+      where: { id: Number(id) },
+      data: { is_active: true },
     });
   }
 }
