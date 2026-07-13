@@ -54,6 +54,7 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        is_active: true,
         created_at: true,
       },
     });
@@ -68,6 +69,7 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        is_active: true,
         created_at: true,
       },
       orderBy: { name: 'asc' },

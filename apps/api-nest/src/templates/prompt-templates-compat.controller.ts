@@ -11,10 +11,11 @@ export class PromptTemplatesCompatController {
   ) {}
 
   @Get()
-  findAll(@Query('category') category?: string) {
+  findAll(@Query('category') category?: string, @Query('active') active?: string) {
     const svc = this.promptTemplates as any;
-    if (category) return svc.findByCategory ? svc.findByCategory(category) : svc.findAll({ where: { category } });
-    return svc.findAll();
+    const activeFlag = active === undefined ? undefined : active === 'true';
+    if (category) return svc.findByCategory ? svc.findByCategory(category) : svc.findAll(category, activeFlag);
+    return svc.findAll(undefined as any, activeFlag);
   }
 
   @Get(':id')
