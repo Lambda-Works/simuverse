@@ -142,13 +142,28 @@ export function EndorsersABM() {
     setDialogOpen(true);
   };
 
-  const handleDeactivate = async (id: number) => {
-    if (!confirm('¿Desactivar este avalador?')) return;
+  const handleDeactivate = (id: number) => {
+    toast.error('¿Desactivar este avalador?', {
+      action: {
+        label: 'Desactivar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/endorsers/${id}`);
+            toast.success('Avalador desactivado');
+            fetchAll();
+          } catch { toast.error('Error al desactivar'); }
+        },
+      },
+      duration: 5000,
+    });
+  };
+
+  const handleReactivate = async (id: number) => {
     try {
-      await apiClient.delete(`/endorsers/${id}`);
-      toast.success('Avalador desactivado');
+      await apiClient.put(`/endorsers/${id}/reactivate`);
       fetchAll();
-    } catch { toast.error('Error al desactivar'); }
+      toast.success('Avalador reactivado');
+    } catch { toast.error('Error al reactivar'); }
   };
 
   const handleToggleLink = async (endorserId: number) => {
@@ -251,13 +266,15 @@ export function EndorsersABM() {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm leading-tight truncate">{e.name}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{ENDORSEMENT_TYPES.find(t => t.value === e.endorsement_type)?.label || e.endorsement_type}</p>
+                  {e.is_active === false && <Badge variant="secondary" className="text-xs bg-gray-400 mt-1">Inactivo</Badge>}
                 </div>
               </div>
               {e.description && <p className="text-xs text-gray-600 mb-3 line-clamp-2">{e.description}</p>}
               {e.website && <a href={e.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline block mb-3 truncate">🌐 {e.website}</a>}
               <div className="flex justify-end gap-1">
                 {!readOnly && <Button variant="outline" size="sm" onClick={() => handleEdit(e)}><Settings className="w-3 h-3" /></Button>}
-                {!readOnly && <Button variant="ghost" size="sm" onClick={() => handleDeactivate(e.id)} className="text-red-500 hover:bg-red-50"><Trash2 className="w-3 h-3" /></Button>}
+                {!readOnly && e.is_active !== false && <Button variant="ghost" size="sm" onClick={() => handleDeactivate(e.id)} className="text-red-500 hover:bg-red-50"><Trash2 className="w-3 h-3" /></Button>}
+                {!readOnly && e.is_active === false && <Button variant="ghost" size="sm" onClick={() => handleReactivate(e.id)} className="text-green-500 hover:bg-green-50">🔄</Button>}
               </div>
             </CardContent>
           </Card>

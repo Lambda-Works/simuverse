@@ -76,7 +76,7 @@ export function TechSheetsABM() {
     if (pollStatus === 'completed') {
       fetchTechSheets();
       setAnalyzingSheetId(null);
-      alert('Analisis completado exitosamente');
+      toast.success('Análisis completado exitosamente');
     } else if (pollStatus === 'failed' || pollStatus === 'validation_rejected') {
       setAnalyzingSheetId(null);
     }
@@ -271,18 +271,25 @@ export function TechSheetsABM() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Estás seguro de eliminar esta ficha técnica?')) return;
-
-    try {
-      await authFetch(`${API_BASE}/tech-sheets/${id}`, {
-        method: 'DELETE',
-      });
-      await fetchTechSheets();
-    } catch (error) {
-      console.error('Error deleting tech sheet:', error);
-      toast.error('Error al eliminar la ficha técnica');
-    }
+  const handleDelete = (id: number) => {
+    toast.error('¿Estás seguro de eliminar esta ficha técnica?', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await authFetch(`${API_BASE}/tech-sheets/${id}`, {
+              method: 'DELETE',
+            });
+            await fetchTechSheets();
+            toast.success('Ficha técnica eliminada');
+          } catch (error) {
+            console.error('Error deleting tech sheet:', error);
+            toast.error('Error al eliminar la ficha técnica');
+          }
+        },
+      },
+      duration: 5000,
+    });
   };
 
   const handleCompleteSheet = async (id: number) => {
@@ -644,9 +651,15 @@ export function TechSheetsABM() {
                     </Button>
                     <Button
                       onClick={() => {
-                        if (confirm('¿Re-analizar esta ficha? Se sobrescribirán los resultados existentes.')) {
-                          handleAnalyze(sheet.id);
-                        }
+                        toast.error('¿Re-analizar esta ficha? Se sobrescribirán los resultados existentes.', {
+                          action: {
+                            label: 'Re-analizar',
+                            onClick: () => {
+                              handleAnalyze(sheet.id);
+                            },
+                          },
+                          duration: 5000,
+                        });
                       }}
                       disabled={analyzingSheetId === sheet.id}
                       className="bg-orange-600 hover:bg-orange-700"
@@ -718,9 +731,15 @@ export function TechSheetsABM() {
                 </Alert>
                 <Button
                   onClick={() => {
-                    if (confirm('¿Reintentar el análisis?')) {
-                      handleAnalyze(sheet.id);
-                    }
+                    toast.error('¿Reintentar el análisis?', {
+                      action: {
+                        label: 'Reintentar',
+                        onClick: () => {
+                          handleAnalyze(sheet.id);
+                        },
+                      },
+                      duration: 5000,
+                    });
                   }}
                   disabled={analyzingSheetId === sheet.id}
                   size="sm"

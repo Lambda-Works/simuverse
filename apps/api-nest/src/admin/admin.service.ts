@@ -109,8 +109,13 @@ export class AdminService {
   }
 
   async removeRole(id: number) {
-    await this.prisma.role.delete({ where: { id } });
-    return { message: 'Role deleted successfully' };
+    await this.prisma.role.update({ where: { id }, data: { is_active: false } });
+    return { message: 'Role deactivated' };
+  }
+
+  async reactivateRole(id: number) {
+    await this.prisma.role.update({ where: { id }, data: { is_active: true } });
+    return { message: 'Role reactivated' };
   }
 
   async getFunctionalities() {
@@ -159,8 +164,13 @@ export class AdminService {
   }
 
   async removeFunctionality(id: number) {
-    await this.prisma.systemFunctionality.delete({ where: { id } });
-    return { message: 'Functionality deleted successfully' };
+    await this.prisma.systemFunctionality.update({ where: { id }, data: { is_active: false } });
+    return { message: 'Functionality deactivated' };
+  }
+
+  async reactivateFunctionality(id: number) {
+    await this.prisma.systemFunctionality.update({ where: { id }, data: { is_active: true } });
+    return { message: 'Functionality reactivated' };
   }
 
   // ── Role Permissions (ON CONFLICT upsert) ─────────────────────────

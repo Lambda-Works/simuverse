@@ -101,16 +101,31 @@ export function DocumentsABM() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Estás seguro de eliminar este documento?')) return;
+  const handleDelete = (id: number) => {
+    toast.error('¿Estás seguro de eliminar este documento?', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/documents/${id}`);
+            await fetchDocuments();
+            toast.success('Documento eliminado');
+          } catch (error) {
+            console.error('Error deleting document:', error);
+            toast.error('Error al eliminar el documento');
+          }
+        },
+      },
+      duration: 5000,
+    });
+  };
 
+  const handleReactivate = async (id: number) => {
     try {
-      await apiClient.delete(`/documents/${id}`);
+      await apiClient.put(`/documents/${id}/reactivate`);
       await fetchDocuments();
-    } catch (error) {
-      console.error('Error deleting document:', error);
-      toast.error('Error al eliminar el documento');
-    }
+      toast.success('Documento reactivado');
+    } catch { toast.error('Error al reactivar'); }
   };
 
   const handleCancel = () => {
@@ -254,7 +269,7 @@ export function DocumentsABM() {
                 </p>
               </div>
 <div className="flex gap-2 ml-4">
-                {!readOnly && <Button
+                {!readOnly && (doc as any).is_active !== false && <Button
                   onClick={() => handleDelete(doc.id)}
                   size="sm"
                   variant="outline"
@@ -262,6 +277,12 @@ export function DocumentsABM() {
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>}
+                {!readOnly && (doc as any).is_active === false && <Button
+                  onClick={() => handleReactivate(doc.id)}
+                  size="sm"
+                  variant="outline"
+                  className="text-green-600 border-green-300"
+                >🔄</Button>}
               </div>
             </div>
           </Card>

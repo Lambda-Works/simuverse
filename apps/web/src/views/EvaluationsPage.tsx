@@ -169,10 +169,10 @@ const EvaluationsPage = () => {
                         <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                         <button
                           className="font-medium hover:text-primary hover:underline flex items-center gap-1 transition-colors"
-                          onClick={e => { e.stopPropagation(); router.push(`/student-ledger/${sim.user_id}`); }}
+                          onClick={e => { e.stopPropagation(); router.push(`/student-ledger/${sim.student_id}`); }}
                           title="Ver legajo del alumno"
                         >
-                          {sim.user_name || sim.user_id?.slice(0, 8) || 'Alumno'}
+                          {sim.user?.name || sim.student_id?.slice(0, 8) || 'Alumno'}
                           <FileText className="w-3 h-3 opacity-60" />
                         </button>
                         <Badge variant="secondary" className={`text-xs ${st.color} gap-1`}>{st.icon}{st.label}</Badge>

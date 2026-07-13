@@ -99,6 +99,22 @@ export function FoundationABM() {
     setDialogOpen(true);
   };
 
+  const handleDeactivate = async (id: number) => {
+    try {
+      await apiClient.delete(`/foundation-config/${id}`);
+      fetchFoundations();
+      toast.success('Institución desactivada');
+    } catch { toast.error('Error al desactivar'); }
+  };
+
+  const handleReactivate = async (id: number) => {
+    try {
+      await apiClient.put(`/foundation-config/${id}/reactivate`);
+      fetchFoundations();
+      toast.success('Institución reactivada');
+    } catch { toast.error('Error al reactivar'); }
+  };
+
   const LogoDisplay = ({ name, logoUrl, size = 'md' }: { name: string; logoUrl?: string; size?: 'sm' | 'md' | 'lg' }) => {
     const [imgErr, setImgErr] = useState(false);
     const sizeMap = { sm: 'w-10 h-10 text-xs', md: 'w-14 h-14 text-sm', lg: 'w-20 h-20 text-2xl' };
@@ -216,6 +232,7 @@ export function FoundationABM() {
                 <div className="flex-1 min-w-0">
                   <CardTitle className="text-base leading-tight text-blue-900">{f.name}</CardTitle>
                   {f.short_name && <Badge className="mt-1 bg-blue-600 text-white text-xs">{f.short_name}</Badge>}
+                {f.is_active === false && <Badge className="mt-1 bg-gray-400 text-white text-xs">Inactiva</Badge>}
                 </div>
               </div>
             </CardHeader>
@@ -230,9 +247,15 @@ export function FoundationABM() {
                   <p className="text-xs text-purple-600 mt-0.5">{f.ministry_aval}</p>
                 </div>
               )}
-              <div className="flex justify-end mt-3">
-                {!readOnly && <Button variant="outline" size="sm" onClick={() => handleEdit(f)}>
+              <div className="flex justify-end mt-3 gap-2">
+                {!readOnly && f.is_active !== false && <Button variant="outline" size="sm" onClick={() => handleEdit(f)}>
                   <Settings className="w-3.5 h-3.5 mr-1" /> Editar
+                </Button>}
+                {!readOnly && f.is_active !== false && <Button variant="outline" size="sm" className="text-red-600" onClick={() => handleDeactivate(f.id)}>
+                  Desactivar
+                </Button>}
+                {!readOnly && f.is_active === false && <Button variant="outline" size="sm" className="text-green-600 border-green-300" onClick={() => handleReactivate(f.id)}>
+                  🔄 Reactivar
                 </Button>}
               </div>
             </CardContent>

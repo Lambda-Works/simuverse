@@ -43,14 +43,15 @@ export const PromptTemplatesABM: React.FC = () => {
     personality_traits: [],
     knowledge_base_prompt: ''
   });
+  const [showInactive, setShowInactive] = useState(false);
 
   useEffect(() => {
     fetchTemplates();
-  }, []);
+  }, [showInactive]);
 
   const fetchTemplates = async () => {
     try {
-      const response = await apiClient.get('/prompt-templates');
+      const response = await apiClient.get(`/prompt-templates?active=${!showInactive}`);
       const data = response.data;
       setTemplates(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -76,28 +77,49 @@ export const PromptTemplatesABM: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('¿Desactivar esta plantilla?')) {
-      try {
-        await apiClient.delete(`/prompt-templates/${id}`);
-        fetchTemplates();
-      } catch (error) {
-        console.error('Error deleting template:', error);
-      }
-    }
+    toast.error('¿Desactivar esta plantilla?', {
+      action: {
+        label: 'Desactivar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/prompt-templates/${id}`);
+            fetchTemplates();
+            toast.success('Plantilla desactivada');
+          } catch (error) {
+            toast.error('Error al desactivar plantilla');
+          }
+        },
+      },
+      duration: 5000,
+    });
   };
 
-  const handleDuplicate = async (id: number, name: string) => {
-    const newName = prompt('Nombre para la copia:', `${name} (Copia)`);
-    if (newName) {
-      try {
-        await apiClient.post(`/prompt-templates/${id}/duplicate`, { name: newName });
+  const handleDuplicate = (id: number, name: string) => {
+    const newName = `${name} (Copia)`;
+    toast.error('¿Duplicar esta plantilla?', {
+      action: {
+        label: 'Duplicar',
+        onClick: async () => {
+          try {
+            await apiClient.post(`/prompt-templates/${id}/duplicate`, { name: newName });
+            fetchTemplates();
+            toast.success('Plantilla duplicada exitosamente');
+          } catch (error) {
+            console.error('Error duplicating template:', error);
+            toast.error('Error al duplicar la plantilla');
+          }
+        },
+      },
+      duration: 5000,
+    });
+  };
 
-        fetchTemplates();
-        toast.success('Plantilla duplicada exitosamente');
-      } catch (error) {
-        console.error('Error duplicating template:', error);
-      }
-    }
+  const handleReactivate = async (id: number) => {
+    try {
+      await apiClient.put(`/prompt-templates/${id}`, { is_active: true });
+      fetchTemplates();
+      toast.success('Plantilla reactivada');
+    } catch { toast.error('Error al reactivar'); }
   };
 
   const handleEdit = (template: PromptTemplate) => {
@@ -176,6 +198,16 @@ export const PromptTemplatesABM: React.FC = () => {
           ))}
         </div>
 
+        {/* Toggle active/inactive */}
+        <div className="flex gap-2 mb-4">
+          <Button variant={!showInactive ? 'default' : 'outline'} size="sm" onClick={() => { setShowInactive(false); fetchTemplates(); }}>
+            Activos ({templates.filter((t: any) => t.is_active !== false).length})
+          </Button>
+          <Button variant={showInactive ? 'default' : 'outline'} size="sm" onClick={() => { setShowInactive(true); fetchTemplates(); }}>
+            Inactivos ({templates.filter((t: any) => t.is_active === false).length})
+          </Button>
+        </div>
+
         {/* Tabla de plantillas */}
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
@@ -210,11 +242,17 @@ export const PromptTemplatesABM: React.FC = () => {
                     >
                       📋
                     </button>}
-                    {!readOnly && <button
+                    {!readOnly && template.is_active !== false && <button
                       onClick={() => handleDelete(template.id)}
                       className="px-2 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
                     >
                       🗑️
+                    </button>}
+                    {!readOnly && template.is_active === false && <button
+                      onClick={() => handleReactivate(template.id)}
+                      className="px-2 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
+                    >
+                      🔄
                     </button>}
                   </td>
                 </tr>

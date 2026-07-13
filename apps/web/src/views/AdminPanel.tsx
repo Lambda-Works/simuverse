@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { useAdmin } from '@/lib/admin-context';
-import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield, FolderOpen, FileUp, UserCheck, BarChart3, ClipboardList, Wand2, Copy, MessageSquare, Bell, CalendarDays, Users2, Building2, GraduationCap, Handshake, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield, FolderOpen, FileUp, UserCheck, BarChart3, ClipboardList, Wand2, Copy, MessageSquare, Bell, CalendarDays, Users2, Building2, GraduationCap, Handshake, AlertTriangle, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
 import { GlobalStatsDashboard } from '@/components/GlobalStatsDashboard';
 import { CompaniesABM } from '@/components/CompaniesABM';
 import { FoundationABM } from '@/components/FoundationABM';
@@ -290,28 +290,41 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('⚠️ ¿Estás seguro? Esta acción eliminará el curso y TODAS sus dependencias (escenarios, simulaciones, etc) de forma irreversible.')) {
-      return;
-    }
+  const handleDelete = (id: string) => {
+    toast.error('⚠️ ¿Desactivar este curso? Las dependencias se mantendrán pero quedarán ocultas.', {
+      action: {
+        label: 'Desactivar',
+        onClick: async () => {
+          try {
+            const response = await apiClient.delete(`/admin/courses/${id}`);
+            toast.success(response.data.message || 'Curso desactivado');
+            fetchCourses();
+          } catch (error: any) {
+            if (error.response?.status === 409) {
+              const data = error.response.data;
+              toast.error(
+                `❌ No se puede desactivar.\n\n${data.reason}\n\n` +
+                `Asignaciones activas: ${data.activeAssignments}\n` +
+                `Asignaciones completadas: ${data.completedAssignments}\n\n` +
+                `💡 ${data.suggestion}`
+              );
+            } else {
+              toast.error(error.message || 'Error al desactivar el curso');
+            }
+          }
+        },
+      },
+      duration: 5000,
+    });
+  };
+
+  const handleReactivate = async (id: string) => {
     try {
-      const response = await apiClient.delete(`/admin/courses/${id}`);
-      toast.success(response.data.message || 'Curso eliminado');
+      await apiClient.put(`/admin/courses/${id}/reactivate`);
+      toast.success('Curso reactivado');
       fetchCourses();
     } catch (error: any) {
-      // Manejo de errores específicos
-      if (error.response?.status === 409) {
-        // Conflicto: El curso tiene asignaciones activas
-        const data = error.response.data;
-        toast.error(
-          `❌ No se puede eliminar.\n\n${data.reason}\n\n` +
-          `Asignaciones activas: ${data.activeAssignments}\n` +
-          `Asignaciones completadas: ${data.completedAssignments}\n\n` +
-          `💡 ${data.suggestion}`
-        );
-      } else {
-        toast.error(error.message || 'Error al eliminar el curso');
-      }
+      toast.error(error.response?.data?.message || 'Error al reactivar el curso');
     }
   };
 
@@ -907,9 +920,15 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
                       <Button variant="outline" size="sm" onClick={() => handleEdit(course)}>
                         <Settings className="w-4 h-4" />
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDelete(course.id)} title="Eliminar curso y todas sus dependencias">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {course.is_active ? (
+                        <Button variant="destructive" size="sm" onClick={() => handleDelete(course.id)} title="Desactivar curso">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      ) : (
+                        <Button variant="outline" size="sm" className="text-green-600 border-green-300" onClick={() => handleReactivate(course.id)} title="Reactivar curso">
+                          <CheckCircle2 className="w-4 h-4" />
+                        </Button>
+                      )}
                         </>
                       )}
                       {hasRole('ministerio') && (

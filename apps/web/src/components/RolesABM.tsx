@@ -103,13 +103,28 @@ function RolesTab({ roles, onRefresh }: { roles: Role[]; onRefresh: () => void }
     setSaving(false);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Eliminar este rol? No se puede deshacer.')) return;
+  const handleDelete = (id: number) => {
+    toast.error('¿Eliminar este rol? No se puede deshacer.', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/roles/${id}`);
+            toast.success('Rol eliminado');
+            onRefresh();
+          } catch { toast.error('Error al eliminar'); }
+        },
+      },
+      duration: 5000,
+    });
+  };
+
+  const handleReactivate = async (id: number) => {
     try {
-      await apiClient.delete(`/roles/${id}`);
-      toast.success('Rol eliminado');
+      await apiClient.put(`/admin/roles/${id}/reactivate`);
       onRefresh();
-    } catch { toast.error('Error al eliminar'); }
+      toast.success('Rol reactivado');
+    } catch { toast.error('Error al reactivar'); }
   };
 
   return (
@@ -140,9 +155,15 @@ function RolesTab({ roles, onRefresh }: { roles: Role[]; onRefresh: () => void }
                 <Button size="sm" variant="outline" onClick={() => handleOpen(role)}>
                   <Settings className="w-4 h-4" />
                 </Button>
+                {role.is_active ? (
                 <Button size="sm" variant="destructive" onClick={() => handleDelete(role.id)}>
                   <Trash2 className="w-4 h-4" />
                 </Button>
+                ) : (
+                <Button size="sm" variant="outline" className="text-green-600 border-green-300" onClick={() => handleReactivate(role.id)}>
+                  🔄 Reactivar
+                </Button>
+                )}
               </div>
             </div>
           </Card>
@@ -227,13 +248,20 @@ function FunctionalitiesTab({ funcs, onRefresh }: { funcs: Functionality[]; onRe
     setSaving(false);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Eliminar esta funcionalidad?')) return;
-    try {
-      await apiClient.delete(`/functionalities/${id}`);
-      toast.success('Funcionalidad eliminada');
-      onRefresh();
-    } catch { toast.error('Error al eliminar'); }
+  const handleDelete = (id: number) => {
+    toast.error('¿Eliminar esta funcionalidad?', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/functionalities/${id}`);
+            toast.success('Funcionalidad eliminada');
+            onRefresh();
+          } catch { toast.error('Error al eliminar'); }
+        },
+      },
+      duration: 5000,
+    });
   };
 
   // Group by module

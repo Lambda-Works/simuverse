@@ -161,16 +161,22 @@ const TemplatesPanel = () => {
     }
   };
 
-  const handleDeleteTemplate = async (id: string) => {
-    if (!confirm('¿Eliminar esta plantilla? Esta acción no se puede deshacer.')) return;
-    
-    try {
-      await apiClient.delete(`/templates/flow/${id}`);
-      setTemplates(prev => prev.filter(t => t.id !== id));
-      toast.success('Plantilla eliminada');
-    } catch (err: any) {
-      toast.error(err.message);
-    }
+  const handleDeleteTemplate = (id: string) => {
+    toast.error('¿Eliminar esta plantilla? Esta acción no se puede deshacer.', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/templates/flow/${id}`);
+            setTemplates(prev => prev.filter(t => t.id !== id));
+            toast.success('Plantilla eliminada');
+          } catch (err: any) {
+            toast.error(err.message);
+          }
+        },
+      },
+      duration: 5000,
+    });
   };
 
   const filtered = filterFamily === 'all' 

@@ -50,4 +50,10 @@ export class DocumentsController {
   async remove(@Param('id', ParseIntPipe) id: number) {
     return this.documentsService.remove(id);
   }
+
+  @Put('documents/:id/reactivate')
+  @HttpCode(HttpStatus.OK)
+  async reactivate(@Param('id', ParseIntPipe) id: number) {
+    return this.documentsService.reactivate(id);
+  }
 }

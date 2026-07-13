@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import {
-  Bot, Send, Plus, Trash2, Edit2, Wand2, Save, RefreshCw,
+  Bot, Send, Plus, Trash2, Edit2, Wand2, Save, RefreshCw, CheckCircle2,
   Layers, MessageSquare, FileText, Calculator, Mail, Zap, ChevronRight, Copy
 } from 'lucide-react';
 import { apiClient } from '@/services/ApiClient';
@@ -144,6 +144,7 @@ export function TemplatesABM() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [step, setStep] = useState(0);
+  const [showInactive, setShowInactive] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [generating, setGenerating] = useState(false);
   const [generatedTemplate, setGeneratedTemplate] = useState<any>(null);
@@ -171,12 +172,12 @@ export function TemplatesABM() {
 
   useEffect(() => {
     loadTemplates();
-  }, []);
+  }, [showInactive]);
 
   const loadTemplates = async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get('/templates/flow');
+      const res = await apiClient.get(`/templates/flow?active=${!showInactive}`);
       const d = res.data;
       setTemplates(Array.isArray(d) ? d : []);
     } catch { setTemplates([]); }
@@ -318,10 +319,28 @@ export function TemplatesABM() {
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar esta plantilla?')) return;
-    await apiClient.delete(`/templates/flow/${id}`);
-    await loadTemplates();
+  const handleDelete = (id: string) => {
+    toast.error('¿Eliminar esta plantilla?', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/templates/flow/${id}`);
+            await loadTemplates();
+            toast.success('Plantilla eliminada');
+          } catch { toast.error('Error al eliminar la plantilla'); }
+        },
+      },
+      duration: 5000,
+    });
+  };
+
+  const handleReactivate = async (id: string) => {
+    try {
+      await apiClient.put(`/templates/flow/${id}`, { is_active: true });
+      await loadTemplates();
+      toast.success('Plantilla reactivada');
+    } catch { toast.error('Error al reactivar'); }
   };
 
   const handleDuplicate = async (t: Template) => {
@@ -399,6 +418,16 @@ export function TemplatesABM() {
         </div>
       </Card>
 
+      {/* Toggle active/inactive */}
+      <div className="flex gap-2 mb-4">
+        <Button variant={!showInactive ? 'default' : 'outline'} size="sm" onClick={() => { setShowInactive(false); loadTemplates(); }}>
+          Activos ({templates.filter((t: any) => t.is_active !== false).length})
+        </Button>
+        <Button variant={showInactive ? 'default' : 'outline'} size="sm" onClick={() => { setShowInactive(true); loadTemplates(); }}>
+          Inactivos ({templates.filter((t: any) => t.is_active === false).length})
+        </Button>
+      </div>
+
       {/* Template list */}
       {loading ? (
         <div className="text-center py-8 text-gray-500">Cargando plantillas...</div>
@@ -422,6 +451,7 @@ export function TemplatesABM() {
                     <div className="flex flex-wrap gap-2 mb-1">
                       <Badge variant="outline">{t.family}</Badge>
                       <Badge variant="secondary">v{t.version}</Badge>
+                      {t.is_active === false && <Badge variant="secondary" className="text-xs bg-gray-400">Inactivo</Badge>}
                     </div>
                     <h3 className="font-semibold">{t.title}</h3>
                     <p className="text-xs text-gray-500 mt-0.5">{t.course_code}</p>
@@ -439,8 +469,11 @@ export function TemplatesABM() {
                     {!readOnly && <Button size="sm" variant="outline" onClick={() => handleEdit(t)}>
                       <Edit2 className="w-4 h-4" />
                     </Button>}
-                    {!readOnly && <Button size="sm" variant="outline" className="text-red-600" onClick={() => handleDelete(t.id)}>
+                    {!readOnly && t.is_active !== false && <Button size="sm" variant="outline" className="text-red-600" onClick={() => handleDelete(t.id)}>
                       <Trash2 className="w-4 h-4" />
+                    </Button>}
+                    {!readOnly && t.is_active === false && <Button size="sm" variant="outline" className="text-green-600 border-green-300" onClick={() => handleReactivate(t.id)}>
+                      <CheckCircle2 className="w-4 h-4" />
                     </Button>}
                   </div>
                 </div>

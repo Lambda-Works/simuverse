@@ -1,0 +1,18 @@
+Errores nuevos del Simulador
+1-- No puedo registrarme POST http://localhost:5000/api/auth/register 500 (Internal Server Error)
+2--Preguntarle a la IA si es muy dificil que el dashboard sea solo /admin para el admin no /dashboard mis cursos /legajos en legajos sino todo /admin y asi sea en todos los roles tipo en /ministerio sea solo /ministerio no /ministerio/legajo si  puede ser.
+3--Preguntarle al PM quien puede tener acceso al CRUD de legajo y evaluaciones
+4--Ver si al borrar un curso se hace un hard-delete ademas si se puede decirle que haga los menus propios la IA y no sean del navegador.
+5--En Ficha medica no puedo seleccionar cursos
+6-- Ver si el temas de roles desde admin se le pasaron bien al ministerio sinoo conectarlo.
+7-- En calendario creo que hay un crud pero no esta conectado con el frontend
+8--Al desloggearte te muestra el dashboard con solo Mis cursos esa es la "Loading-Page" rehacerla.
+9--En estudiante hay un bug en los cursos que las cards dicen 99 intentos restantes y NaN puntos
+10--Responder de estudiante en un curso no hace nada
+11--En documeto ver documento completo no hace nada
+12--Descargar planilla excel en planilla estudiante tampoco anda
+13--El ministerio vuelve a ver los botones y algunas seccionnes que no deberia volver a ver como Solicitudes, roles y permisos y ademas si andan osea es como una copia de admin.
+14--Cambiar lo que te dice la notificacion cuando no te loggeas
+15--De paso tambien hacer un /estudiante y un /profesor
+16--Preguntar al PM que tiene que ver el profesor
+17--Meter Firebase

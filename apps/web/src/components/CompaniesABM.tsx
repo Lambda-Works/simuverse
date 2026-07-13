@@ -103,13 +103,28 @@ export function CompaniesABM() {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Eliminar esta empresa? Se desvinculará de los cursos asociados.')) return;
+  const handleDelete = (id: number) => {
+    toast.error('¿Eliminar esta empresa? Se desvinculará de los cursos asociados.', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/simulated-companies/${id}`);
+            toast.success('Empresa eliminada');
+            fetchCompanies();
+          } catch { toast.error('Error al eliminar'); }
+        },
+      },
+      duration: 5000,
+    });
+  };
+
+  const handleReactivate = async (id: number) => {
     try {
-      await apiClient.delete(`/simulated-companies/${id}`);
-      toast.success('Empresa eliminada');
+      await apiClient.put(`/simulated-companies/${id}/reactivate`);
       fetchCompanies();
-    } catch { toast.error('Error al eliminar'); }
+      toast.success('Empresa reactivada');
+    } catch { toast.error('Error al reactivar'); }
   };
 
   const LogoDisplay = ({ name, logoUrl, size = 'md' }: { name: string; logoUrl?: string; size?: 'sm' | 'md' | 'lg' }) => {
@@ -237,10 +252,12 @@ export function CompaniesABM() {
                 <div className="flex gap-1 flex-wrap">
                   {c.is_fictional && <Badge variant="outline" className="text-xs border-orange-300 text-orange-700">Ficticia</Badge>}
                   {c.short_name && <Badge variant="secondary" className="text-xs">{c.short_name}</Badge>}
+                  {(c as any).is_active === false && <Badge variant="secondary" className="text-xs bg-gray-400">Inactiva</Badge>}
                 </div>
                 <div className="flex gap-1">
                   {!readOnly && <Button variant="outline" size="sm" onClick={() => handleEdit(c)}><Settings className="w-3.5 h-3.5" /></Button>}
-                  {!readOnly && <Button variant="destructive" size="sm" onClick={() => handleDelete(c.id)}><Trash2 className="w-3.5 h-3.5" /></Button>}
+                  {!readOnly && (c as any).is_active !== false && <Button variant="destructive" size="sm" onClick={() => handleDelete(c.id)}><Trash2 className="w-3.5 h-3.5" /></Button>}
+                  {!readOnly && (c as any).is_active === false && <Button variant="outline" size="sm" className="text-green-600 border-green-300" onClick={() => handleReactivate(c.id)}>🔄</Button>}
                 </div>
               </div>
             </CardContent>

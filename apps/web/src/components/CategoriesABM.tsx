@@ -76,16 +76,31 @@ export function CategoriesABM() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Estás seguro de eliminar esta categoría?')) return;
+  const handleDelete = (id: number) => {
+    toast.error('¿Estás seguro de eliminar esta categoría?', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/categories/${id}`);
+            await fetchCategories();
+            toast.success('Categoría eliminada');
+          } catch (error) {
+            console.error('Error deleting category:', error);
+            toast.error('Error al eliminar la categoría');
+          }
+        },
+      },
+      duration: 5000,
+    });
+  };
 
+  const handleReactivate = async (id: number) => {
     try {
-      await apiClient.delete(`/categories/${id}`);
+      await apiClient.put(`/categories/${id}/reactivate`);
       await fetchCategories();
-    } catch (error) {
-      console.error('Error deleting category:', error);
-      toast.error('Error al eliminar la categoría');
-    }
+      toast.success('Categoría reactivada');
+    } catch { toast.error('Error al reactivar'); }
   };
 
   const handleEdit = (category: Category) => {
@@ -200,7 +215,7 @@ export function CategoriesABM() {
                 >
                   <Edit2 className="w-4 h-4" />
                 </Button>}
-                {!readOnly && <Button
+                {!readOnly && category.is_active !== false && <Button
                   onClick={() => handleDelete(category.id)}
                   size="sm"
                   variant="outline"
@@ -208,6 +223,12 @@ export function CategoriesABM() {
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>}
+                {!readOnly && category.is_active === false && <Button
+                  onClick={() => handleReactivate(category.id)}
+                  size="sm"
+                  variant="outline"
+                  className="text-green-600 border-green-300"
+                >🔄</Button>}
               </div>
             </div>
           </Card>

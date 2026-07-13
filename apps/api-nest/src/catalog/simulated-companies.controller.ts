@@ -105,6 +105,11 @@ export class SimulatedCompaniesController {
 
   @Delete(':id')
   async remove(@Param('id') id: string) {
-    return (this.prisma as any).simulatedCompany.delete({ where: { id: Number(id) } });
+    return (this.prisma as any).simulatedCompany.update({ where: { id: Number(id) }, data: { is_active: false } });
+  }
+
+  @Put(':id/reactivate')
+  async reactivate(@Param('id') id: string) {
+    return (this.prisma as any).simulatedCompany.update({ where: { id: Number(id) }, data: { is_active: true } });
   }
 }
