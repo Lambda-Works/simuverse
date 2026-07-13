@@ -93,18 +93,24 @@ export const PromptTemplatesABM: React.FC = () => {
     });
   };
 
-  const handleDuplicate = async (id: number, name: string) => {
-    const newName = prompt('Nombre para la copia:', `${name} (Copia)`);
-    if (newName) {
-      try {
-        await apiClient.post(`/prompt-templates/${id}/duplicate`, { name: newName });
-
-        fetchTemplates();
-        toast.success('Plantilla duplicada exitosamente');
-      } catch (error) {
-        console.error('Error duplicating template:', error);
-      }
-    }
+  const handleDuplicate = (id: number, name: string) => {
+    const newName = `${name} (Copia)`;
+    toast('¿Duplicar esta plantilla?', {
+      action: {
+        label: 'Duplicar',
+        onClick: async () => {
+          try {
+            await apiClient.post(`/prompt-templates/${id}/duplicate`, { name: newName });
+            fetchTemplates();
+            toast.success('Plantilla duplicada exitosamente');
+          } catch (error) {
+            console.error('Error duplicating template:', error);
+            toast.error('Error al duplicar la plantilla');
+          }
+        },
+      },
+      duration: 5000,
+    });
   };
 
   const handleEdit = (template: PromptTemplate) => {

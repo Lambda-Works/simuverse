@@ -142,13 +142,20 @@ export function EndorsersABM() {
     setDialogOpen(true);
   };
 
-  const handleDeactivate = async (id: number) => {
-    if (!confirm('¿Desactivar este avalador?')) return;
-    try {
-      await apiClient.delete(`/endorsers/${id}`);
-      toast.success('Avalador desactivado');
-      fetchAll();
-    } catch { toast.error('Error al desactivar'); }
+  const handleDeactivate = (id: number) => {
+    toast('¿Desactivar este avalador?', {
+      action: {
+        label: 'Desactivar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/endorsers/${id}`);
+            toast.success('Avalador desactivado');
+            fetchAll();
+          } catch { toast.error('Error al desactivar'); }
+        },
+      },
+      duration: 5000,
+    });
   };
 
   const handleToggleLink = async (endorserId: number) => {

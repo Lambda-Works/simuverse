@@ -289,29 +289,32 @@ const AdminPanel = () => {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('⚠️ ¿Estás seguro? Esta acción eliminará el curso y TODAS sus dependencias (escenarios, simulaciones, etc) de forma irreversible.')) {
-      return;
-    }
-    try {
-      const response = await apiClient.delete(`/admin/courses/${id}`);
-      toast.success(response.data.message || 'Curso eliminado');
-      fetchCourses();
-    } catch (error: any) {
-      // Manejo de errores específicos
-      if (error.response?.status === 409) {
-        // Conflicto: El curso tiene asignaciones activas
-        const data = error.response.data;
-        toast.error(
-          `❌ No se puede eliminar.\n\n${data.reason}\n\n` +
-          `Asignaciones activas: ${data.activeAssignments}\n` +
-          `Asignaciones completadas: ${data.completedAssignments}\n\n` +
-          `💡 ${data.suggestion}`
-        );
-      } else {
-        toast.error(error.message || 'Error al eliminar el curso');
-      }
-    }
+  const handleDelete = (id: string) => {
+    toast('⚠️ ¿Desactivar este curso? Las dependencias se mantendrán pero quedarán ocultas.', {
+      action: {
+        label: 'Desactivar',
+        onClick: async () => {
+          try {
+            const response = await apiClient.delete(`/admin/courses/${id}`);
+            toast.success(response.data.message || 'Curso desactivado');
+            fetchCourses();
+          } catch (error: any) {
+            if (error.response?.status === 409) {
+              const data = error.response.data;
+              toast.error(
+                `❌ No se puede desactivar.\n\n${data.reason}\n\n` +
+                `Asignaciones activas: ${data.activeAssignments}\n` +
+                `Asignaciones completadas: ${data.completedAssignments}\n\n` +
+                `💡 ${data.suggestion}`
+              );
+            } else {
+              toast.error(error.message || 'Error al desactivar el curso');
+            }
+          }
+        },
+      },
+      duration: 5000,
+    });
   };
 
   const handleReactivate = async (id: string) => {

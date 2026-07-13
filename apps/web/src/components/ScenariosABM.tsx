@@ -201,14 +201,22 @@ export function ScenariosABM() {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar este escenario?')) return;
-    try {
-      await apiClient.delete(`/scenarios/${id}`);
-      await loadScenarios();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Error al eliminar');
-    }
+  const handleDelete = (id: string) => {
+    toast('¿Eliminar este escenario?', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/scenarios/${id}`);
+            await loadScenarios();
+            toast.success('Escenario eliminado');
+          } catch (err: any) {
+            toast.error(err?.response?.data?.message || 'Error al eliminar');
+          }
+        },
+      },
+      duration: 5000,
+    });
   };
 
   const handleDuplicate = async (s: Scenario) => {

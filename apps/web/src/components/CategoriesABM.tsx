@@ -76,16 +76,23 @@ export function CategoriesABM() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Estás seguro de eliminar esta categoría?')) return;
-
-    try {
-      await apiClient.delete(`/categories/${id}`);
-      await fetchCategories();
-    } catch (error) {
-      console.error('Error deleting category:', error);
-      toast.error('Error al eliminar la categoría');
-    }
+  const handleDelete = (id: number) => {
+    toast('¿Estás seguro de eliminar esta categoría?', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/categories/${id}`);
+            await fetchCategories();
+            toast.success('Categoría eliminada');
+          } catch (error) {
+            console.error('Error deleting category:', error);
+            toast.error('Error al eliminar la categoría');
+          }
+        },
+      },
+      duration: 5000,
+    });
   };
 
   const handleEdit = (category: Category) => {

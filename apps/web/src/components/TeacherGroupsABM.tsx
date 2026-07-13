@@ -82,15 +82,22 @@ export function TeacherGroupsABM() {
     }
   };
 
-  const handleRemove = async (id: number, studentName: string) => {
-    if (!confirm(`¿Quitar a ${studentName} del grupo de este docente?`)) return;
-    try {
-      await apiClient.delete(`/teacher-groups/${id}`);
-      toast.success('Alumno removido del grupo');
-      load();
-    } catch {
-      toast.error('Error al eliminar');
-    }
+  const handleRemove = (id: number, studentName: string) => {
+    toast(`¿Quitar a ${studentName} del grupo de este docente?`, {
+      action: {
+        label: 'Quitar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/teacher-groups/${id}`);
+            toast.success('Alumno removido del grupo');
+            load();
+          } catch {
+            toast.error('Error al eliminar');
+          }
+        },
+      },
+      duration: 5000,
+    });
   };
 
   const currentTeacher = teachers.find(t => t.id === selectedTeacher);

@@ -101,16 +101,23 @@ export function DocumentsABM() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Estás seguro de eliminar este documento?')) return;
-
-    try {
-      await apiClient.delete(`/documents/${id}`);
-      await fetchDocuments();
-    } catch (error) {
-      console.error('Error deleting document:', error);
-      toast.error('Error al eliminar el documento');
-    }
+  const handleDelete = (id: number) => {
+    toast('¿Estás seguro de eliminar este documento?', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/documents/${id}`);
+            await fetchDocuments();
+            toast.success('Documento eliminado');
+          } catch (error) {
+            console.error('Error deleting document:', error);
+            toast.error('Error al eliminar el documento');
+          }
+        },
+      },
+      duration: 5000,
+    });
   };
 
   const handleCancel = () => {

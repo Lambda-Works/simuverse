@@ -103,13 +103,20 @@ function RolesTab({ roles, onRefresh }: { roles: Role[]; onRefresh: () => void }
     setSaving(false);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Eliminar este rol? No se puede deshacer.')) return;
-    try {
-      await apiClient.delete(`/roles/${id}`);
-      toast.success('Rol eliminado');
-      onRefresh();
-    } catch { toast.error('Error al eliminar'); }
+  const handleDelete = (id: number) => {
+    toast('¿Eliminar este rol? No se puede deshacer.', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/roles/${id}`);
+            toast.success('Rol eliminado');
+            onRefresh();
+          } catch { toast.error('Error al eliminar'); }
+        },
+      },
+      duration: 5000,
+    });
   };
 
   return (
@@ -227,13 +234,20 @@ function FunctionalitiesTab({ funcs, onRefresh }: { funcs: Functionality[]; onRe
     setSaving(false);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Eliminar esta funcionalidad?')) return;
-    try {
-      await apiClient.delete(`/functionalities/${id}`);
-      toast.success('Funcionalidad eliminada');
-      onRefresh();
-    } catch { toast.error('Error al eliminar'); }
+  const handleDelete = (id: number) => {
+    toast('¿Eliminar esta funcionalidad?', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/functionalities/${id}`);
+            toast.success('Funcionalidad eliminada');
+            onRefresh();
+          } catch { toast.error('Error al eliminar'); }
+        },
+      },
+      duration: 5000,
+    });
   };
 
   // Group by module

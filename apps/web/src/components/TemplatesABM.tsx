@@ -318,10 +318,20 @@ export function TemplatesABM() {
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar esta plantilla?')) return;
-    await apiClient.delete(`/templates/flow/${id}`);
-    await loadTemplates();
+  const handleDelete = (id: string) => {
+    toast('¿Eliminar esta plantilla?', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/templates/flow/${id}`);
+            await loadTemplates();
+            toast.success('Plantilla eliminada');
+          } catch { toast.error('Error al eliminar la plantilla'); }
+        },
+      },
+      duration: 5000,
+    });
   };
 
   const handleDuplicate = async (t: Template) => {

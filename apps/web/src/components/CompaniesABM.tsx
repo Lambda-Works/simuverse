@@ -103,13 +103,20 @@ export function CompaniesABM() {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Eliminar esta empresa? Se desvinculará de los cursos asociados.')) return;
-    try {
-      await apiClient.delete(`/simulated-companies/${id}`);
-      toast.success('Empresa eliminada');
-      fetchCompanies();
-    } catch { toast.error('Error al eliminar'); }
+  const handleDelete = (id: number) => {
+    toast('¿Eliminar esta empresa? Se desvinculará de los cursos asociados.', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/simulated-companies/${id}`);
+            toast.success('Empresa eliminada');
+            fetchCompanies();
+          } catch { toast.error('Error al eliminar'); }
+        },
+      },
+      duration: 5000,
+    });
   };
 
   const LogoDisplay = ({ name, logoUrl, size = 'md' }: { name: string; logoUrl?: string; size?: 'sm' | 'md' | 'lg' }) => {

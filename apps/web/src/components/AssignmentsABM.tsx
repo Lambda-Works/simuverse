@@ -201,13 +201,20 @@ export function AssignmentsABM() {
     return simId?.substring(0, 8) + '...';
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Eliminar esta asignación?')) return;
-    try {
-      await apiClient.delete(`/assignments/${id}`);
-      await fetchAssignments();
-      toast.success('Asignación eliminada');
-    } catch { toast.error('Error al eliminar'); }
+  const handleDelete = (id: number) => {
+    toast('¿Eliminar esta asignación?', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/assignments/${id}`);
+            await fetchAssignments();
+            toast.success('Asignación eliminada');
+          } catch { toast.error('Error al eliminar'); }
+        },
+      },
+      duration: 5000,
+    });
   };
 
   const getStatusColor = (status: string) => {
