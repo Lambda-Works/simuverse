@@ -76,7 +76,7 @@ export function TechSheetsABM() {
     if (pollStatus === 'completed') {
       fetchTechSheets();
       setAnalyzingSheetId(null);
-      alert('Analisis completado exitosamente');
+      toast.success('Análisis completado exitosamente');
     } else if (pollStatus === 'failed' || pollStatus === 'validation_rejected') {
       setAnalyzingSheetId(null);
     }

@@ -76,14 +76,21 @@ export const PromptTemplatesABM: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('¿Desactivar esta plantilla?')) {
-      try {
-        await apiClient.delete(`/prompt-templates/${id}`);
-        fetchTemplates();
-      } catch (error) {
-        console.error('Error deleting template:', error);
-      }
-    }
+    toast('¿Desactivar esta plantilla?', {
+      action: {
+        label: 'Desactivar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/prompt-templates/${id}`);
+            fetchTemplates();
+            toast.success('Plantilla desactivada');
+          } catch (error) {
+            toast.error('Error al desactivar plantilla');
+          }
+        },
+      },
+      duration: 5000,
+    });
   };
 
   const handleDuplicate = async (id: number, name: string) => {

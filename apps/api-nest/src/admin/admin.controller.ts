@@ -35,6 +35,12 @@ export class AdminController {
     return this.coursesService.remove(id);
   }
 
+  @Put('courses/:id/reactivate')
+  @HttpCode(HttpStatus.OK)
+  async reactivateCourse(@Param('id') id: string) {
+    return this.coursesService.update(id, { is_active: true });
+  }
+
   // ── Teacher Permissions ────────────────────────────────────────
 
   @Get('teacher-permissions')

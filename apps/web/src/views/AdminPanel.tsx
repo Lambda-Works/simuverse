@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { useAdmin } from '@/lib/admin-context';
-import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield, FolderOpen, FileUp, UserCheck, BarChart3, ClipboardList, Wand2, Copy, MessageSquare, Bell, CalendarDays, Users2, Building2, GraduationCap, Handshake, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield, FolderOpen, FileUp, UserCheck, BarChart3, ClipboardList, Wand2, Copy, MessageSquare, Bell, CalendarDays, Users2, Building2, GraduationCap, Handshake, AlertTriangle, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
 import { GlobalStatsDashboard } from '@/components/GlobalStatsDashboard';
 import { CompaniesABM } from '@/components/CompaniesABM';
 import { FoundationABM } from '@/components/FoundationABM';
@@ -311,6 +311,16 @@ const AdminPanel = () => {
       } else {
         toast.error(error.message || 'Error al eliminar el curso');
       }
+    }
+  };
+
+  const handleReactivate = async (id: string) => {
+    try {
+      await apiClient.put(`/admin/courses/${id}/reactivate`);
+      toast.success('Curso reactivado');
+      fetchCourses();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error al reactivar el curso');
     }
   };
 
@@ -906,9 +916,15 @@ const AdminPanel = () => {
                       <Button variant="outline" size="sm" onClick={() => handleEdit(course)}>
                         <Settings className="w-4 h-4" />
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDelete(course.id)} title="Eliminar curso y todas sus dependencias">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {course.is_active ? (
+                        <Button variant="destructive" size="sm" onClick={() => handleDelete(course.id)} title="Desactivar curso">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      ) : (
+                        <Button variant="outline" size="sm" className="text-green-600 border-green-300" onClick={() => handleReactivate(course.id)} title="Reactivar curso">
+                          <CheckCircle2 className="w-4 h-4" />
+                        </Button>
+                      )}
                         </>
                       )}
                       {hasRole('ministerio') && (
