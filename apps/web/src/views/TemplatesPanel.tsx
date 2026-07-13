@@ -162,7 +162,7 @@ const TemplatesPanel = () => {
   };
 
   const handleDeleteTemplate = (id: string) => {
-    toast('¿Eliminar esta plantilla? Esta acción no se puede deshacer.', {
+    toast.error('¿Eliminar esta plantilla? Esta acción no se puede deshacer.', {
       action: {
         label: 'Eliminar',
         onClick: async () => {

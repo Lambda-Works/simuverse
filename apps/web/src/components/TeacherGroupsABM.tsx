@@ -83,7 +83,7 @@ export function TeacherGroupsABM() {
   };
 
   const handleRemove = (id: number, studentName: string) => {
-    toast(`¿Quitar a ${studentName} del grupo de este docente?`, {
+    toast.error(`¿Quitar a ${studentName} del grupo de este docente?`, {
       action: {
         label: 'Quitar',
         onClick: async () => {

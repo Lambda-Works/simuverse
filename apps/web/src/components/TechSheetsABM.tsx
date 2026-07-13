@@ -272,7 +272,7 @@ export function TechSheetsABM() {
   };
 
   const handleDelete = (id: number) => {
-    toast('¿Estás seguro de eliminar esta ficha técnica?', {
+    toast.error('¿Estás seguro de eliminar esta ficha técnica?', {
       action: {
         label: 'Eliminar',
         onClick: async () => {
@@ -651,7 +651,7 @@ export function TechSheetsABM() {
                     </Button>
                     <Button
                       onClick={() => {
-                        toast('¿Re-analizar esta ficha? Se sobrescribirán los resultados existentes.', {
+                        toast.error('¿Re-analizar esta ficha? Se sobrescribirán los resultados existentes.', {
                           action: {
                             label: 'Re-analizar',
                             onClick: () => {
@@ -731,7 +731,7 @@ export function TechSheetsABM() {
                 </Alert>
                 <Button
                   onClick={() => {
-                    toast('¿Reintentar el análisis?', {
+                    toast.error('¿Reintentar el análisis?', {
                       action: {
                         label: 'Reintentar',
                         onClick: () => {

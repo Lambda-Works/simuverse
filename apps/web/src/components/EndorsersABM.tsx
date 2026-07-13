@@ -143,7 +143,7 @@ export function EndorsersABM() {
   };
 
   const handleDeactivate = (id: number) => {
-    toast('¿Desactivar este avalador?', {
+    toast.error('¿Desactivar este avalador?', {
       action: {
         label: 'Desactivar',
         onClick: async () => {

@@ -104,7 +104,7 @@ export function CompaniesABM() {
   };
 
   const handleDelete = (id: number) => {
-    toast('¿Eliminar esta empresa? Se desvinculará de los cursos asociados.', {
+    toast.error('¿Eliminar esta empresa? Se desvinculará de los cursos asociados.', {
       action: {
         label: 'Eliminar',
         onClick: async () => {

@@ -202,7 +202,7 @@ export function ScenariosABM() {
   };
 
   const handleDelete = (id: string) => {
-    toast('¿Eliminar este escenario?', {
+    toast.error('¿Eliminar este escenario?', {
       action: {
         label: 'Eliminar',
         onClick: async () => {

@@ -290,7 +290,7 @@ const AdminPanel = () => {
   };
 
   const handleDelete = (id: string) => {
-    toast('⚠️ ¿Desactivar este curso? Las dependencias se mantendrán pero quedarán ocultas.', {
+    toast.error('⚠️ ¿Desactivar este curso? Las dependencias se mantendrán pero quedarán ocultas.', {
       action: {
         label: 'Desactivar',
         onClick: async () => {

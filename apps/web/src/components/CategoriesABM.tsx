@@ -77,7 +77,7 @@ export function CategoriesABM() {
   };
 
   const handleDelete = (id: number) => {
-    toast('¿Estás seguro de eliminar esta categoría?', {
+    toast.error('¿Estás seguro de eliminar esta categoría?', {
       action: {
         label: 'Eliminar',
         onClick: async () => {

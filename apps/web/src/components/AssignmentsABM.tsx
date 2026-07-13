@@ -202,7 +202,7 @@ export function AssignmentsABM() {
   };
 
   const handleDelete = (id: number) => {
-    toast('¿Eliminar esta asignación?', {
+    toast.error('¿Eliminar esta asignación?', {
       action: {
         label: 'Eliminar',
         onClick: async () => {

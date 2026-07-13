@@ -102,7 +102,7 @@ export function DocumentsABM() {
   };
 
   const handleDelete = (id: number) => {
-    toast('¿Estás seguro de eliminar este documento?', {
+    toast.error('¿Estás seguro de eliminar este documento?', {
       action: {
         label: 'Eliminar',
         onClick: async () => {

@@ -104,7 +104,7 @@ function RolesTab({ roles, onRefresh }: { roles: Role[]; onRefresh: () => void }
   };
 
   const handleDelete = (id: number) => {
-    toast('¿Eliminar este rol? No se puede deshacer.', {
+    toast.error('¿Eliminar este rol? No se puede deshacer.', {
       action: {
         label: 'Eliminar',
         onClick: async () => {
@@ -235,7 +235,7 @@ function FunctionalitiesTab({ funcs, onRefresh }: { funcs: Functionality[]; onRe
   };
 
   const handleDelete = (id: number) => {
-    toast('¿Eliminar esta funcionalidad?', {
+    toast.error('¿Eliminar esta funcionalidad?', {
       action: {
         label: 'Eliminar',
         onClick: async () => {

@@ -319,7 +319,7 @@ export function TemplatesABM() {
   };
 
   const handleDelete = (id: string) => {
-    toast('¿Eliminar esta plantilla?', {
+    toast.error('¿Eliminar esta plantilla?', {
       action: {
         label: 'Eliminar',
         onClick: async () => {

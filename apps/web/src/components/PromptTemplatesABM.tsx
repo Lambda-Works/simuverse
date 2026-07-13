@@ -76,7 +76,7 @@ export const PromptTemplatesABM: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    toast('¿Desactivar esta plantilla?', {
+    toast.error('¿Desactivar esta plantilla?', {
       action: {
         label: 'Desactivar',
         onClick: async () => {
@@ -95,7 +95,7 @@ export const PromptTemplatesABM: React.FC = () => {
 
   const handleDuplicate = (id: number, name: string) => {
     const newName = `${name} (Copia)`;
-    toast('¿Duplicar esta plantilla?', {
+    toast.error('¿Duplicar esta plantilla?', {
       action: {
         label: 'Duplicar',
         onClick: async () => {
