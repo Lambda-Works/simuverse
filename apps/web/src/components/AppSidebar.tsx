@@ -81,7 +81,7 @@ export function AppSidebar() {
 
 
 
-  // Auto-expand group containing the active admin sub-tab
+
 
   const toggleGroup = useCallback((groupId: string) => {
     setExpandedGroups((prev) => ({

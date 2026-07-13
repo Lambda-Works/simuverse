@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '@/services/ApiClient';
 import { useAdmin } from '@/lib/admin-context';
+import { Button } from '@/components/ui/button';
 
 interface PromptTemplate {
   id: number;

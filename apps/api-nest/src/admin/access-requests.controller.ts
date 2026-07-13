@@ -42,6 +42,17 @@ export class AccessRequestsController {
     return result;
   }
 
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    const result: any[] = await this.prisma.$queryRawUnsafe(
+      `SELECT * FROM access_requests WHERE id = $1`, parseInt(id),
+    );
+    if (!result?.[0]) {
+      throw new NotFoundException(`Access request ${id} not found`);
+    }
+    return result[0];
+  }
+
   @Put(':id')
   async update(@Param('id') id: string, @Body() body: UpdateAccessRequestDto) {
     // Note: admin_notes is in DTO but not in DB schema, so we ignore it

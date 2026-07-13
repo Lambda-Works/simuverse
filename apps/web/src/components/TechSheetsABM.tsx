@@ -266,8 +266,7 @@ export function TechSheetsABM() {
     } catch (error) {
       console.error('Error analyzing tech sheet:', error);
       toast.error(`❌ Error al analizar la ficha técnica: ${error instanceof Error ? error.message : 'Error desconocido'}`);
-    } finally {
-      setProcessing(null);
+      setAnalyzingSheetId(null);
     }
   };
 
