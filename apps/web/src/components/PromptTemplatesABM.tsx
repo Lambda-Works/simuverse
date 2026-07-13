@@ -43,14 +43,15 @@ export const PromptTemplatesABM: React.FC = () => {
     personality_traits: [],
     knowledge_base_prompt: ''
   });
+  const [showInactive, setShowInactive] = useState(false);
 
   useEffect(() => {
     fetchTemplates();
-  }, []);
+  }, [showInactive]);
 
   const fetchTemplates = async () => {
     try {
-      const response = await apiClient.get('/prompt-templates');
+      const response = await apiClient.get(`/prompt-templates?active=${!showInactive}`);
       const data = response.data;
       setTemplates(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -195,6 +196,16 @@ export const PromptTemplatesABM: React.FC = () => {
               {cat}
             </button>
           ))}
+        </div>
+
+        {/* Toggle active/inactive */}
+        <div className="flex gap-2 mb-4">
+          <Button variant={!showInactive ? 'default' : 'outline'} size="sm" onClick={() => { setShowInactive(false); fetchTemplates(); }}>
+            Activos ({templates.filter((t: any) => t.is_active !== false).length})
+          </Button>
+          <Button variant={showInactive ? 'default' : 'outline'} size="sm" onClick={() => { setShowInactive(true); fetchTemplates(); }}>
+            Inactivos ({templates.filter((t: any) => t.is_active === false).length})
+          </Button>
         </div>
 
         {/* Tabla de plantillas */}

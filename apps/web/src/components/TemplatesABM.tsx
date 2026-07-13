@@ -144,6 +144,7 @@ export function TemplatesABM() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [step, setStep] = useState(0);
+  const [showInactive, setShowInactive] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [generating, setGenerating] = useState(false);
   const [generatedTemplate, setGeneratedTemplate] = useState<any>(null);
@@ -171,12 +172,12 @@ export function TemplatesABM() {
 
   useEffect(() => {
     loadTemplates();
-  }, []);
+  }, [showInactive]);
 
   const loadTemplates = async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get('/templates/flow');
+      const res = await apiClient.get(`/templates/flow?active=${!showInactive}`);
       const d = res.data;
       setTemplates(Array.isArray(d) ? d : []);
     } catch { setTemplates([]); }
@@ -416,6 +417,16 @@ export function TemplatesABM() {
           ))}
         </div>
       </Card>
+
+      {/* Toggle active/inactive */}
+      <div className="flex gap-2 mb-4">
+        <Button variant={!showInactive ? 'default' : 'outline'} size="sm" onClick={() => { setShowInactive(false); loadTemplates(); }}>
+          Activos ({templates.filter((t: any) => t.is_active !== false).length})
+        </Button>
+        <Button variant={showInactive ? 'default' : 'outline'} size="sm" onClick={() => { setShowInactive(true); loadTemplates(); }}>
+          Inactivos ({templates.filter((t: any) => t.is_active === false).length})
+        </Button>
+      </div>
 
       {/* Template list */}
       {loading ? (

@@ -122,6 +122,7 @@ export function ScenariosABM() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm());
+  const [showInactive, setShowInactive] = useState(false);
 
   // mini-state for adding items
   const [newConstraint, setNewConstraint] = useState('');
@@ -134,11 +135,11 @@ export function ScenariosABM() {
 
   useEffect(() => {
     Promise.all([loadScenarios(), loadCourses()]).finally(() => setLoading(false));
-  }, []);
+  }, [showInactive]);
 
   const loadScenarios = async () => {
     try {
-      const res = await apiClient.get('/scenarios');
+      const res = await apiClient.get(`/scenarios?active=${!showInactive}`);
       setScenarios(Array.isArray(res.data) ? res.data : []);
     } catch { setScenarios([]); }
   };
@@ -257,6 +258,7 @@ export function ScenariosABM() {
   const filtered = scenarios.filter(s => {
     if (filterCourse && s.course_id !== filterCourse) return false;
     if (filterType && s.scenario_type !== filterType) return false;
+    if (!showInactive && s.is_active === false) return false;
     return true;
   });
 
@@ -360,6 +362,16 @@ export function ScenariosABM() {
           </SelectContent>
         </Select>
         <span className="self-center text-sm text-gray-500">{filtered.length} escenarios</span>
+      </div>
+
+      {/* Toggle active/inactive */}
+      <div className="flex gap-2 mb-4">
+        <Button variant={!showInactive ? 'default' : 'outline'} size="sm" onClick={() => { setShowInactive(false); loadScenarios(); }}>
+          Activos ({scenarios.filter(s => s.is_active !== false).length})
+        </Button>
+        <Button variant={showInactive ? 'default' : 'outline'} size="sm" onClick={() => { setShowInactive(true); loadScenarios(); }}>
+          Inactivos ({scenarios.filter(s => s.is_active === false).length})
+        </Button>
       </div>
 
       {/* Scenario list grouped by course */}
