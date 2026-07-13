@@ -257,6 +257,7 @@ export function FoundationABM() {
                 {!readOnly && f.is_active === false && <Button variant="outline" size="sm" className="text-green-600 border-green-300" onClick={() => handleReactivate(f.id)}>
                   🔄 Reactivar
                 </Button>}
+              </div>
             </CardContent>
           </Card>
         ))}
