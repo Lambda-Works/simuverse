@@ -13,10 +13,26 @@ export class AssignmentsService {
     if (filters?.course_id) where.course_id = filters.course_id;
     if (filters?.status) where.status = filters.status;
 
-    return this.prisma.simulationAssignment.findMany({
+    const assignments = await this.prisma.simulationAssignment.findMany({
       where,
       orderBy: { created_at: 'desc' },
     });
+
+    const enriched = await Promise.all(
+      assignments.map(async (a) => {
+        const course = await this.prisma.course.findUnique({
+          where: { id: a.course_id },
+          select: { title: true, category: true },
+        });
+        return {
+          ...a,
+          course_title: course?.title || '',
+          course_category: course?.category || '',
+        };
+      })
+    );
+
+    return enriched;
   }
 
   async findOne(id: number) {

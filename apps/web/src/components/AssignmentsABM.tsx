@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, Send, CheckSquare, Square } from 'lucide-react';
+import { Trash2, Plus, Send, CheckSquare, Square, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/services/ApiClient';
 
@@ -52,6 +52,11 @@ export function AssignmentsABM() {
   const [loading, setLoading] = useState(true);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
+  const [editMaxAttempts, setEditMaxAttempts] = useState(1);
+  const [editStatus, setEditStatus] = useState('');
 
   // Formulario con multi-selección de escenarios y alumnos
   const [selectedCourse, setSelectedCourse] = useState('');
@@ -215,6 +220,31 @@ export function AssignmentsABM() {
       },
       duration: 5000,
     });
+  };
+
+  const handleEditOpen = (a: Assignment) => {
+    setEditingAssignment(a);
+    setEditStartDate(a.start_date ? a.start_date.split('T')[0] : '');
+    setEditEndDate(a.end_date ? a.end_date.split('T')[0] : '');
+    setEditMaxAttempts(a.max_attempts);
+    setEditStatus(a.status);
+  };
+
+  const handleEditSave = async () => {
+    if (!editingAssignment) return;
+    try {
+      await apiClient.put(`/assignments/${editingAssignment.id}`, {
+        start_date: editStartDate || undefined,
+        end_date: editEndDate || undefined,
+        max_attempts: editMaxAttempts,
+        status: editStatus,
+      });
+      toast.success('Asignación actualizada');
+      setEditingAssignment(null);
+      await fetchAssignments();
+    } catch {
+      toast.error('Error al actualizar la asignación');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -427,6 +457,9 @@ export function AssignmentsABM() {
               </div>
 
               <div className="flex gap-2 ml-4">
+                <Button onClick={() => handleEditOpen(assignment)} size="sm" variant="outline">
+                  <Pencil className="w-4 h-4" />
+                </Button>
                 <Button
                   onClick={() => handleDelete(assignment.id)}
                   size="sm"
@@ -445,6 +478,51 @@ export function AssignmentsABM() {
         <Card className="p-8 text-center">
           <p className="text-gray-600">No hay asignaciones. Crea una nueva asignación para empezar.</p>
         </Card>
+      )}
+
+      {/* Edit Dialog */}
+      {editingAssignment && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setEditingAssignment(null)}>
+          <Card className="p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-4">Editar Asignación</h3>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-500 mb-1">
+                  {getStudentName(editingAssignment.student_id)} — {getCourseName(editingAssignment.course_id)}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Inicio</label>
+                  <input type="date" value={editStartDate} onChange={e => setEditStartDate(e.target.value)} className="w-full p-2 border rounded-md" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Vencimiento</label>
+                  <input type="date" value={editEndDate} onChange={e => setEditEndDate(e.target.value)} className="w-full p-2 border rounded-md" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Intentos máx.</label>
+                  <input type="number" value={editMaxAttempts} onChange={e => setEditMaxAttempts(Number(e.target.value))} min={1} max={10} className="w-full p-2 border rounded-md" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Estado</label>
+                  <select value={editStatus} onChange={e => setEditStatus(e.target.value)} className="w-full p-2 border rounded-md">
+                    <option value="pending">Pendiente</option>
+                    <option value="in_progress">En progreso</option>
+                    <option value="completed">Completado</option>
+                    <option value="expired">Vencido</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <Button variant="outline" onClick={() => setEditingAssignment(null)}>Cancelar</Button>
+                <Button onClick={handleEditSave}>Guardar</Button>
+              </div>
+            </div>
+          </Card>
+        </div>
       )}
     </div>
   );

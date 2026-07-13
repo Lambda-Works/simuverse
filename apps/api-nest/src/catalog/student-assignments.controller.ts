@@ -25,17 +25,27 @@ export class StudentAssignmentsController {
           select: { title: true, category: true },
         });
 
+        const now = new Date();
+
+        const calendarStatus = a.end_date && new Date(a.end_date) < now && a.status !== 'completed'
+          ? 'expired'
+          : a.start_date && new Date(a.start_date) > now
+          ? 'upcoming'
+          : a.status === 'completed' ? 'completed' : 'active';
+
         return {
           id: a.id,
           course_id: a.course_id,
-          course_name: course?.title || '',
+          course_title: course?.title || '',
           category: course?.category || '',
           simulation_id: simulation?.id || null,
           instance_id: simulation?.id || null,
           status: a.status,
+          calendar_status: calendarStatus,
           max_attempts: a.max_attempts || 1,
           attempts_used: a.attempts_used || 0,
-          score: simulation?.score || null,
+          attempts_remaining: (a.max_attempts || 1) - (a.attempts_used || 0),
+          overall_score: simulation?.score || null,
           progress: simulation?.progress_percentage || 0,
           start_date: a.start_date || a.created_at,
           end_date: a.end_date,
