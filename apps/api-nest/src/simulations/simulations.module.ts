@@ -16,7 +16,7 @@ import { ConversationStateService } from './conversation-state.service';
 
 @Module({
   imports: [CatalogModule],
-  controllers: [SimulationsController],
+  controllers: [SimulationsController, SimulationReviewController],
   providers: [
     SimulationsService,
     SimulationInstanceService,
