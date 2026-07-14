@@ -293,41 +293,57 @@ export class SimulationSessionsController {
 
   @Get()
   async findAll() {
-    const instances = await this.prisma.simulationInstance.findMany({
+    const instances = await (this.prisma as any).simulationInstance.findMany({
       include: {
         student: true,
         scenario: true,
         course: true,
-        logs: true,
       },
       orderBy: { started_at: 'desc' }
-    });
+    }) as any[];
 
-    return instances.map(inst => ({
-      id: inst.id,
-      status: inst.status,
-      score: inst.score || 0,
-      started_at: inst.started_at,
-      completed_at: inst.completed_at,
-      time_spent_seconds: inst.time_spent_seconds || 0,
-      progress_percentage: inst.progress_percentage || 0,
-      student_name: inst.student ? `${inst.student.first_name} ${inst.student.last_name}` : 'Unknown',
-      student_email: inst.student ? inst.student.email : '',
-      student_id: inst.student_id,
-      scenario_title: inst.scenario ? inst.scenario.title : 'Unknown',
-      scenario_type: inst.scenario ? inst.scenario.type : '',
-      difficulty: inst.scenario ? inst.scenario.difficulty : '',
-      course_title: inst.course ? inst.course.title : 'Unknown',
-      course_id: inst.course_id,
-      total_turns: inst.logs ? inst.logs.length : 0,
-      incorrect_turns: inst.logs ? inst.logs.filter((l: any) => l.is_correct === false).length : 0,
-    }));
+    // Fetch chat logs for all instances in one query
+    const instanceIds = instances.map((i: any) => i.id);
+    const allChatLogs = instanceIds.length > 0
+      ? await (this.prisma as any).simulationChatLog.findMany({
+          where: { simulation_instance_id: { in: instanceIds } },
+        })
+      : [];
+    const logsByInstance = new Map<string, any[]>();
+    for (const log of allChatLogs) {
+      const arr = logsByInstance.get(log.simulation_instance_id) || [];
+      arr.push(log);
+      logsByInstance.set(log.simulation_instance_id, arr);
+    }
+
+    return instances.map((inst: any) => {
+      const chatLogs = logsByInstance.get(inst.id) || [];
+      return {
+        id: inst.id,
+        status: inst.status,
+        score: inst.score || 0,
+        started_at: inst.started_at,
+        completed_at: inst.completed_at,
+        time_spent_seconds: inst.time_spent_seconds || 0,
+        progress_percentage: inst.progress_percentage || 0,
+        student_name: inst.student ? inst.student.name : 'Unknown',
+        student_email: inst.student ? inst.student.email : '',
+        student_id: inst.student_id,
+        scenario_title: inst.scenario ? inst.scenario.title : 'Unknown',
+        scenario_type: inst.scenario ? inst.scenario.scenario_type : '',
+        difficulty: inst.scenario ? inst.scenario.difficulty : '',
+        course_title: inst.course ? inst.course.title : 'Unknown',
+        course_id: inst.course_id,
+        total_turns: chatLogs.length,
+        incorrect_turns: chatLogs.filter((l: any) => l.is_correct === false).length,
+      };
+    });
   }
 
   @Get('ref/:ref')
   async findByRef(@Param('ref') ref: string) {
     // Find log by ref_number and return the instance
-    const log = await this.prisma.practiceLogs.findFirst({
+    const log = await (this.prisma as any).simulationChatLog.findFirst({
       where: { ref_number: ref },
     });
     if (!log) return null;
@@ -342,10 +358,14 @@ export class SimulationSessionsController {
         student: true,
         scenario: true,
         course: true,
-        logs: { orderBy: { turn_number: 'asc' } },
       },
-    });
+    }) as any;
     if (!inst) return null;
+
+    const chatLogs = await (this.prisma as any).simulationChatLog.findMany({
+      where: { simulation_instance_id: id },
+      orderBy: { turn_number: 'asc' },
+    });
 
     const evalData = await this.prisma.simulationEvaluation.findFirst({
       where: { simulation_id: id },
@@ -360,15 +380,15 @@ export class SimulationSessionsController {
         completed_at: inst.completed_at,
         time_spent_seconds: inst.time_spent_seconds || 0,
         progress_percentage: inst.progress_percentage || 0,
-        student_name: inst.student ? `${inst.student.first_name} ${inst.student.last_name}` : 'Unknown',
+        student_name: inst.student ? inst.student.name : 'Unknown',
         student_email: inst.student ? inst.student.email : '',
         student_id: inst.student_id,
         scenario_title: inst.scenario ? inst.scenario.title : 'Unknown',
-        scenario_type: inst.scenario ? inst.scenario.type : '',
+        scenario_type: inst.scenario ? inst.scenario.scenario_type : '',
         difficulty: inst.scenario ? inst.scenario.difficulty : '',
         course_title: inst.course ? inst.course.title : 'Unknown',
       },
-      logs: inst.logs.map((l: any) => ({
+      logs: chatLogs.map((l: any) => ({
         id: l.id,
         turn_number: l.turn_number,
         speaker: l.speaker,
