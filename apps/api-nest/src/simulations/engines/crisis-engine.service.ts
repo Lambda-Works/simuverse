@@ -175,6 +175,14 @@ export class CrisisEngine {
     this.activeEvents.delete(simulationId);
   }
 
+  /**
+   * Get an existing active crisis without creating one.
+   * Returns null if no crisis exists for this simulation.
+   */
+  getActiveCrisis(simulationId: string): CrisisEvent | null {
+    return this.activeEvents.get(simulationId) ?? null;
+  }
+
   clearAll(): void {
     this.activeEvents.clear();
   }

@@ -456,7 +456,7 @@ model TechSheetKPI {
   minimum_pass_value Float    @default(0)
   created_at         DateTime @default(now())
 
-  tech_sheet TechSheet        @relation(fields: [tech_sheet_id], references: [id], onDelete: Cascade)
+  tech_sheet TechSheet       @relation(fields: [tech_sheet_id], references: [id], onDelete: Cascade)
   tasks      TechSheetTask[]
 
   @@index([tech_sheet_id])
@@ -475,8 +475,8 @@ model TechSheetTask {
   expected_duration_minutes Int               @default(0)
   created_at                DateTime          @default(now())
 
-  tech_sheet TechSheet      @relation(fields: [tech_sheet_id], references: [id], onDelete: Cascade)
-  kpi        TechSheetKPI?  @relation(fields: [kpi_id], references: [id], onDelete: SetNull)
+  tech_sheet TechSheet     @relation(fields: [tech_sheet_id], references: [id], onDelete: Cascade)
+  kpi        TechSheetKPI? @relation(fields: [kpi_id], references: [id], onDelete: SetNull)
 
   @@index([tech_sheet_id])
   @@index([kpi_id])
@@ -716,6 +716,10 @@ model CourseConfig {
   prompt_generation_mode PromptGenerationMode @default(template)
   prompt_generated_by    String?              @db.VarChar(36)
   prompt_generated_at    DateTime?
+  tone                   String?              @db.VarChar(50)
+  language               String?              @db.VarChar(30)
+  role_behavior          String?              @db.Text
+  chatbot_humano_enabled Boolean              @default(false)
   created_at             DateTime             @default(now())
   updated_at             DateTime             @updatedAt
 

@@ -9,6 +9,7 @@ export class DeepSeekService {
   private readonly apiKey = process.env.DEEPSEEK_API_KEY;
   private readonly apiUrl = 'https://api.deepseek.com/v1/chat/completions';
   private readonly defaultSystemPrompt = this.loadSystemPrompt();
+  private readonly employmentAxis = this.loadEmploymentAxis();
 
   private loadSystemPrompt(): string {
     try {
@@ -16,6 +17,19 @@ export class DeepSeekService {
     } catch {
       return 'Eres un experto en análisis de documentos educativos del Ministerio de Educación.';
     }
+  }
+
+  private loadEmploymentAxis(): string {
+    try {
+      return fs.readFileSync(path.join(__dirname, 'employment-axis.md'), 'utf-8');
+    } catch {
+      this.logger.warn('employment-axis.md not found, employment axis will be empty');
+      return '';
+    }
+  }
+
+  getEmploymentAxis(): string {
+    return this.employmentAxis;
   }
 
   async chat(prompt: string, system?: string): Promise<string> {
