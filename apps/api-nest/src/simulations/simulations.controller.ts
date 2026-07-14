@@ -8,6 +8,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
 import { SimulationsService } from './simulations.service';
 import { SimulationInstanceService } from './simulation-instance.service';
@@ -26,6 +27,7 @@ import { TriggerService } from './triggers/trigger.service';
 import { ConversationStateService } from './conversation-state.service';
 import { PrismaService } from '../prisma/prisma.service';
 
+@UseGuards(JwtAuthGuard)
 @Controller('simulations')
 export class SimulationsController {
   constructor(
@@ -53,11 +55,17 @@ export class SimulationsController {
 
   @Get()
   async findAll(@CurrentUser() user?: any) {
-    return this.simulationsService.findAll(user?.sub, user?.role);
+    return this.simulationsService.findAll(user?.id, user?.role);
   }
 
   @Get('user/:userId')
-  async findByUserId(@Param('userId') userId: string) {
+  async findByUserId(
+    @Param('userId') userId: string,
+    @CurrentUser() user: any,
+  ) {
+    if (user?.role === 'student' && userId !== user.id) {
+      throw new ForbiddenException('You can only view your own simulations');
+    }
     return this.simulationsService.findByUserId(userId);
   }
 

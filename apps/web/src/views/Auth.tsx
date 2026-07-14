@@ -1,16 +1,16 @@
 'use client'
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { apiClient } from '@/services/ApiClient';
-import { authChangeEvent } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Checkbox } from '@/components/ui/checkbox';
+import { authChangeEvent } from '@/hooks/useAuth';
+import { apiClient } from '@/services/ApiClient';
+import { Bot, Eye, EyeOff, GraduationCap, Shield, ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { toast } from 'sonner';
-import { Shield, GraduationCap, Eye, EyeOff, Bot } from 'lucide-react';
 
 const Auth = () => {
   const router = useRouter();
@@ -40,13 +40,13 @@ const Auth = () => {
       console.log('✅ Login Response:', { token, user });
       
       // Guardar token, refreshToken y usuario en localStorage
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+      sessionStorage.setItem('token', token);
+      sessionStorage.setItem('user', JSON.stringify(user));
+      if (refreshToken) sessionStorage.setItem('refreshToken', refreshToken);
       
-      console.log('✅ localStorage saved:', {
-        token: localStorage.getItem('token'),
-        user: localStorage.getItem('user')
+      console.log('✅ sessionStorage saved:', {
+        token: sessionStorage.getItem('token'),
+        user: sessionStorage.getItem('user')
       });
       
       // Disparar evento custom para notificar al AuthProvider
@@ -56,10 +56,18 @@ const Auth = () => {
       
       // Forzar redirección después de un delay mínimo
       setTimeout(() => {
-        router.replace('/dashboard');
+        router.replace(user.role === 'ministerio' ? '/ministerio' : user.role === 'admin' ? '/admin/mis-cursos' : user.role === 'teacher' ? '/profesor/cursos' : '/estudiante/cursos');
       }, 150);
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Error al iniciar sesión');
+      let errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || 'Error al iniciar sesión';
+      
+      if (errorMsg === 'Unauthorized' || error.response?.status === 401) {
+        errorMsg = 'Credenciales incorrectas';
+      } else if (errorMsg === 'Bad Request' || errorMsg.includes('code 400') || error.response?.status === 400) {
+        errorMsg = 'Formato inválido';
+      }
+      
+      toast.error(errorMsg);
       // Resetear robot check tras un error para volver a confirmar
       setRobotChecked(false);
     }
@@ -82,9 +90,9 @@ const Auth = () => {
       const { token, user, refreshToken } = response.data;
       
       // Guardar token, refreshToken y usuario en localStorage
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+      sessionStorage.setItem('token', token);
+      sessionStorage.setItem('user', JSON.stringify(user));
+      if (refreshToken) sessionStorage.setItem('refreshToken', refreshToken);
       
       // Disparar evento custom para notificar al AuthProvider
       authChangeEvent.dispatchEvent(new Event('authChange'));
@@ -93,16 +101,31 @@ const Auth = () => {
       
       // Forzar redirección después de un delay mínimo
       setTimeout(() => {
-        router.replace('/dashboard');
+        router.replace(user.role === 'ministerio' ? '/ministerio' : user.role === 'admin' ? '/admin/mis-cursos' : user.role === 'teacher' ? '/profesor/cursos' : '/estudiante/cursos');
       }, 150);
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Error al crear cuenta');
+      let errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || 'Error al crear cuenta';
+      
+      if (errorMsg === 'Bad Request' || errorMsg.includes('code 400') || error.response?.status === 400) {
+        errorMsg = 'Faltan datos o el formato es inválido';
+      }
+      
+      toast.error(errorMsg);
     }
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
+      <Button
+        variant="ghost"
+        className="absolute top-4 left-4 gap-2 text-muted-foreground hover:text-foreground hover:bg-muted"
+        onClick={() => router.push('/')}
+      >
+        <ArrowLeft className="w-4 h-4" />
+        <span className="hidden sm:inline">Volver al inicio</span>
+        <span className="sm:hidden">Volver</span>
+      </Button>
       <div className="w-full max-w-md fade-in">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">

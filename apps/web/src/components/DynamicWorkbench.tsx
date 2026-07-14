@@ -1,15 +1,15 @@
 'use client'
-import React, { useState, useEffect } from 'react';
+import { AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { msmApi } from '../services/MSMApiClient';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { AlertCircle, Loader, CheckCircle } from 'lucide-react';
+import { msmApi } from '../services/MSMApiClient';
 
 // Módulos dinámicos
 import CalculatorModule from './modules/CalculatorModule';
+import ChatIAModule from './modules/ChatIAModule';
 import DocumentModule from './modules/DocumentModule';
 import InboxModule from './modules/InboxModule';
-import ChatIAModule from './modules/ChatIAModule';
 
 interface CourseConfig {
   courseId: string;
@@ -82,7 +82,7 @@ const DynamicWorkbench: React.FC = () => {
           setSimulation(sim);
 
           // Set first active module
-          const firstActiveModule = configData.activeModules.find((m) => m.enabled);
+          const firstActiveModule = configData.activeModules.find((m: any) => m.enabled);
           if (firstActiveModule) {
             setActiveModule(firstActiveModule.moduleId);
           }
@@ -270,6 +270,7 @@ const OfficeLayout: React.FC<any> = ({
         scenario={scenario}
         config={config}
         logAction={logAction}
+        updateState={updateState}
       />
     ),
     3: (
@@ -388,7 +389,6 @@ const TerminalLayout: React.FC<any> = ({
             config={config}
             logAction={logAction}
             updateState={updateState}
-            isTerminal={true}
           />
         </div>
 
@@ -434,6 +434,7 @@ const DashboardLayout: React.FC<any> = ({
         scenario={scenario}
         config={config}
         logAction={logAction}
+        updateState={updateState}
       />
     ),
     3: (

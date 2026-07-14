@@ -24,7 +24,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
   imports: [
     ThrottlerModule.forRoot([{
       ttl: 60000,
-      limit: 100,
+      limit: 1000,
     }]),
     PrismaModule,
     AuthModule,

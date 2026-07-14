@@ -1,16 +1,18 @@
 'use client'
-import React, { useState, useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Edit2, Plus, Zap, FileUp, Paperclip, Link, Settings, Check, AlertTriangle, RefreshCw } from 'lucide-react';
-import { ConfigureTechSheetModal } from './ConfigureTechSheetModal';
+import { Textarea } from '@/components/ui/textarea';
+import { PipelineOutput, PipelineStatus, useAnalysisProgress } from '@/hooks/useAnalysisProgress';
 import { API_BASE, authFetch } from '@/lib/api';
-import { useAnalysisProgress, PipelineStatus, PipelineOutput } from '@/hooks/useAnalysisProgress';
+import { apiClient } from '@/services/ApiClient';
+import { AlertTriangle, Check, Edit2, FileUp, Link, Paperclip, Plus, RefreshCw, Settings, Trash2, Zap } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
+import { ConfigureTechSheetModal } from './ConfigureTechSheetModal';
 
 interface TechSheet {
   id: number;
@@ -75,7 +77,7 @@ export function TechSheetsABM() {
     if (pollStatus === 'completed') {
       fetchTechSheets();
       setAnalyzingSheetId(null);
-      alert('Analisis completado exitosamente');
+      toast.success('Análisis completado exitosamente');
     } else if (pollStatus === 'failed' || pollStatus === 'validation_rejected') {
       setAnalyzingSheetId(null);
     }
@@ -83,9 +85,8 @@ export function TechSheetsABM() {
 
   const fetchCourses = async () => {
     try {
-      const response = await authFetch(`${API_BASE}/courses`);
-      const data = await response.json();
-      setCourses(Array.isArray(data) ? data : []);
+      const response = await apiClient.get('/courses');
+      setCourses(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching courses:', error);
     }
@@ -93,9 +94,8 @@ export function TechSheetsABM() {
 
   const fetchTechSheets = async () => {
     try {
-      const response = await authFetch(`${API_BASE}/tech-sheets`);
-      const data = await response.json();
-      setSheets(Array.isArray(data) ? data : []);
+      const response = await apiClient.get('/tech-sheets');
+      setSheets(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching tech sheets:', error);
       setSheets([]);
@@ -116,14 +116,14 @@ export function TechSheetsABM() {
       'text/csv', 'image/png', 'image/jpeg', 'text/plain'];
 
     if (!allowedTypes.includes(file.type)) {
-      alert(`❌ Tipo de archivo no permitido: ${file.type}\n\nSoportados: PDF, DOC, DOCX, XLS, XLSX, CSV, PNG, JPG, TXT`);
+      toast.error(`❌ Tipo de archivo no permitido: ${file.type}\n\nSoportados: PDF, DOC, DOCX, XLS, XLSX, CSV, PNG, JPG, TXT`);
       e.target.value = '';
       return;
     }
 
     const maxSize = 50 * 1024 * 1024;
     if (file.size > maxSize) {
-      alert(`❌ Archivo demasiado grande: ${(file.size / (1024 * 1024)).toFixed(2)} MB\n\nMáximo: 50 MB`);
+      toast.error(`❌ Archivo demasiado grande: ${(file.size / (1024 * 1024)).toFixed(2)} MB\n\nMáximo: 50 MB`);
       e.target.value = '';
       return;
     }
@@ -147,7 +147,7 @@ export function TechSheetsABM() {
       reader.readAsDataURL(file);
     } catch {
       setUploading(false);
-      alert('Error al leer el archivo');
+      toast.error('Error al leer el archivo');
     }
   };
 
@@ -157,13 +157,13 @@ export function TechSheetsABM() {
     // Validación: nombre es obligatorio
     const trimmedName = formData.name?.trim();
     if (!trimmedName) {
-      alert('❌ El nombre de la ficha es obligatorio');
+      toast.error('❌ El nombre de la ficha es obligatorio');
       return;
     }
 
     // Validación: al menos un campo de contenido
     if (!formData.course_id && !formData.description && !formData.file_url) {
-      alert('❌ Debes rellenar: Curso (obligatorio) O al menos Descripción/Archivo');
+      toast.error('❌ Debes rellenar: Curso (obligatorio) O al menos Descripción/Archivo');
       return;
     }
 
@@ -175,7 +175,7 @@ export function TechSheetsABM() {
       if (hasFile) {
         const formDataObj = new FormData();
         formDataObj.append('file', hasFile);
-        formDataObj.append('uploaded_by_id', JSON.parse(localStorage.getItem('user') || '{}').id || 'system');
+        formDataObj.append('uploaded_by_id', JSON.parse(sessionStorage.getItem('user') || '{}').id || 'system');
         formDataObj.append('upload_type', 'tech_sheet');
 
         const uploadResponse = await authFetch(`${API_BASE}/files/upload`, {
@@ -200,7 +200,7 @@ export function TechSheetsABM() {
         ministry_code: formData.ministry_code || undefined,
         description: formData.description || undefined,
         file_url: fileUrl || undefined,
-        uploaded_by: JSON.parse(localStorage.getItem('user') || '{}').id || 'system',
+        uploaded_by: JSON.parse(sessionStorage.getItem('user') || '{}').id || 'system',
       };
 
       const createResponse = await authFetch(`${API_BASE}/tech-sheets`, {
@@ -224,10 +224,10 @@ export function TechSheetsABM() {
 
       // Refresh list
       await fetchTechSheets();
-      alert('✅ Ficha técnica guardada exitosamente');
+      toast.success('✅ Ficha técnica guardada exitosamente');
     } catch (error) {
       console.error('Error saving tech sheet:', error);
-      alert(`❌ Error al guardar la ficha técnica: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      toast.error(`❌ Error al guardar la ficha técnica: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   };
 
@@ -237,14 +237,14 @@ export function TechSheetsABM() {
 
     // Validation: course is required
     if (!sheet.course_id) {
-      alert('Error: Debes asociar la ficha tecnica a un curso antes de analizarla.\n\nPor favor, edita la ficha y selecciona un curso.');
+      toast.error('❌ Error: Debes asociar la ficha técnica a un curso antes de analizarla.\n\nPor favor, edita la ficha y selecciona un curso.');
       return;
     }
 
     // Validation: at least 1 content
     const hasContent = sheet.file_url || sheet.description;
     if (!hasContent) {
-      alert('Error: La ficha tecnica debe tener al menos uno de estos elementos:\n- Archivo adjunto (PDF/DOC)\n- URL del documento\n- Descripcion/Contenido\n\nPor favor, agrega contenido antes de analizar.');
+      toast.error('❌ Error: La ficha técnica debe tener al menos uno de estos elementos:\n- Archivo adjunto (PDF/DOC)\n- URL del documento\n- Descripción/Contenido\n\nPor favor, agrega contenido antes de analizar.');
       return;
     }
 
@@ -263,23 +263,31 @@ export function TechSheetsABM() {
       // Start polling for progress
       setAnalyzingSheetId(id);
     } catch (error) {
-      console.error('Error triggering analysis:', error);
-      alert(`Error al iniciar analisis: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      console.error('Error analyzing tech sheet:', error);
+      toast.error(`❌ Error al analizar la ficha técnica: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      setAnalyzingSheetId(null);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Estás seguro de eliminar esta ficha técnica?')) return;
-
-    try {
-      await authFetch(`${API_BASE}/tech-sheets/${id}`, {
-        method: 'DELETE',
-      });
-      await fetchTechSheets();
-    } catch (error) {
-      console.error('Error deleting tech sheet:', error);
-      alert('Error al eliminar la ficha técnica');
-    }
+  const handleDelete = (id: number) => {
+    toast.error('¿Estás seguro de eliminar esta ficha técnica?', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await authFetch(`${API_BASE}/tech-sheets/${id}`, {
+              method: 'DELETE',
+            });
+            await fetchTechSheets();
+            toast.success('Ficha técnica eliminada');
+          } catch (error) {
+            console.error('Error deleting tech sheet:', error);
+            toast.error('Error al eliminar la ficha técnica');
+          }
+        },
+      },
+      duration: 5000,
+    });
   };
 
   const handleCompleteSheet = async (id: number) => {
@@ -305,7 +313,7 @@ export function TechSheetsABM() {
     }
 
     if (competencies.length === 0 && kpis.length === 0) {
-      alert('❌ Debes agregar al menos una competencia o un KPI');
+      toast.error('❌ Debes agregar al menos una competencia o un KPI');
       return;
     }
 
@@ -314,7 +322,7 @@ export function TechSheetsABM() {
         name: sheet.name,
         description: sheet.description || undefined,
         ministry_code: sheet.ministry_code || undefined,
-        context_scenario: sheet.context_scenario || undefined,
+        context_scenario: (sheet as any).context_scenario || undefined,
         competencies: competencies.length > 0 ? competencies : sheet.competencies,
         kpi_requirements: kpis.length > 0 ? kpis : sheet.kpi_requirements,
       };
@@ -334,10 +342,10 @@ export function TechSheetsABM() {
       setEditingCompetencies('');
       setEditingKpis('');
       await fetchTechSheets();
-      alert('✅ Ficha técnica completada exitosamente.');
+      toast.success('✅ Ficha técnica completada exitosamente.');
     } catch (error) {
       console.error('Error updating tech sheet:', error);
-      alert(`❌ Error al completar la ficha: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      toast.error(`❌ Error al completar la ficha: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   };
 
@@ -598,13 +606,13 @@ export function TechSheetsABM() {
                 )}
 
                 {/* Analizar button — pipeline-aware */}
-                {!sheet.processed && sheet.pipeline_status !== 'completed' && (
+                {!sheet.processed && (sheet.pipeline_status as string) !== 'completed' && (
                   <Button
                     onClick={() => handleAnalyze(sheet.id)}
                     disabled={
                       analyzingSheetId === sheet.id ||
                       sheet.pipeline_status === 'running' ||
-                      sheet.pipeline_status === 'completed' ||
+                      (sheet.pipeline_status as string) === 'completed' ||
                       !sheet.course_id
                     }
                     title={
@@ -612,12 +620,12 @@ export function TechSheetsABM() {
                         ? 'Asocia un curso primero'
                         : sheet.pipeline_status === 'running'
                         ? 'Analisis en progreso...'
-                        : sheet.pipeline_status === 'completed'
+                        : (sheet.pipeline_status as string) === 'completed'
                         ? 'Ya fue analizada'
                         : 'Analizar esta ficha tecnica'
                     }
                     className={
-                      sheet.pipeline_status === 'completed'
+                      (sheet.pipeline_status as string) === 'completed'
                         ? 'bg-green-600'
                         : sheet.pipeline_status === 'running' || analyzingSheetId === sheet.id
                         ? 'bg-yellow-600'
@@ -627,13 +635,13 @@ export function TechSheetsABM() {
                     <Zap className="w-4 h-4 mr-2" />
                     {sheet.pipeline_status === 'running' || analyzingSheetId === sheet.id
                       ? 'Analizando...'
-                      : sheet.pipeline_status === 'completed'
+                      : (sheet.pipeline_status as string) === 'completed'
                       ? 'Analizado'
                       : 'Analizar'}
                   </Button>
                 )}
 
-                {sheet.pipeline_status === 'completed' && (
+                {(sheet.pipeline_status as string) === 'completed' && (
                   <>
                     <Button disabled className="bg-green-600">
                       <Zap className="w-4 h-4 mr-2" />
@@ -641,9 +649,15 @@ export function TechSheetsABM() {
                     </Button>
                     <Button
                       onClick={() => {
-                        if (confirm('¿Re-analizar esta ficha? Se sobrescribirán los resultados existentes.')) {
-                          handleAnalyze(sheet.id);
-                        }
+                        toast.error('¿Re-analizar esta ficha? Se sobrescribirán los resultados existentes.', {
+                          action: {
+                            label: 'Re-analizar',
+                            onClick: () => {
+                              handleAnalyze(sheet.id);
+                            },
+                          },
+                          duration: 5000,
+                        });
                       }}
                       disabled={analyzingSheetId === sheet.id}
                       className="bg-orange-600 hover:bg-orange-700"
@@ -715,9 +729,15 @@ export function TechSheetsABM() {
                 </Alert>
                 <Button
                   onClick={() => {
-                    if (confirm('¿Reintentar el análisis?')) {
-                      handleAnalyze(sheet.id);
-                    }
+                    toast.error('¿Reintentar el análisis?', {
+                      action: {
+                        label: 'Reintentar',
+                        onClick: () => {
+                          handleAnalyze(sheet.id);
+                        },
+                      },
+                      duration: 5000,
+                    });
                   }}
                   disabled={analyzingSheetId === sheet.id}
                   size="sm"
@@ -1017,7 +1037,7 @@ function PipelineProgressStatus({
 /** Render markdown output for completed steps */
 function StepOutput({ output }: { output: PipelineOutput }) {
   const stepsWithOutput = PIPELINE_STEPS.filter(
-    (step) => output[step.field],
+    (step) => (output as any)[step.field],
   );
 
   if (stepsWithOutput.length === 0) return null;
@@ -1032,7 +1052,7 @@ function StepOutput({ output }: { output: PipelineOutput }) {
           </summary>
           <div className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded text-xs max-h-48 overflow-auto">
             <pre className="whitespace-pre-wrap font-mono text-gray-700">
-              {String(output[step.field])}
+              {String((output as any)[step.field])}
             </pre>
           </div>
         </details>

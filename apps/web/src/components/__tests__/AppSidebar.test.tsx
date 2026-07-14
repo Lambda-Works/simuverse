@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import React from 'react';
 import { render, screen } from '@testing-library/react';
+import React from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock sidebar primitives BEFORE importing AppSidebar
 vi.mock('@/components/ui/sidebar', async () => {

@@ -4,21 +4,25 @@
  * Accesible para: admin, teacher, ministerio (con permiso)
  * Ruta: /legajos
  */
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/hooks/useAuth';
 import {
-  GraduationCap, Search, FileText, Clock, AlertCircle, BarChart3,
-  CheckCircle2, XCircle, ChevronRight,
+    AlertCircle, BarChart3,
+    CheckCircle2,
+    ChevronRight,
+    Clock,
+    FileText,
+    GraduationCap, Search,
+    XCircle,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
+import { apiClient } from '@/services/ApiClient';
 
 interface StudentSummary {
   id: string;
@@ -45,17 +49,14 @@ const LegajosPage = () => {
 
   useEffect(() => {
     if (!loading && user && !hasRole('admin') && !hasRole('teacher') && !hasRole('ministerio')) {
-      router.push('/dashboard');
+      router.push('/auth');
     }
   }, [user, loading, hasRole, router]);
 
   useEffect(() => {
     if (!user) return;
-    const token = localStorage.getItem('token');
-    fetch(`${API}/legajo/students`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.json())
+    apiClient.get('/legajo/students')
+      .then(r => r.data)
       .then(data => {
         if (Array.isArray(data)) setStudents(data);
         else if (data.error) setError(data.error);
@@ -104,7 +105,12 @@ const LegajosPage = () => {
           <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
           <p className="text-destructive font-semibold text-lg mb-2">Acceso denegado</p>
           <p className="text-muted-foreground mb-6">{error}</p>
-          <Button onClick={() => router.push('/dashboard')}>Volver al inicio</Button>
+          <Button onClick={() => {
+            if (hasRole('admin')) router.push('/admin/mis-cursos');
+            else if (hasRole('teacher')) router.push('/profesor/cursos');
+            else if (hasRole('ministerio')) router.push('/ministerio');
+            else router.push('/estudiante/cursos');
+          }}>Volver al inicio</Button>
         </div>
       </div>
     );

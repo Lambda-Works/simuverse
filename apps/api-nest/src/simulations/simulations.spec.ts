@@ -354,7 +354,7 @@ describe('AIService (unit)', () => {
   beforeAll(async () => {
     // Dynamic import to test in isolation
     const mod = await import('./ai/ai.service');
-    aiService = new mod.AIService();
+    aiService = new mod.AIService({} as any);
   });
 
   describe('buildSystemPrompt', () => {

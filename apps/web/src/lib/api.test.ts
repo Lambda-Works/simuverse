@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { authFetch, API_BASE } from './api';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { API_BASE, authFetch } from './api';
 
 describe('authFetch', () => {
   beforeEach(() => {

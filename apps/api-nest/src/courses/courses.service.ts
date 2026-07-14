@@ -73,7 +73,7 @@ export class CoursesService {
     });
   }
 
-  async update(courseId: string, data: {
+  async update(id: string, data: {
     title?: string;
     description?: string;
     category?: string;
@@ -92,7 +92,7 @@ export class CoursesService {
 
     try {
       return await this.prisma.course.update({
-        where: { course_id: courseId },
+        where: { id },
         data: {
           ...updateData,
           modules: updateData.modules || undefined,
@@ -112,11 +112,11 @@ export class CoursesService {
     }
   }
 
-  async remove(courseId: string) {
+  async remove(id: string) {
     // Soft delete — set is_active to false
     try {
       return await this.prisma.course.update({
-        where: { course_id: courseId },
+        where: { id },
         data: { is_active: false },
       });
     } catch (error: any) {

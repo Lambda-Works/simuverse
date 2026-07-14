@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 // ── Foundation Config ────────────────────────────────────────────
@@ -51,6 +51,22 @@ export class FoundationConfigController {
       },
     });
   }
+
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    return (this.prisma as any).foundationConfig.update({
+      where: { id: Number(id) },
+      data: { is_active: false },
+    });
+  }
+
+  @Put(':id/reactivate')
+  async reactivate(@Param('id') id: string) {
+    return (this.prisma as any).foundationConfig.update({
+      where: { id: Number(id) },
+      data: { is_active: true },
+    });
+  }
 }
 
 // ── Endorsers ────────────────────────────────────────────────────
@@ -95,8 +111,16 @@ export class EndorsersController {
   }
 
   @Delete(':id') async remove(@Param('id') id: string) {
-    return (this.prisma as any).endorser.delete({
+    return (this.prisma as any).endorser.update({
       where: { id: Number(id) },
+      data: { is_active: false },
+    });
+  }
+
+  @Put(':id/reactivate') async reactivate(@Param('id') id: string) {
+    return (this.prisma as any).endorser.update({
+      where: { id: Number(id) },
+      data: { is_active: true },
     });
   }
 }
@@ -163,16 +187,228 @@ export class CourseEndorsersController {
 @Controller('legajo')
 export class LegajoController {
   constructor(private prisma: PrismaService) {}
-  @Get('students') async getStudents() { return []; }
+
+  @Get('students')
+  async getStudents() {
+    const students = await this.prisma.user.findMany({
+      where: { role: 'student' },
+      select: {
+        id: true, name: true, email: true,
+        simulations: { select: { id: true, status: true, score: true, progress_percentage: true } },
+      },
+    });
+    return students.map(s => ({
+      id: s.id,
+      name: s.name,
+      email: s.email,
+      total_sims: s.simulations.length,
+      completed: s.simulations.filter(sim => sim.status === 'completed').length,
+      avg_score: s.simulations.length > 0
+        ? s.simulations.filter(sim => sim.score).reduce((a, sim) => a + sim.score!, 0) / s.simulations.filter(sim => sim.score).length
+        : null,
+    }));
+  }
+
+  @Get(':userId')
+  async getStudentLedger(@Param('userId') userId: string) {
+    const student = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, role: true, created_at: true },
+    });
+    if (!student) throw new NotFoundException('Student not found');
+
+    const simulations = await this.prisma.simulation.findMany({
+      where: { student_id: userId },
+      include: { course: { select: { title: true, category: true } } },
+      orderBy: { started_at: 'desc' },
+    });
+
+    const evaluations = await this.prisma.simulationEvaluation.findMany({
+      where: { student_id: userId },
+      orderBy: { evaluated_at: 'desc' },
+    });
+
+    const enriched = simulations.map(sim => {
+      const evalData = evaluations.find(e => e.simulation_id === sim.id);
+      return {
+        simulation_id: sim.id,
+        status: sim.status,
+        started_at: sim.started_at,
+        completed_at: sim.completed_at,
+        course_id: sim.course_id,
+        course_title: sim.course.title,
+        course_category: sim.course.category,
+        assessment_id: evalData ? String(evalData.id) : null,
+        score: evalData ? Number(evalData.overall_score) : sim.score,
+        passed: evalData ? Number(evalData.overall_score) >= 70 : sim.score ? sim.score >= 70 : null,
+        criteria_met: evalData?.kpi_results ? {
+          kpis: evalData.kpi_results as Record<string, number>,
+          scoring_methodology: {
+            formula: 'IA + Motor de Reglas',
+            components: {},
+            puntaje_base_ia: Number(evalData.overall_score),
+            puntaje_motor_reglas: null,
+            puntaje_crisis: null,
+            ajuste_crisis: 0,
+            puntaje_final: Number(evalData.overall_score),
+            aprobado: Number(evalData.overall_score) >= 70,
+          },
+          analysis_detail: {
+            strengths: evalData.overall_feedback ? [evalData.overall_feedback] : [],
+            areas_to_improve: [],
+            recommendations: [],
+          },
+        } : null,
+        assessment_comments: evalData?.overall_feedback || null,
+        evaluated_at: evalData?.evaluated_at || null,
+        evaluator_name: null,
+        total_logs: 0,
+        messages_sent: 0,
+      };
+    });
+
+    const completedEvals = evaluations.filter(e => Number(e.overall_score || 0) > 0);
+    const passedEvals = completedEvals.filter(e => Number(e.overall_score || 0) >= 70);
+
+    const stats = {
+      total_simulations: simulations.length,
+      total_evaluations: completedEvals.length,
+      passed_evaluations: passedEvals.length,
+      avg_score: completedEvals.length > 0
+        ? Math.round(completedEvals.reduce((a, e) => a + Number(e.overall_score || 0), 0) / completedEvals.length)
+        : null,
+      approval_rate: completedEvals.length > 0
+        ? Math.round((passedEvals.length / completedEvals.length) * 100)
+        : null,
+    };
+
+    return { student, stats, simulations: enriched };
+  }
 }
 
 // ── Simulation Sessions ──────────────────────────────────────────
 @Controller('simulation-sessions')
 export class SimulationSessionsController {
   constructor(private prisma: PrismaService) {}
-  @Get() async findAll() { return []; }
-  @Get('ref/:ref') async findByRef(@Param('ref') ref: string) { return null; }
-  @Get(':id') async findOne(@Param('id') id: string) { return null; }
+
+  @Get()
+  async findAll() {
+    const instances = await (this.prisma as any).simulationInstance.findMany({
+      include: {
+        student: true,
+        scenario: true,
+        course: true,
+      },
+      orderBy: { started_at: 'desc' }
+    }) as any[];
+
+    // Fetch chat logs for all instances in one query
+    const instanceIds = instances.map((i: any) => i.id);
+    const allChatLogs = instanceIds.length > 0
+      ? await (this.prisma as any).simulationChatLog.findMany({
+          where: { simulation_instance_id: { in: instanceIds } },
+        })
+      : [];
+    const logsByInstance = new Map<string, any[]>();
+    for (const log of allChatLogs) {
+      const arr = logsByInstance.get(log.simulation_instance_id) || [];
+      arr.push(log);
+      logsByInstance.set(log.simulation_instance_id, arr);
+    }
+
+    return instances.map((inst: any) => {
+      const chatLogs = logsByInstance.get(inst.id) || [];
+      return {
+        id: inst.id,
+        status: inst.status,
+        score: inst.score || 0,
+        started_at: inst.started_at,
+        completed_at: inst.completed_at,
+        time_spent_seconds: inst.time_spent_seconds || 0,
+        progress_percentage: inst.progress_percentage || 0,
+        student_name: inst.student ? inst.student.name : 'Unknown',
+        student_email: inst.student ? inst.student.email : '',
+        student_id: inst.student_id,
+        scenario_title: inst.scenario ? inst.scenario.title : 'Unknown',
+        scenario_type: inst.scenario ? inst.scenario.scenario_type : '',
+        difficulty: inst.scenario ? inst.scenario.difficulty : '',
+        course_title: inst.course ? inst.course.title : 'Unknown',
+        course_id: inst.course_id,
+        total_turns: chatLogs.length,
+        incorrect_turns: chatLogs.filter((l: any) => l.is_correct === false).length,
+      };
+    });
+  }
+
+  @Get('ref/:ref')
+  async findByRef(@Param('ref') ref: string) {
+    // Find log by ref_number and return the instance
+    const log = await (this.prisma as any).simulationChatLog.findFirst({
+      where: { ref_number: ref },
+    });
+    if (!log) return null;
+    return this.findOne(log.simulation_instance_id);
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    const inst = await this.prisma.simulationInstance.findUnique({
+      where: { id },
+      include: {
+        student: true,
+        scenario: true,
+        course: true,
+      },
+    }) as any;
+    if (!inst) return null;
+
+    const chatLogs = await (this.prisma as any).simulationChatLog.findMany({
+      where: { simulation_instance_id: id },
+      orderBy: { turn_number: 'asc' },
+    });
+
+    const evalData = await this.prisma.simulationEvaluation.findFirst({
+      where: { simulation_id: id },
+    });
+
+    return {
+      instance: {
+        id: inst.id,
+        status: inst.status,
+        score: inst.score || 0,
+        started_at: inst.started_at,
+        completed_at: inst.completed_at,
+        time_spent_seconds: inst.time_spent_seconds || 0,
+        progress_percentage: inst.progress_percentage || 0,
+        student_name: inst.student ? inst.student.name : 'Unknown',
+        student_email: inst.student ? inst.student.email : '',
+        student_id: inst.student_id,
+        scenario_title: inst.scenario ? inst.scenario.title : 'Unknown',
+        scenario_type: inst.scenario ? inst.scenario.scenario_type : '',
+        difficulty: inst.scenario ? inst.scenario.difficulty : '',
+        course_title: inst.course ? inst.course.title : 'Unknown',
+      },
+      logs: chatLogs.map((l: any) => ({
+        id: l.id,
+        turn_number: l.turn_number,
+        speaker: l.speaker,
+        message_text: l.message,
+        is_correct: l.is_correct === true ? 1 : (l.is_correct === false ? 0 : null),
+        ref_number: l.ref_number,
+        score_impact: 0,
+        ai_solution: l.metadata ? (l.metadata as any).ai_solution : null,
+        correct_answer: l.metadata ? (l.metadata as any).correct_answer : null,
+      })),
+      evaluation: evalData ? {
+        overall_score: evalData.overall_score || 0,
+        overall_feedback: evalData.overall_feedback || '',
+        kpi_results: evalData.kpi_results || {},
+        completion_percentage: evalData.completion_percentage || 0,
+        time_spent_seconds: evalData.time_spent_seconds || 0,
+        evaluated_at: evalData.evaluated_at,
+      } : null,
+    };
+  }
 }
 
 // ── Certificates ─────────────────────────────────────────────────

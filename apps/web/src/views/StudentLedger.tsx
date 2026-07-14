@@ -1,19 +1,32 @@
 'use client'
-import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
-import { apiClient } from '@/services/ApiClient';
-import { useSidebarHeader } from '@/lib/sidebar-header-context';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/hooks/useAuth';
+import { useSidebarHeader } from '@/lib/sidebar-header-context';
+import { apiClient } from '@/services/ApiClient';
 import {
-  ArrowLeft, User, BookOpen, CheckCircle, XCircle, Clock,
-  BarChart3, Brain, Zap, Trophy, Calculator, Target,
-  TrendingUp, AlertTriangle, Shield, ChevronDown, ChevronUp,
-  FileText, Info,
+    AlertTriangle,
+    ArrowLeft,
+    BarChart3,
+    BookOpen,
+    Brain,
+    Calculator,
+    CheckCircle,
+    ChevronDown, ChevronUp,
+    Clock,
+    Info,
+    Shield,
+    Target,
+    TrendingUp,
+    Trophy,
+    User,
+    XCircle,
+    Zap
 } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -218,17 +231,18 @@ const StudentLedger = () => {
 
   useEffect(() => {
     setBackTo('/legajos', 'Legajos');
-    return () => setBackTo(null, null);
+    return () => setBackTo(undefined, undefined);
   }, [setBackTo]);
 
   useEffect(() => {
-    if (!loading && (!user || (user.role === 'student'))) {
-      router.push('/dashboard');
+    if (!loading && (!user || user.role === 'student')) {
+      router.push('/estudiante/cursos');
     }
   }, [user, loading, router]);
 
   useEffect(() => {
-    if (!userId || !user) return;
+    // Only load if authorized
+    if (!userId || !user || user.role === 'student') return;
     const load = async () => {
       try {
         const res = await apiClient.get(`/legajo/${userId}`);
@@ -248,6 +262,18 @@ const StudentLedger = () => {
     paused:      { label: 'Pausada',    color: 'bg-warning/10 text-warning' },
     abandoned:   { label: 'Abandonada', color: 'bg-destructive/10 text-destructive' },
   };
+
+  // Prevent render flash during redirect
+  if (loading || (!user || user.role === 'student')) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto" />
+          <p className="text-muted-foreground text-sm">Verificando credenciales...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loadingData) {
     return (
@@ -300,7 +326,7 @@ const StudentLedger = () => {
               </div>
               <div className="text-right text-xs text-muted-foreground italic">
                 <Info className="w-3 h-3 inline mr-1" />
-                Legajo generado por <strong>{data.accessed_by?.role}</strong>
+                Legajo generado por <strong>admin</strong>
               </div>
             </div>
           </CardContent>
@@ -344,7 +370,7 @@ const StudentLedger = () => {
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
                 {stats.passed_evaluations} aprobadas de {stats.total_evaluations} evaluadas
-                {stats.best_score !== null && ` · Mejor puntaje: ${stats.best_score}/100`}
+                {stats.best_score !== null && stats.best_score !== undefined && ` · Mejor puntaje: ${stats.best_score}/100`}
               </p>
             </CardContent>
           </Card>

@@ -1,11 +1,13 @@
 'use client'
-import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card } from '@/components/ui/card';
-import { API_BASE } from '@/lib/api';
-import { Trash2, Edit2, Plus, FileText } from 'lucide-react';
+import { useAdmin } from '@/lib/admin-context';
+import { apiClient } from '@/services/ApiClient';
+import { FileText, Plus, Trash2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 interface Document {
   id: number;
@@ -22,6 +24,7 @@ interface Course {
 }
 
 export function DocumentsABM() {
+  const { readOnly } = useAdmin();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,8 +46,8 @@ export function DocumentsABM() {
 
   const fetchDocuments = async () => {
     try {
-      const response = await fetch(`${API_BASE}/documents`);
-      const data = await response.json();
+      const response = await apiClient.get('/documents');
+      const data = response.data;
       setDocuments(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching documents:', error);
@@ -56,8 +59,8 @@ export function DocumentsABM() {
 
   const fetchCourses = async () => {
     try {
-      const response = await fetch(`${API_BASE}/courses`);
-      const data = await response.json();
+      const response = await apiClient.get('/courses');
+      const data = response.data;
       setCourses(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching courses:', error);
@@ -69,21 +72,17 @@ export function DocumentsABM() {
     e.preventDefault();
 
     if (!formData.course_id || !formData.document_name) {
-      alert('Curso y nombre del documento son obligatorios');
+      toast.error('Curso y nombre del documento son obligatorios');
       return;
     }
 
     try {
       const payload = {
         ...formData,
-        uploaded_by: localStorage.getItem('userId') || 'system',
+        uploaded_by: sessionStorage.getItem('userId') || 'system',
       };
 
-      await fetch(`${API_BASE}/documents`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      await apiClient.post('/documents', payload);
 
       // Reset form
       setFormData({
@@ -98,22 +97,35 @@ export function DocumentsABM() {
       await fetchDocuments();
     } catch (error) {
       console.error('Error saving document:', error);
-      alert('Error al guardar el documento');
+      toast.error('Error al guardar el documento');
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Estás seguro de eliminar este documento?')) return;
+  const handleDelete = (id: number) => {
+    toast.error('¿Estás seguro de eliminar este documento?', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/documents/${id}`);
+            await fetchDocuments();
+            toast.success('Documento eliminado');
+          } catch (error) {
+            console.error('Error deleting document:', error);
+            toast.error('Error al eliminar el documento');
+          }
+        },
+      },
+      duration: 5000,
+    });
+  };
 
+  const handleReactivate = async (id: number) => {
     try {
-      await fetch(`${API_BASE}/documents/${id}`, {
-        method: 'DELETE',
-      });
+      await apiClient.put(`/documents/${id}/reactivate`);
       await fetchDocuments();
-    } catch (error) {
-      console.error('Error deleting document:', error);
-      alert('Error al eliminar el documento');
-    }
+      toast.success('Documento reactivado');
+    } catch { toast.error('Error al reactivar'); }
   };
 
   const handleCancel = () => {
@@ -152,7 +164,7 @@ export function DocumentsABM() {
           <h2 className="text-2xl font-bold">Gestión de Documentos</h2>
           <p className="text-gray-600 mt-1">Carga documentos para que el Chat IA los use como base de conocimiento</p>
         </div>
-        {!isAddingNew && (
+{!isAddingNew && !readOnly && (
           <Button
             onClick={() => setIsAddingNew(true)}
             className="bg-blue-600 hover:bg-blue-700"
@@ -256,15 +268,21 @@ export function DocumentsABM() {
                   Creado: {new Date(doc.created_at).toLocaleDateString()}
                 </p>
               </div>
-              <div className="flex gap-2 ml-4">
-                <Button
+<div className="flex gap-2 ml-4">
+                {!readOnly && (doc as any).is_active !== false && <Button
                   onClick={() => handleDelete(doc.id)}
                   size="sm"
                   variant="outline"
                   className="text-red-600"
                 >
                   <Trash2 className="w-4 h-4" />
-                </Button>
+                </Button>}
+                {!readOnly && (doc as any).is_active === false && <Button
+                  onClick={() => handleReactivate(doc.id)}
+                  size="sm"
+                  variant="outline"
+                  className="text-green-600 border-green-300"
+                >🔄</Button>}
               </div>
             </div>
           </Card>

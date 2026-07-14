@@ -1,12 +1,21 @@
 'use client'
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
-import { apiClient } from '@/services/ApiClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, MessageSquare, Mail, FileText, BarChart3, Send, Loader } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { apiClient } from '@/services/ApiClient';
+import { ArrowLeft, BarChart3, FileText, Loader, Mail, MessageSquare, Send } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import React, { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 interface Email {
   id: string;
@@ -32,19 +41,45 @@ const SimulationPage: React.FC = () => {
   // State
   const [course, setCourse] = useState<any>(null);
   const [simId, setSimId] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<string>('chat');
   const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'ai'; message: string; timestamp: Date }>>([]);
   const [chatInput, setChatInput] = useState('');
   const [emails, setEmails] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [spreadsheet, setSpreadsheet] = useState<any>(null);
   const [loadingChat, setLoadingChat] = useState(false);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadExcel = () => {
+    if (!spreadsheet?.data) {
+      toast.error("No hay datos en la planilla para descargar.");
+      return;
+    }
+    try {
+      const ws = XLSX.utils.json_to_sheet(spreadsheet.data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Planilla");
+      XLSX.writeFile(wb, `${spreadsheet.name || 'planilla'}.xlsx`);
+      toast.success("Excel descargado correctamente.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Error al generar el archivo Excel.");
+    }
+  };
 
   // Auto-scroll al final cuando llegan mensajes nuevos
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   }, [chatMessages]);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+  };
 
   // Load course and initialize simulation
   useEffect(() => {
@@ -53,7 +88,7 @@ const SimulationPage: React.FC = () => {
       return;
     }
     if (!courseId) {
-      router.push('/dashboard');
+      router.push('/auth');
       return;
     }
 
@@ -91,12 +126,11 @@ const SimulationPage: React.FC = () => {
           introLines.push('\n¿Por dónde querés empezar? Podés hacer preguntas, proponer soluciones o analizar la situación.');
         }
         
-        setChatMessages([{ role: 'assistant', message: introLines.join('\n'), timestamp: new Date() }]);
+        setChatMessages([{ role: 'ai', message: introLines.join('\n'), timestamp: new Date() }]);
 
         // Create simulation (correct endpoint)
         const simRes = await apiClient.post('/simulations/start', {
-          course_id: courseId,
-          user_id: user?.id
+          course_id: courseId
         });
         setSimId(simRes.data.id);
 
@@ -138,9 +172,7 @@ const SimulationPage: React.FC = () => {
     try {
       const res = await apiClient.post(`/simulations/${simId}/message`, {
         message: chatInput,
-        user_id: user?.id,
-        course_id: courseId,
-        conversationHistory: chatMessages.map(m => ({ role: m.role === 'ai' ? 'model' : 'user', parts: [{ text: m.message }] }))
+        conversationHistory: chatMessages.map(m => ({ role: m.role === 'ai' ? 'model' : 'user', content: m.message }))
       });
       const aiMsg = { role: 'ai' as const, message: res.data.response, timestamp: new Date() };
       setChatMessages(prev => [...prev, aiMsg]);
@@ -184,7 +216,12 @@ const SimulationPage: React.FC = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push('/dashboard')}
+            onClick={() => {
+              if (user?.role === 'admin') router.push('/admin/mis-cursos');
+              else if (user?.role === 'teacher') router.push('/profesor/cursos');
+              else if (user?.role === 'ministerio') router.push('/ministerio');
+              else router.push('/estudiante/cursos');
+            }}
             className="gap-1 shrink-0"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -199,20 +236,21 @@ const SimulationPage: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-6">
         {/* Dynamic tabs driven by course.modules */}
         {(() => {
-          const mods: string[] = Array.isArray(course?.modules) ? course.modules : [];
-          const hasChatIA    = mods.includes('chat_ia');
+          const mods: string[] = Array.isArray(course?.modules) ? course.modules.map((m: string) => m.toLowerCase()) : [];
+          const hasChatIA    = mods.includes('chat_ia') || mods.includes('chat') || true; // Siempre mostrar chat por ahora
           const hasEmail     = mods.includes('email_simulado') || mods.includes('email');
-          const hasDocs      = mods.includes('documentos');
-          const hasCalc      = mods.includes('hoja_calculo') || mods.includes('calculator');
+          const hasDocs      = mods.includes('documentos') || mods.includes('word');
+          const hasCalc      = mods.includes('hoja_calculo') || mods.includes('calculator') || mods.includes('excel');
           const defaultTab   = hasChatIA ? 'chat' : hasEmail ? 'email' : hasDocs ? 'docs' : 'sheet';
           const colCount     = [hasChatIA, hasEmail, hasDocs, hasCalc].filter(Boolean).length || 1;
 
           return (
-            <Tabs defaultValue={defaultTab} className="w-full">
-              <TabsList className={`grid w-full grid-cols-${colCount} mb-8`}>
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+              <div className="flex justify-center w-full mb-6">
+                <TabsList className="flex flex-wrap h-auto gap-1">
                 {hasChatIA && (
                   <TabsTrigger value="chat" className="gap-2">
                     <MessageSquare className="w-4 h-4" />
@@ -238,6 +276,7 @@ const SimulationPage: React.FC = () => {
                   </TabsTrigger>
                 )}
               </TabsList>
+              </div>
 
               {/* Chat IA Tab */}
               {hasChatIA && (
@@ -255,7 +294,7 @@ const SimulationPage: React.FC = () => {
                   <CardContent>
                     <div className="flex flex-col gap-4">
                       {/* Chat Messages */}
-                      <div className="bg-muted rounded-lg p-4 h-96 overflow-y-auto space-y-4 mb-4">
+                      <div ref={chatContainerRef} className="bg-muted rounded-lg p-4 h-[calc(100vh-22rem)] min-h-[400px] overflow-y-auto space-y-4 mb-2 scroll-smooth">
                         {chatMessages.map((msg, idx) => (
                             <div
                               key={idx}
@@ -360,7 +399,10 @@ const SimulationPage: React.FC = () => {
                             <p className="text-sm text-muted-foreground">Mensaje:</p>
                             <p className="mt-2">{selectedEmail.body}</p>
                           </div>
-                          <Button className="w-full gap-2">
+                          <Button 
+                            className="w-full gap-2"
+                            onClick={() => toast.success(`Abriendo redactor para responder a ${selectedEmail.from}`)}
+                          >
                             <Mail className="w-4 h-4" />
                             Responder
                           </Button>
@@ -393,7 +435,11 @@ const SimulationPage: React.FC = () => {
                         <div className="bg-muted rounded p-3 max-h-32 overflow-y-auto text-sm">
                           {doc.content}
                         </div>
-                        <Button className="w-full mt-4" variant="outline">
+                        <Button 
+                          className="w-full mt-4" 
+                          variant="outline"
+                          onClick={() => setSelectedDoc(doc)}
+                        >
                           Ver Documento Completo
                         </Button>
                       </CardContent>
@@ -443,7 +489,11 @@ const SimulationPage: React.FC = () => {
                       </div>
                     )}
 
-                    <Button className="w-full mt-6" variant="outline">
+                    <Button 
+                      className="w-full mt-6" 
+                      variant="outline"
+                      onClick={handleDownloadExcel}
+                    >
                       📥 Descargar Planilla (Excel)
                     </Button>
                   </CardContent>
@@ -454,6 +504,24 @@ const SimulationPage: React.FC = () => {
           );
         })()}
       </main>
+
+      {/* Document Modal */}
+      <Dialog open={!!selectedDoc} onOpenChange={(open) => !open && setSelectedDoc(null)}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <FileText className="w-5 h-5 text-primary" />
+              {selectedDoc?.name}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedDoc?.type ? `Documento tipo: ${selectedDoc.type}` : 'Documento de la simulación'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 p-6 bg-muted/30 border rounded-lg whitespace-pre-wrap font-sans text-sm leading-relaxed">
+            {selectedDoc?.content}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

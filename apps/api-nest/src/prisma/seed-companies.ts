@@ -359,7 +359,7 @@ async function main() {
     console.log(`🏢 Creando empresa: ${def.company.name}`);
 
     const company = await prisma.simulatedCompany.upsert({
-      where: { name: def.company.name },
+      where: { id: 0 },
       update: {},
       create: {
         name: def.company.name,

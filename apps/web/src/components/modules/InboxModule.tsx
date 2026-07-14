@@ -1,6 +1,6 @@
 'use client'
-import React, { useState, useMemo } from 'react';
-import { Mail, MessageSquare, Send, Archive } from 'lucide-react';
+import { Archive, Mail, MessageSquare, Send } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
 
 interface Message {
   id: string;

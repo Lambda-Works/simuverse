@@ -5,20 +5,26 @@
  * Muestra: diálogo completo IA↔Alumno, solución propuesta por IA, número de referencia,
  * resumen de aciertos/desaciertos y evaluación final.
  */
-import React, { useState, useEffect } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Search, MessageSquare, Bot, User, CheckCircle2, XCircle,
-  Clock, Calendar, BookOpen, GraduationCap, Hash, Download,
-  Info, ChevronDown, ChevronUp, Filter
+    Bot,
+    CheckCircle2,
+    Download,
+    Filter,
+    GraduationCap, Hash,
+    Info,
+    MessageSquare,
+    Search,
+    User,
+    XCircle
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
+import { apiClient } from '@/services/ApiClient';
 
 interface ChatLog {
   id: number;
@@ -165,8 +171,8 @@ function SessionDetailDialog({
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${API}/simulation-sessions/${instanceId}`);
-        setData(await res.json());
+        const res = await apiClient.get(`/simulation-sessions/${instanceId}`);
+        setData(res.data);
       } catch { setData(null); }
       finally { setLoading(false); }
     })();
@@ -463,8 +469,8 @@ export function SimulationSessionViewer() {
   const fetchSessions = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/simulation-sessions`);
-      const data = await res.json();
+      const res = await apiClient.get('/simulation-sessions');
+      const data = res.data;
       setSessions(Array.isArray(data) ? data : []);
     } catch { setSessions([]); }
     finally { setLoading(false); }
@@ -478,9 +484,8 @@ export function SimulationSessionViewer() {
     setRefError('');
     setRefResult(null);
     try {
-      const res = await fetch(`${API}/simulation-sessions/ref/${encodeURIComponent(refSearch.trim())}`);
-      if (!res.ok) { setRefError('Referencia no encontrada'); }
-      else { setRefResult(await res.json()); }
+      const res = await apiClient.get(`/simulation-sessions/ref/${encodeURIComponent(refSearch.trim())}`);
+      setRefResult(res.data);
     } catch { setRefError('Error al buscar la referencia'); }
     finally { setRefLoading(false); }
   };

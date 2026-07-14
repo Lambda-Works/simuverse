@@ -7,9 +7,8 @@
  * - Corrupted localStorage data is handled gracefully
  * - signOut and hasRole work correctly
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { renderHook, act, waitFor } from '@testing-library/react'
-import React from 'react'
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider, useAuth } from '../useAuth'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

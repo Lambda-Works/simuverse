@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner';
 /**
  * TemplatesABM.tsx
  * Creador de Plantillas de Curso con Asistente IA
@@ -9,21 +10,36 @@
  * 3. Con las respuestas genera una plantilla completa (módulos + ai_config)
  * 4. El admin la revisa, ajusta y guarda en BD
  */
-import React, { useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import {
-  Bot, Send, Plus, Trash2, Edit2, Wand2, Save, RefreshCw,
-  Layers, MessageSquare, FileText, Calculator, Mail, Zap, ChevronRight, Copy
-} from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { useAdmin } from '@/lib/admin-context';
 import { apiClient } from '@/services/ApiClient';
+import {
+    Bot,
+    Calculator,
+    CheckCircle2,
+    ChevronRight, Copy,
+    Edit2,
+    FileText,
+    Layers,
+    Mail,
+    MessageSquare,
+    Plus,
+    RefreshCw,
+    Save,
+    Send,
+    Trash2,
+    Wand2,
+    Zap
+} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -130,6 +146,7 @@ const AI_QUESTIONS = [
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function TemplatesABM() {
+  const { readOnly } = useAdmin();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
@@ -141,6 +158,7 @@ export function TemplatesABM() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [step, setStep] = useState(0);
+  const [showInactive, setShowInactive] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [generating, setGenerating] = useState(false);
   const [generatedTemplate, setGeneratedTemplate] = useState<any>(null);
@@ -168,14 +186,12 @@ export function TemplatesABM() {
 
   useEffect(() => {
     loadTemplates();
-  }, []);
+  }, [showInactive]);
 
   const loadTemplates = async () => {
-    setLoading(true);
     try {
-      const res = await apiClient.get('/templates/flow');
-      const d = res.data;
-      setTemplates(Array.isArray(d) ? d : []);
+      const res = await apiClient.get(`/templates/flow`);
+      setTemplates(Array.isArray(res.data) ? res.data : []);
     } catch { setTemplates([]); }
     finally { setLoading(false); }
   };
@@ -284,7 +300,7 @@ export function TemplatesABM() {
 
   const handleSave = async () => {
     if (!form.title || !form.code) {
-      alert('El código y título son obligatorios');
+      toast.error('El código y título son obligatorios');
       return;
     }
     setSaving(true);
@@ -311,14 +327,32 @@ export function TemplatesABM() {
       setEditDialogOpen(false);
       setEditingId(null);
       await loadTemplates();
-    } catch { alert('Error al guardar la plantilla'); }
+    } catch { toast.error('Error al guardar la plantilla'); }
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar esta plantilla?')) return;
-    await apiClient.delete(`/templates/flow/${id}`);
-    await loadTemplates();
+  const handleDelete = (id: string) => {
+    toast.error('¿Eliminar esta plantilla?', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/templates/flow/${id}`);
+            await loadTemplates();
+            toast.success('Plantilla eliminada');
+          } catch { toast.error('Error al eliminar la plantilla'); }
+        },
+      },
+      duration: 5000,
+    });
+  };
+
+  const handleReactivate = async (id: string) => {
+    try {
+      await apiClient.put(`/templates/flow/${id}`, { is_active: true });
+      await loadTemplates();
+      toast.success('Plantilla reactivada');
+    } catch { toast.error('Error al reactivar'); }
   };
 
   const handleDuplicate = async (t: Template) => {
@@ -368,14 +402,14 @@ export function TemplatesABM() {
             Podés crear una desde cero o usar el <span className="text-purple-700 font-semibold">Asistente IA</span> para que te guíe.
           </p>
         </div>
-        <div className="flex gap-2">
+{!readOnly && <div className="flex gap-2">
           <Button onClick={startWizard} className="bg-purple-600 hover:bg-purple-700">
             <Wand2 className="w-4 h-4 mr-2" /> Crear con IA
           </Button>
           <Button variant="outline" onClick={() => { setForm({ code: '', title: '', family: 'administracion', description: '', modules: ['chat_ia'], ai_config: { base_role: '', course_context: '', personality_traits: [], knowledge_base_prompt: '' }, eval_criteria: [] }); setEditingId(null); setEditDialogOpen(true); }}>
             <Plus className="w-4 h-4 mr-2" /> Manual
           </Button>
-        </div>
+        </div>}
       </div>
 
       {/* Lego explainer */}
@@ -396,6 +430,16 @@ export function TemplatesABM() {
         </div>
       </Card>
 
+      {/* Toggle active/inactive */}
+      <div className="flex gap-2 mb-4">
+        <Button variant={!showInactive ? 'default' : 'outline'} size="sm" onClick={() => { setShowInactive(false); loadTemplates(); }}>
+          Activos ({templates.filter((t: any) => t.is_active !== false).length})
+        </Button>
+        <Button variant={showInactive ? 'default' : 'outline'} size="sm" onClick={() => { setShowInactive(true); loadTemplates(); }}>
+          Inactivos ({templates.filter((t: any) => t.is_active === false).length})
+        </Button>
+      </div>
+
       {/* Template list */}
       {loading ? (
         <div className="text-center py-8 text-gray-500">Cargando plantillas...</div>
@@ -404,9 +448,9 @@ export function TemplatesABM() {
           <Wand2 className="w-10 h-10 mx-auto mb-3 opacity-40" />
           <p className="font-medium">No hay plantillas guardadas.</p>
           <p className="text-sm mt-1">Usá el <strong>Asistente IA</strong> para crear la primera en minutos.</p>
-          <Button onClick={startWizard} className="mt-4 bg-purple-600 hover:bg-purple-700">
+{!readOnly && <Button onClick={startWizard} className="mt-4 bg-purple-600 hover:bg-purple-700">
             <Wand2 className="w-4 h-4 mr-2" /> Crear con IA
-          </Button>
+          </Button>}
         </Card>
       ) : (
         <div className="grid gap-3">
@@ -419,6 +463,7 @@ export function TemplatesABM() {
                     <div className="flex flex-wrap gap-2 mb-1">
                       <Badge variant="outline">{t.family}</Badge>
                       <Badge variant="secondary">v{t.version}</Badge>
+                      {t.is_active === false && <Badge variant="secondary" className="text-xs bg-gray-400">Inactivo</Badge>}
                     </div>
                     <h3 className="font-semibold">{t.title}</h3>
                     <p className="text-xs text-gray-500 mt-0.5">{t.course_code}</p>
@@ -429,16 +474,19 @@ export function TemplatesABM() {
                       ))}
                     </div>
                   </div>
-                  <div className="flex gap-2 shrink-0">
-                    <Button size="sm" variant="outline" title="Duplicar" onClick={() => handleDuplicate(t)}>
+<div className="flex gap-2 shrink-0">
+                    {!readOnly && <Button size="sm" variant="outline" title="Duplicar" onClick={() => handleDuplicate(t)}>
                       <Copy className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleEdit(t)}>
+                    </Button>}
+                    {!readOnly && <Button size="sm" variant="outline" onClick={() => handleEdit(t)}>
                       <Edit2 className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="outline" className="text-red-600" onClick={() => handleDelete(t.id)}>
+                    </Button>}
+                    {!readOnly && t.is_active !== false && <Button size="sm" variant="outline" className="text-red-600" onClick={() => handleDelete(t.id)}>
                       <Trash2 className="w-4 h-4" />
-                    </Button>
+                    </Button>}
+                    {!readOnly && t.is_active === false && <Button size="sm" variant="outline" className="text-green-600 border-green-300" onClick={() => handleReactivate(t.id)}>
+                      <CheckCircle2 className="w-4 h-4" />
+                    </Button>}
                   </div>
                 </div>
               </Card>

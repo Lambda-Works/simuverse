@@ -1,5 +1,7 @@
 'use client'
-import React, { useState, useEffect } from 'react';
+import { apiClient } from '@/services/ApiClient';
+import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 interface Course {
   id: string;
@@ -54,6 +56,7 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
   onSave,
   onClose
 }) => {
+  const [activeTab, setActiveTab] = useState<'info' | 'prompts'>('info');
   const [mode, setMode] = useState<'template' | 'manual' | 'guided'>('template');
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
@@ -77,8 +80,8 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
 
   const fetchTemplates = async () => {
     try {
-      const response = await fetch('/api/prompt-templates');
-      const data = await response.json();
+      const response = await apiClient.get('/prompt-templates');
+      const data = response.data;
       setTemplates(data);
     } catch (error) {
       console.error('Error fetching templates:', error);
@@ -98,30 +101,26 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
 
   const handleGenerateWithAI = async () => {
     if (!selectedKPIs.length || !aiRole) {
-      alert('Debes seleccionar al menos un KPI y definir el rol IA');
+      toast.error('Debes seleccionar al menos un KPI y definir el rol IA');
       return;
     }
 
     setIsGenerating(true);
     try {
-      const response = await fetch(`/api/prompt-config/${course.id}/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          selectedKPIIds: selectedKPIs,
-          selectedTaskIds: selectedTasks,
-          aiRole,
-          situations
-        })
+      const response = await apiClient.post(`/prompt-config/${course.id}/generate`, {
+        selectedKPIIds: selectedKPIs,
+        selectedTaskIds: selectedTasks,
+        aiRole,
+        situations
       });
 
-      const data = await response.json();
+      const data = response.data;
       if (data.success) {
         setGeneratedPrompt(data.prompt);
       }
     } catch (error) {
       console.error('Error generating prompt:', error);
-      alert('Error generando prompt');
+      toast.error('Error generando prompt');
     } finally {
       setIsGenerating(false);
     }
@@ -140,20 +139,13 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
     };
 
     try {
-      const response = await fetch(`/api/prompt-config/${course.id}/save`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ promptData })
-      });
-
-      if (response.ok) {
-        alert('Configuración guardada exitosamente');
-        onSave(promptData);
-        onClose();
-      }
+      await apiClient.post(`/prompt-config/${course.id}/save`, { promptData });
+      toast.success('Configuración guardada exitosamente');
+      onSave(promptData);
+      onClose();
     } catch (error) {
       console.error('Error saving prompt:', error);
-      alert('Error guardando configuración');
+      toast.error('Error guardando configuración');
     }
   };
 
@@ -169,8 +161,8 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">⚙️ Configurar Prompts de IA</h2>
           <button
@@ -184,14 +176,14 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
         {/* Tabs */}
         <div className="flex gap-4 border-b mb-6">
           <button
-            onClick={() => setMode('template')}
-            className={`px-4 py-2 font-semibold border-b-2 ${mode === 'template' ? 'border-blue-600' : 'border-transparent'}`}
+            onClick={() => setActiveTab('info')}
+            className={`px-4 py-2 font-semibold border-b-2 ${activeTab === 'info' ? 'border-blue-600' : 'border-transparent'}`}
           >
             📋 Ficha Técnica
           </button>
           <button
-            onClick={() => setMode('manual')}
-            className={`px-4 py-2 font-semibold border-b-2 ${mode === 'manual' ? 'border-blue-600' : 'border-transparent'}`}
+            onClick={() => setActiveTab('prompts')}
+            className={`px-4 py-2 font-semibold border-b-2 ${activeTab === 'prompts' ? 'border-blue-600' : 'border-transparent'}`}
           >
             ✍️ Prompts
           </button>
@@ -201,7 +193,7 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
         <div className="space-y-6">
           
           {/* TAB: FICHA TECNICA */}
-          {mode === 'template' && (
+          {activeTab === 'info' && (
             <div className="space-y-4">
               <div>
                 <h3 className="font-bold mb-2">📋 Ficha Técnica</h3>
@@ -253,7 +245,7 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
           )}
 
           {/* TAB: CONFIGURAR PROMPTS */}
-          {mode === 'manual' && (
+          {activeTab === 'prompts' && (
             <div className="space-y-6">
               {/* Modalidad */}
               <fieldset>
@@ -376,10 +368,11 @@ export const ConfigurePromptModal: React.FC<ConfigurePromptModalProps> = ({
                         placeholder="impaciente, exigente..."
                       />
                       <button
+                        type="button"
                         onClick={addTrait}
                         className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                       >
-                        +
+                        Agregar
                       </button>
                     </div>
                     <div className="flex flex-wrap gap-2">

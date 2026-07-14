@@ -21,6 +21,7 @@ import { createReadStream } from 'fs';
 import { FilesService } from './files.service';
 import { UpdateFileDto } from './dto/file.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('files')
 @UseGuards(JwtAuthGuard)
@@ -31,7 +32,7 @@ export class FilesController {
   @UseInterceptors(FileInterceptor('file'))
   async upload(
     @UploadedFile() file: Express.Multer.File,
-    @Body('uploaded_by_id') uploaded_by_id: string,
+    @CurrentUser('id') uploaded_by_id: string,
     @Body('upload_type') upload_type: string,
     @Body('course_id') course_id?: string,
     @Body('ministry_requirement_id') ministry_requirement_id?: string,
@@ -60,26 +61,28 @@ export class FilesController {
   }
 
   @Get(':id/download')
-  async download(@Param('id') id: string, @Res() res: Response) {
+  async download(@Param('id') id: string, @Res({ passthrough: true }) res: Response) {
     const { filePath, fileName } = await this.filesService.getFilePath(id);
-    const { readFileSync } = require('fs');
-    const fileBuffer = readFileSync(filePath);
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    res.setHeader('Content-Type', 'application/octet-stream');
-    res.end(fileBuffer);
+    const file = createReadStream(filePath);
+    res.set({
+      'Content-Type': 'application/octet-stream',
+      'Content-Disposition': `attachment; filename="${fileName}"`,
+    });
+    return new StreamableFile(file);
   }
 
   @Put(':id')
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateFileDto,
+    @CurrentUser() user: any,
   ) {
-    return this.filesService.update(id, dto);
+    return this.filesService.update(id, dto, user);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  async remove(@Param('id') id: string) {
-    return this.filesService.remove(id);
+  async remove(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.filesService.remove(id, user);
   }
 }

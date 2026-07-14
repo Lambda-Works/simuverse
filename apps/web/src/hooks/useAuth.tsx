@@ -1,8 +1,7 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { apiClient } from '@/services/ApiClient';
 import { DEMO_USERS } from '@/services/demoData';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
 type AppRole = 'student' | 'teacher' | 'admin' | 'ministerio';
 
@@ -42,13 +41,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // SSR-safe: initialState is {user:null, token:null, loading:true},
   // so the server and first client render match (no hydration mismatch).
   useEffect(() => {
-    if (typeof localStorage === 'undefined') {
+    if (typeof sessionStorage === 'undefined') {
       setLoading(false);
       return;
     }
 
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
+    const storedToken = sessionStorage.getItem('token');
+    const storedUser = sessionStorage.getItem('user');
 
     if (storedToken && storedUser) {
       try {
@@ -58,18 +57,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
         return;
       } catch {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
       }
     }
 
-    // ── Demo mode: auto-login as admin if no saved session ───────────────
+    // ── Demo mode: only when explicitly enabled ────────────────────────
     if (typeof window !== 'undefined' &&
-        (process.env.NEXT_PUBLIC_DEMO_MODE === 'true' ||
-         window.location.hostname.includes('vercel.app'))) {
+        process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
       const demoUser = DEMO_USERS[0]; // admin@fepei.com
-      localStorage.setItem('token', 'demo-' + demoUser.id);
-      localStorage.setItem('user', JSON.stringify(demoUser));
+      sessionStorage.setItem('token', 'demo-' + demoUser.id);
+      sessionStorage.setItem('user', JSON.stringify(demoUser));
       setToken('demo-' + demoUser.id);
       setUser(demoUser);
     }
@@ -79,11 +77,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Listen for localStorage changes (cross-tab sync)
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+    if (typeof window === 'undefined' || typeof sessionStorage === 'undefined') return;
 
     const handleStorageChange = () => {
-      const storedToken = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
+      const storedToken = sessionStorage.getItem('token');
+      const storedUser = sessionStorage.getItem('user');
 
       if (storedToken && storedUser) {
         try {
@@ -112,10 +110,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = () => {
     setUser(null);
     setToken(null);
-    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('refreshToken');
+    if (typeof window !== 'undefined' && typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
+      sessionStorage.removeItem('refreshToken');
       window.location.href = '/auth';
     }
   };
