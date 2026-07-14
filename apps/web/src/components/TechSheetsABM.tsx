@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { PipelineOutput, PipelineStatus, useAnalysisProgress } from '@/hooks/useAnalysisProgress';
 import { API_BASE, authFetch } from '@/lib/api';
+import { apiClient } from '@/services/ApiClient';
 import { AlertTriangle, Check, Edit2, FileUp, Link, Paperclip, Plus, RefreshCw, Settings, Trash2, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
