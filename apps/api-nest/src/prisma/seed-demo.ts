@@ -184,7 +184,17 @@ async function main() {
   ];
   for (const f of funcs) {
     const exists = await prisma.systemFunctionality.findFirst({ where: { name: f.name } });
-    if (!exists) await prisma.systemFunctionality.create({ data: f });
+    if (!exists) {
+      try {
+        await prisma.systemFunctionality.create({ data: f });
+      } catch (e: any) {
+        if (e.code === 'P2002') {
+          console.log(`   ⚠️  ${f.name} ya existe, continuando...`);
+        } else {
+          throw e;
+        }
+      }
+    }
   }
 
   const realFuncs = await prisma.systemFunctionality.findMany();
