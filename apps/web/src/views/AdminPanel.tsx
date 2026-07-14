@@ -1,40 +1,38 @@
 'use client'
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
-import { apiClient } from '@/services/ApiClient';
-import { API_BASE } from '@/lib/api';
+import { AccessRequestsPanel } from '@/components/AccessRequestsPanel';
+import { AssignmentsABM } from '@/components/AssignmentsABM';
+import { CategoriesABM } from '@/components/CategoriesABM';
+import { CompaniesABM } from '@/components/CompaniesABM';
+import { DocumentsABM } from '@/components/DocumentsABM';
+import { EndorsersABM } from '@/components/EndorsersABM';
+import { FoundationABM } from '@/components/FoundationABM';
+import { GlobalStatsDashboard } from '@/components/GlobalStatsDashboard';
+import { PromptTemplatesABM } from '@/components/PromptTemplatesABM';
+import { ReportsABM } from '@/components/ReportsABM';
+import { RolesABM } from '@/components/RolesABM';
+import { ScenariosABM } from '@/components/ScenariosABM';
+import { SimulationCalendar } from '@/components/SimulationCalendar';
+import { SimulationSessionViewer } from '@/components/SimulationSessionViewer';
+import { TeacherGroupsABM } from '@/components/TeacherGroupsABM';
+import { TechSheetsABM } from '@/components/TechSheetsABM';
+import { TemplatesABM } from '@/components/TemplatesABM';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { toast } from 'sonner';
-import { useAdmin } from '@/lib/admin-context';
-import { Plus, ArrowLeft, Trash2, Save, Settings, Users, Shield, FolderOpen, FileUp, UserCheck, BarChart3, ClipboardList, Wand2, Copy, MessageSquare, Bell, CalendarDays, Users2, Building2, GraduationCap, Handshake, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
-import { GlobalStatsDashboard } from '@/components/GlobalStatsDashboard';
-import { CompaniesABM } from '@/components/CompaniesABM';
-import { FoundationABM } from '@/components/FoundationABM';
-import { EndorsersABM } from '@/components/EndorsersABM';
-import { AccessRequestsPanel } from '@/components/AccessRequestsPanel';
-import { SimulationCalendar } from '@/components/SimulationCalendar';
-import { TeacherGroupsABM } from '@/components/TeacherGroupsABM';
-import { CategoriesABM } from '@/components/CategoriesABM';
-import { DocumentsABM } from '@/components/DocumentsABM';
-import { TechSheetsABM } from '@/components/TechSheetsABM';
-import { AssignmentsABM } from '@/components/AssignmentsABM';
-import { ReportsABM } from '@/components/ReportsABM';
-import { ScenariosABM } from '@/components/ScenariosABM';
-import { TemplatesABM } from '@/components/TemplatesABM';
-import { SimulationSessionViewer } from '@/components/SimulationSessionViewer';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { UsersABM } from '@/components/UsersABM';
-import { RolesABM } from '@/components/RolesABM';
-import { PromptTemplatesABM } from '@/components/PromptTemplatesABM';
-import { ConfigurePromptModal } from '@/components/ConfigurePromptModal';
+import { useAuth } from '@/hooks/useAuth';
+import { useAdmin } from '@/lib/admin-context';
+import { apiClient } from '@/services/ApiClient';
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Copy, Plus, Save, Settings, Shield, Trash2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 const AVAILABLE_MODULES = [
   { id: 'chat_ia', label: 'Chat IA (Simulación Conversacional)' },
@@ -45,7 +43,7 @@ const AVAILABLE_MODULES = [
   { id: 'evaluacion_auto', label: 'Evaluación Automática IA' },
 ];
 
-const CATEGORIES = ['seguros', 'contable', 'rrhh', 'ventas', 'oratoria', 'legal', 'administracion', 'general'];
+
 
 // ─── Plantillas de Prompts FEPEI (Lego de IA) ───────────────────────────────
 const PROMPT_TEMPLATES = [
@@ -163,10 +161,12 @@ const emptyForm: CourseForm = {
   simulated_company_id: null,
 };
 
-const AdminPanel = () => {
+const AdminPanel = ({ tabId }: { tabId?: string }) => {
   const { user, hasRole, loading } = useAuth();
   const router = useRouter();
   const [courses, setCourses] = useState<any[]>([]);
+  const [dbCategories, setDbCategories] = useState<Array<{ id: number; name: string; code: string }>>([]);
+  const [loadingCourses, setLoadingCourses] = useState(true);
   const [techSheets, setTechSheets] = useState<Array<{ id: number; name: string; processed: boolean }>>([]);
   const [simCompanies, setSimCompanies] = useState<Array<{ id: number; name: string; short_name?: string }>>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -189,36 +189,43 @@ const AdminPanel = () => {
     ],
   };
   const [newCrisis, setNewCrisis] = useState<CrisisEventConfig>({ ...emtpyCrisisEvent, options: [...emtpyCrisisEvent.options] as CrisisEventConfig['options'] });
-  const { currentTab, setCurrentTab } = useAdmin();
+  const { currentTab: contextTab, setCurrentTab, isInitialized } = useAdmin();
+  const currentTab = tabId || contextTab;
   const [showPromptConfigModal, setShowPromptConfigModal] = useState(false);
   const [selectedCourseForPromptConfig, setSelectedCourseForPromptConfig] = useState<any>(null);
   const [courseFilter, setCourseFilter] = useState<'all' | 'active' | 'inactive'>('all'); // Filtro de cursos
 
   useEffect(() => {
-    if (!loading && (!user || !hasRole('admin'))) router.push('/dashboard');
+    if (!loading && (!user || (!hasRole('admin') && !hasRole('ministerio')))) router.push('/auth');
   }, [user, loading, hasRole, router]);
 
   const fetchCourses = async () => {
+    setLoadingCourses(true);
     try {
-      // Usar el endpoint de admin para obtener TODOS los cursos (activos e inactivos)
-      const res = await apiClient.get('/admin/courses');
+      const res = await apiClient.get('/courses');
       if (res.data) setCourses(res.data);
     } catch (error) {
       console.error('Error fetching courses:', error);
       toast.error('Error al cargar los cursos');
+    } finally {
+      setLoadingCourses(false);
     }
   };
 
   useEffect(() => {
     if (user) {
       fetchCourses();
+      // Cargar categorías
+      apiClient.get('/categories')
+        .then(r => setDbCategories(Array.isArray(r.data) ? r.data : []))
+        .catch(() => {});
       // Cargar SOLO fichas técnicas válidas (con competencies o kpi_requirements)
-      fetch(`${API_BASE}/tech-sheets/valid/list`)
-        .then(r => r.json())
+      apiClient.get('/tech-sheets/valid/list')
+        .then(r => r.data)
         .then(d => setTechSheets(Array.isArray(d) ? d.map((s: any) => ({ id: s.id, name: s.name, processed: s.processed })) : []))
         .catch(() => {});
-      fetch(`${API_BASE}/simulated-companies`)
-        .then(r => r.json())
+      apiClient.get('/simulated-companies')
+        .then(r => r.data)
         .then(d => setSimCompanies(Array.isArray(d) ? d.map((c: any) => ({ id: c.id, name: c.name, short_name: c.short_name })) : []))
         .catch(() => {});
     }
@@ -278,40 +285,53 @@ const AdminPanel = () => {
       tech_sheet_id: course.tech_sheet_id || null,
       simulated_company_id: course.simulated_company_id || null,
     });
-    setEditingId(course.course_id);
+    setEditingId(course.id);
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('⚠️ ¿Estás seguro? Esta acción eliminará el curso y TODAS sus dependencias (escenarios, simulaciones, etc) de forma irreversible.')) {
-      return;
-    }
+  const handleDelete = (id: string) => {
+    toast.error('⚠️ ¿Desactivar este curso? Las dependencias se mantendrán pero quedarán ocultas.', {
+      action: {
+        label: 'Desactivar',
+        onClick: async () => {
+          try {
+            const response = await apiClient.delete(`/admin/courses/${id}`);
+            toast.success(response.data.message || 'Curso desactivado');
+            fetchCourses();
+          } catch (error: any) {
+            if (error.response?.status === 409) {
+              const data = error.response.data;
+              toast.error(
+                `❌ No se puede desactivar.\n\n${data.reason}\n\n` +
+                `Asignaciones activas: ${data.activeAssignments}\n` +
+                `Asignaciones completadas: ${data.completedAssignments}\n\n` +
+                `💡 ${data.suggestion}`
+              );
+            } else {
+              toast.error(error.message || 'Error al desactivar el curso');
+            }
+          }
+        },
+      },
+      duration: 5000,
+    });
+  };
+
+  const handleReactivate = async (id: string) => {
     try {
-      const response = await apiClient.delete(`/admin/courses/${id}`);
-      toast.success(response.data.message || 'Curso eliminado');
+      await apiClient.put(`/admin/courses/${id}/reactivate`);
+      toast.success('Curso reactivado');
       fetchCourses();
     } catch (error: any) {
-      // Manejo de errores específicos
-      if (error.response?.status === 409) {
-        // Conflicto: El curso tiene asignaciones activas
-        const data = error.response.data;
-        toast.error(
-          `❌ No se puede eliminar.\n\n${data.reason}\n\n` +
-          `Asignaciones activas: ${data.activeAssignments}\n` +
-          `Asignaciones completadas: ${data.completedAssignments}\n\n` +
-          `💡 ${data.suggestion}`
-        );
-      } else {
-        toast.error(error.message || 'Error al eliminar el curso');
-      }
+      toast.error(error.response?.data?.message || 'Error al reactivar el curso');
     }
   };
 
   const handleDuplicate = async (course: any) => {
     // Generar ID único con timestamp + random para permitir duplicados múltiples
-    const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
-    const newId = `${course.course_id}-COPIA-${timestamp}-${random}`.substring(0, 50);
+    const safeCourseId = course.course_id.substring(0, 20); // Keep max 20 chars of original
+    const newId = `${safeCourseId}-CPY-${random}`.substring(0, 36);
     
     const payload = {
       course_id: newId,
@@ -344,9 +364,23 @@ const AdminPanel = () => {
     }));
   };
 
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <main className="container mx-auto px-4 py-8">
+        {hasRole('ministerio') && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-lg text-sm text-amber-800 flex items-center gap-3">
+            <Shield className="w-5 h-5 shrink-0" />
+            <span><strong>Modo solo lectura — Ministerio.</strong> Podés ver toda la configuración pero no crear, editar ni eliminar.</span>
+          </div>
+        )}
         {/* Courses Tab */}
         {currentTab === 'courses' && (
           <div>
@@ -356,12 +390,14 @@ const AdminPanel = () => {
                 <p className="text-gray-600 mt-1">Crea, edita y configura los cursos disponibles</p>
               </div>
               <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setForm({ ...emptyForm }); setEditingId(null); } }}>
+                {!hasRole('ministerio') && (
                 <DialogTrigger asChild>
                   <Button><Plus className="w-4 h-4 mr-2" /> Nuevo Curso</Button>
                 </DialogTrigger>
+                )}
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>{editingId ? 'Editar Curso' : 'Crear Nuevo Curso'}</DialogTitle>
+                    <DialogTitle>{editingId ? 'Editar Curso' : hasRole('ministerio') ? 'Ver Curso' : 'Crear Nuevo Curso'}</DialogTitle>
                     <DialogDescription>Configure los módulos, rol de IA y criterios de evaluación</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-6 mt-4">
@@ -373,21 +409,25 @@ const AdminPanel = () => {
                       </div>
                       <div className="space-y-2">
                         <Label className="text-sm font-semibold">Categorías <span className="text-gray-400 font-normal">(una o varias)</span></Label>
-                        <div className="border rounded-lg p-2 bg-white max-h-36 overflow-y-auto">
-                          <label className="flex items-center gap-2 p-1 cursor-pointer border-b mb-1">
-                            <input type="checkbox"
-                              checked={form.categories.length === CATEGORIES.length}
-                              onChange={() => setForm(p => ({ ...p, categories: p.categories.length === CATEGORIES.length ? [] : [...CATEGORIES] }))}
-                              className="rounded" />
-                            <span className="text-xs font-semibold text-gray-700">Todas</span>
-                          </label>
-                          {CATEGORIES.map(cat => (
-                            <label key={cat} className={`flex items-center gap-2 p-1 rounded cursor-pointer ${form.categories.includes(cat) ? 'bg-blue-50' : ''}`}>
-                              <input type="checkbox"
-                                checked={form.categories.includes(cat)}
-                                onChange={() => setForm(p => ({ ...p, categories: p.categories.includes(cat) ? p.categories.filter(c => c !== cat) : [...p.categories, cat] }))}
-                                className="rounded" />
-                              <span className="text-xs capitalize">{cat}</span>
+                        <div className="flex items-center gap-2 mb-2">
+                          <input 
+                            type="checkbox"
+                            checked={form.categories.length === dbCategories.length && dbCategories.length > 0}
+                            onChange={() => setForm(p => ({ ...p, categories: p.categories.length === dbCategories.length ? [] : dbCategories.map(c => c.code) }))}
+                            className="rounded"
+                          />
+                          <span className="text-sm font-medium">Seleccionar todas</span>
+                        </div>
+                        <div className="border rounded-lg p-2 bg-white max-h-36 overflow-y-auto flex flex-wrap gap-2">
+                          {dbCategories.map(cat => (
+                            <label key={cat.code} className={`flex items-center gap-2 p-1 rounded cursor-pointer ${form.categories.includes(cat.code) ? 'bg-blue-50' : ''}`}>
+                              <input 
+                                type="checkbox"
+                                checked={form.categories.includes(cat.code)}
+                                onChange={() => setForm(p => ({ ...p, categories: p.categories.includes(cat.code) ? p.categories.filter(c => c !== cat.code) : [...p.categories, cat.code] }))}
+                                className="rounded"
+                              />
+                              <span className="text-xs capitalize">{cat.name}</span>
                             </label>
                           ))}
                         </div>
@@ -805,9 +845,11 @@ const AdminPanel = () => {
                       <Switch checked={form.is_active} onCheckedChange={v => setForm(p => ({ ...p, is_active: v }))} />
                     </div>
 
+                    {!hasRole('ministerio') && (
                     <Button className="w-full" onClick={handleSave} disabled={saving}>
                       <Save className="w-4 h-4 mr-2" /> {saving ? 'Guardando...' : editingId ? 'Actualizar Curso' : 'Crear Curso'}
                     </Button>
+                    )}
                   </div>
                 </DialogContent>
               </Dialog>
@@ -869,26 +911,46 @@ const AdminPanel = () => {
                       <p className="text-sm text-muted-foreground mt-1">{course.course_id} — {(course.modules as string[])?.join(', ')}</p>
                     </div>
                     <div className="flex gap-2">
+                      {!hasRole('ministerio') && (
+                        <>
                       <Button variant="outline" size="sm" title="Duplicar curso" onClick={() => handleDuplicate(course)}>
                         <Copy className="w-4 h-4" />
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => handleEdit(course)}>
                         <Settings className="w-4 h-4" />
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDelete(course.id)} title="Eliminar curso y todas sus dependencias">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {course.is_active ? (
+                        <Button variant="destructive" size="sm" onClick={() => handleDelete(course.id)} title="Desactivar curso">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      ) : (
+                        <Button variant="outline" size="sm" className="text-green-600 border-green-300" onClick={() => handleReactivate(course.id)} title="Reactivar curso">
+                          <CheckCircle2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                        </>
+                      )}
+                      {hasRole('ministerio') && (
+                        <Button variant="outline" size="sm" onClick={() => handleEdit(course)}>
+                          <Settings className="w-4 h-4" /> Ver
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
               ))}
-              {courses.length === 0 && (
+              {loadingCourses ? (
+                <div className="text-center py-16 text-muted-foreground flex flex-col items-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                  <p>Cargando cursos...</p>
+                </div>
+              ) : courses.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground">
                   <Settings className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p>No hay cursos configurados. Cree el primero.</p>
                 </div>
-              )}
-              {courses.length > 0 && courses.filter(c => {
+              ) : null}
+              {!loadingCourses && courses.length > 0 && courses.filter(c => {
                 if (courseFilter === 'active') return c.is_active;
                 if (courseFilter === 'inactive') return !c.is_active;
                 return true;

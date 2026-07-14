@@ -1,5 +1,4 @@
-import { PrismaClient, FileType } from '@prisma/client';
-
+import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
@@ -148,7 +147,75 @@ async function main() {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // 7. NOTIFICATIONS
+  // 7. ROLES + FUNCTIONALITIES + PERMISSIONS
+  // ═══════════════════════════════════════════════════════════════
+  console.log('🔐 Roles...');
+  const roles = [
+    { name: 'admin', description: 'Acceso total al sistema', color: '#ef4444' },
+    { name: 'teacher', description: 'Gestión de cursos y alumnos', color: '#3b82f6' },
+    { name: 'student', description: 'Acceso a simulaciones asignadas', color: '#22c55e' },
+    { name: 'ministerio', description: 'Auditoría y trazabilidad', color: '#f59e0b' },
+  ];
+  for (const r of roles) {
+    const exists = await prisma.role.findFirst({ where: { name: r.name } });
+    if (!exists) await prisma.role.create({ data: r });
+  }
+
+  console.log('⚙️  Funcionalidades...');
+  const funcs = [
+    { name: 'manage_courses', description: 'Gestionar cursos', module: 'cursos', icon: 'BookOpen', route: '/admin/courses' },
+    { name: 'manage_users', description: 'Gestionar usuarios', module: 'usuarios', icon: 'Users', route: '/admin/users' },
+    { name: 'view_evaluations', description: 'Ver evaluaciones', module: 'evaluaciones', icon: 'ClipboardCheck', route: '/evaluations' },
+    { name: 'view_legajos', description: 'Ver legajos de alumnos', module: 'legajos', icon: 'FolderOpen', route: '/legajos' },
+    { name: 'manage_roles', description: 'Gestionar roles y permisos', module: 'admin', icon: 'Shield', route: '/admin/roles' },
+    { name: 'manage_scenarios', description: 'Gestionar escenarios', module: 'cursos', icon: 'Play', route: '/admin/scenarios' },
+    { name: 'manage_assignments', description: 'Asignar cursos a alumnos', module: 'cursos', icon: 'UserPlus', route: '/admin/assignments' },
+    { name: 'manage_companies', description: 'Gestionar empresas simuladas', module: 'admin', icon: 'Building2', route: '/admin/companies' },
+    { name: 'view_stats', description: 'Ver estadísticas globales', module: 'admin', icon: 'BarChart3', route: '/admin/stats' },
+    { name: 'manage_foundation', description: 'Configurar fundación', module: 'admin', icon: 'Home', route: '/admin/foundation' },
+    { name: 'manage_endorsers', description: 'Gestionar avaladores', module: 'admin', icon: 'Award', route: '/admin/endorsers' },
+    { name: 'manage_templates', description: 'Gestionar plantillas de flujo', module: 'admin', icon: 'LayoutTemplate', route: '/admin/templates' },
+    { name: 'manage_prompts', description: 'Gestionar prompts IA', module: 'admin', icon: 'MessageSquare', route: '/admin/prompts' },
+    { name: 'manage_techsheets', description: 'Gestionar fichas técnicas', module: 'admin', icon: 'FileText', route: '/admin/techsheets' },
+    { name: 'manage_categories', description: 'Gestionar categorías', module: 'admin', icon: 'Tags', route: '/admin/categories' },
+    { name: 'manage_documents', description: 'Gestionar documentos', module: 'cursos', icon: 'FileText', route: '/admin/documents' },
+    { name: 'manage_groups', description: 'Gestionar grupos profesor-alumno', module: 'usuarios', icon: 'Users', route: '/admin/groups' },
+    { name: 'manage_sessions', description: 'Ver sesiones de simulación', module: 'evaluaciones', icon: 'Monitor', route: '/admin/sessions' },
+  ];
+  for (const f of funcs) {
+    const exists = await prisma.systemFunctionality.findFirst({ where: { name: f.name } });
+    if (!exists) {
+      try {
+        await prisma.systemFunctionality.create({ data: f });
+      } catch (e: any) {
+        if (e.code === 'P2002') {
+          console.log(`   ⚠️  ${f.name} ya existe, continuando...`);
+        } else {
+          throw e;
+        }
+      }
+    }
+  }
+
+  const realFuncs = await prisma.systemFunctionality.findMany();
+  const adminAll = realFuncs.map(f => ({ role_name: 'admin', functionality_id: f.id, enabled: true }));
+  const teacherPerms = realFuncs.filter(f =>
+    ['manage_courses', 'view_evaluations', 'view_legajos', 'manage_scenarios', 'manage_assignments', 'manage_documents', 'manage_groups'].includes(f.name)
+  ).map(f => ({ role_name: 'teacher', functionality_id: f.id, enabled: true }));
+  const ministerioPerms = realFuncs.filter(f =>
+    ['view_evaluations', 'view_legajos', 'view_stats'].includes(f.name)
+  ).map(f => ({ role_name: 'ministerio', functionality_id: f.id, enabled: true }));
+
+  console.log('🔑 Permisos...');
+  for (const p of [...adminAll, ...teacherPerms, ...ministerioPerms]) {
+    const exists = await prisma.rolePermission.findFirst({
+      where: { role_name: p.role_name, functionality_id: p.functionality_id },
+    });
+    if (!exists) await prisma.rolePermission.create({ data: p });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // 8. NOTIFICATIONS
   // ═══════════════════════════════════════════════════════════════
   console.log('🔔 Notificaciones...');
   const existingNotifs = await prisma.notification.count();
@@ -211,7 +278,7 @@ async function main() {
         course_id: course1!.id,
         uploaded_by_id: admin!.id,
         file_name: 'Resolucion_123_2024_Administracion.pdf',
-        file_type: FileType.pdf,
+        file_type: "pdf",
         file_size_bytes: 245000,
         file_path: '/uploads/ministry/res_123_2024.pdf',
         raw_text: 'Resolución 123/2024 del Ministerio de Educación de Santa Fe. Establece los contenidos mínimos para cursos de administración y ofimática con certificación oficial.',
@@ -226,7 +293,7 @@ async function main() {
         course_id: course3!.id,
         uploaded_by_id: admin!.id,
         file_name: 'Normativa_SENASA_HACCP_2024.pdf',
-        file_type: FileType.pdf,
+        file_type: "pdf",
         file_size_bytes: 380000,
         file_path: '/uploads/ministry/senasa_haccp_2024.pdf',
         raw_text: 'Normativa SENASA para certificación HACCP en plantas elaboradoras de alimentos. Define PCC, límites críticos y requisitos de documentación.',
@@ -323,6 +390,7 @@ async function main() {
   console.log('   4  Flow Templates');
   console.log('   6  Prompt Templates');
   console.log('   3  Fichas Técnicas');
+  console.log('   4  Roles + 18 Funcionalidades + 27 Permisos');
   console.log('   6  Notificaciones');
   console.log('   3  Grupos profesor-alumno');
   console.log('   2  Solicitudes de acceso');

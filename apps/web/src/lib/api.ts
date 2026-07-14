@@ -11,7 +11,7 @@ export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:500
  * `multipart/form-data` with the correct boundary automatically.
  */
 export function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  const token = typeof window !== 'undefined' ? sessionStorage.getItem('token') : null;
   const isFormData = options.body instanceof FormData;
 
   const headers: Record<string, string> = {

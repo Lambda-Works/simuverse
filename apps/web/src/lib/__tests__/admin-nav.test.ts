@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
 import { ADMIN_NAV_GROUPS } from '@/lib/admin-nav';
+import { describe, expect, it } from 'vitest';
 
 describe('admin-nav', () => {
   describe('group structure', () => {

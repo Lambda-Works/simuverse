@@ -35,6 +35,12 @@ export class AdminController {
     return this.coursesService.remove(id);
   }
 
+  @Put('courses/:id/reactivate')
+  @HttpCode(HttpStatus.OK)
+  async reactivateCourse(@Param('id') id: string) {
+    return this.coursesService.update(id, { is_active: true });
+  }
+
   // ── Teacher Permissions ────────────────────────────────────────
 
   @Get('teacher-permissions')
@@ -80,8 +86,14 @@ export class AdminController {
 
   @Delete('roles/:id')
   @HttpCode(HttpStatus.OK)
-  async removeRole(@Param('id', ParseIntPipe) id: number) {
+  async deleteRole(@Param('id', ParseIntPipe) id: number) {
     return this.adminService.removeRole(id);
+  }
+
+  @Put('roles/:id/reactivate')
+  @HttpCode(HttpStatus.OK)
+  async reactivateRole(@Param('id', ParseIntPipe) id: number) {
+    return this.adminService.reactivateRole(id);
   }
 
   // ── Functionalities ────────────────────────────────────────────
@@ -110,6 +122,12 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async removeFunctionality(@Param('id', ParseIntPipe) id: number) {
     return this.adminService.removeFunctionality(id);
+  }
+
+  @Put('functionalities/:id/reactivate')
+  @HttpCode(HttpStatus.OK)
+  async reactivateFunctionality(@Param('id', ParseIntPipe) id: number) {
+    return this.adminService.reactivateFunctionality(id);
   }
 
   // ── Role Permissions ──────────────────────────────────────────────

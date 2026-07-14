@@ -12,6 +12,7 @@ import {
 import { AssessmentsService } from './assessments.service';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('assessments')
 @UseGuards(JwtAuthGuard)
@@ -22,10 +23,15 @@ export class AssessmentsController {
   async findAll(
     @Query('course_id') courseId?: string,
     @Query('user_id') userId?: string,
+    @CurrentUser() user?: any,
   ) {
+    let resolvedUserId = userId;
+    if (user?.role === 'student') {
+      resolvedUserId = user.id;
+    }
     return this.assessmentsService.findAll({
       course_id: courseId,
-      user_id: userId,
+      user_id: resolvedUserId,
     });
   }
 

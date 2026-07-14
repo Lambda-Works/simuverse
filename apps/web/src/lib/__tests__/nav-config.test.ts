@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
 import { ROLE_NAV, type AppRole } from '@/lib/nav-config';
+import { describe, expect, it } from 'vitest';
 
 describe('nav-config', () => {
   const ALL_ROLES: AppRole[] = ['student', 'teacher', 'admin', 'ministerio'];

@@ -1,19 +1,16 @@
 'use client'
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
-import { apiClient } from '@/services/ApiClient';
+import { SimulationCalendar } from '@/components/SimulationCalendar';
+import { StudentReviewModal } from '@/components/StudentReviewModal';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BookOpen, Play, Settings, Shield, GraduationCap, Mail, Clock, CheckCircle2, User, Phone, CreditCard, Award, CalendarDays, Eye, HelpCircle, Sparkles, MessageSquare } from 'lucide-react';
-import { StudentReviewModal } from '@/components/StudentReviewModal';
-import { SimulationCalendar } from '@/components/SimulationCalendar';
-
-import { API_BASE } from '@/lib/api';
-const API = API_BASE;
+import { useAuth } from '@/hooks/useAuth';
+import { apiClient } from '@/services/ApiClient';
+import { Award, BookOpen, CalendarDays, CheckCircle2, Clock, CreditCard, Eye, GraduationCap, HelpCircle, Mail, MessageSquare, Phone, Play, Settings, Shield, User } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 interface Course {
   id: string;
@@ -401,14 +398,14 @@ const Dashboard = () => {
                   // Buscar asignación enriquecida para esta course
                   const enriched = enrichedAssignments.find(a => a.course_id === course.id);
                   const attemptsLeft = enriched ? Number(enriched.attempts_remaining ?? 99) : null;
-                  const hasScore = enriched && enriched.overall_score !== null;
+                  const hasScore = enriched && enriched.overall_score !== null && enriched.overall_score !== undefined;
                   const passed = hasScore && Number(enriched.overall_score) >= 70;
                   const calStatus = enriched?.calendar_status;
 
                   return (
                     <Card
                       key={course.id}
-                      className={`glass-card hover:shadow-xl transition-all duration-300 group cursor-pointer ${calStatus === 'expired' ? 'opacity-60' : ''}`}
+                      className={`flex flex-col h-full glass-card hover:shadow-xl transition-all duration-300 group cursor-pointer ${calStatus === 'expired' ? 'opacity-60' : ''}`}
                       onClick={() => calStatus !== 'expired' && router.push(`/simulation/${course.id}`)}
                     >
                       <CardHeader>
@@ -424,7 +421,7 @@ const Dashboard = () => {
                         <CardTitle className="text-lg mt-2 group-hover:text-primary transition-colors">{course.title}</CardTitle>
                         <CardDescription className="line-clamp-2">{course.description}</CardDescription>
                       </CardHeader>
-                      <CardContent>
+                      <CardContent className="flex flex-col flex-1">
                         <div className="flex flex-wrap gap-1 mb-3">
                           {(course.modules as string[])?.slice(0, 3).map((mod: string) => (
                             <Badge key={mod} variant="outline" className="text-xs">{mod}</Badge>
@@ -453,7 +450,7 @@ const Dashboard = () => {
                             )}
                           </div>
                         )}
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 mt-auto">
                           <Button
                             className="flex-1"
                             variant="default"

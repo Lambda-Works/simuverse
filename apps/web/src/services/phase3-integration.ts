@@ -326,7 +326,7 @@ export const troubleshootingGuide = {
  */
 export const setupPerformanceMonitoring = () => {
   // LLM Metrics
-  if (window.performance && window.performance.mark) {
+  if (typeof window !== 'undefined' && window.performance) {
     // Mark LLM API calls
     window.addEventListener('llm:request', () => {
       performance.mark('llm-api-start');
@@ -339,7 +339,7 @@ export const setupPerformanceMonitoring = () => {
   }
 
   // Certificate Metrics
-  if (window.performance && window.performance.mark) {
+  if (typeof window !== 'undefined' && window.performance) {
     window.addEventListener('certificate:generate', () => {
       performance.mark('cert-gen-start');
     });

@@ -1,36 +1,13 @@
-import { LucideIcon } from 'lucide-react';
 import {
-  BookOpen,
-  Bot,
-  Users,
-  Building2,
-  GraduationCap,
-  Tags,
-  Clapperboard,
-  LayoutTemplate,
-  FilePlus,
-  ClipboardList,
-  BotMessageSquare,
-  Play,
-  UserRound,
-  ShieldCheck,
-  Users2,
-  UserRoundPlus,
-  Wrench,
-  ArrowRightLeft,
-  CalendarDays,
-  ChartNoAxesCombined,
-  FileChartColumnIncreasing,
-  ChartBar,
-  Building,
-  HandHeart,
-  UserCheck,
+    ArrowRightLeft, BookOpen,
+    Bot, BotMessageSquare, Building, Building2, CalendarDays, ChartBar, ChartNoAxesCombined, Clapperboard, ClipboardList, FileChartColumnIncreasing, FilePlus, GraduationCap, HandHeart, LayoutTemplate, LucideIcon, Play, ShieldCheck, Tags, UserCheck, UserRound, UserRoundPlus, Users, Users2, Wrench
 } from 'lucide-react';
 
 export interface AdminNavItem {
   id: string;
   label: string;
   icon: LucideIcon;
+  excludeRoles?: string[];
 }
 
 export interface AdminNavGroup {
@@ -38,6 +15,7 @@ export interface AdminNavGroup {
   label: string;
   icon: LucideIcon;
   items: AdminNavItem[];
+  excludeRoles?: string[];
 }
 
 export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
@@ -69,15 +47,16 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     icon: Users,
     items: [
       { id: 'users', label: 'Usuarios', icon: UserRound },
-      { id: 'roles', label: 'Roles y Permisos', icon: ShieldCheck },
+      { id: 'roles', label: 'Roles y Permisos', icon: ShieldCheck, excludeRoles: ['ministerio'] },
       { id: 'groups', label: 'Grupos', icon: Users2 },
-      { id: 'requests', label: 'Solicitudes', icon: UserRoundPlus },
+      { id: 'requests', label: 'Solicitudes', icon: UserRoundPlus, excludeRoles: ['ministerio'] },
     ],
   },
   {
     id: 'operaciones',
     label: 'Operaciones',
     icon: Wrench,
+    excludeRoles: ['ministerio'],
     items: [
       { id: 'assignments', label: 'Asignaciones', icon: ArrowRightLeft },
       { id: 'calendar', label: 'Calendario', icon: CalendarDays },

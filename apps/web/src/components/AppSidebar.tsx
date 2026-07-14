@@ -1,29 +1,30 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { ChevronDown, ChevronRight, LogOut, Shield, ArrowLeft, Pin, PinOff } from 'lucide-react';
-import {
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarSeparator,
-  useSidebar,
-} from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+    SidebarContent,
+    SidebarFooter,
+    SidebarGroup,
+    SidebarGroupContent,
+    SidebarHeader,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
+    SidebarSeparator,
+    useSidebar,
+} from '@/components/ui/sidebar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
-import { ROLE_NAV } from '@/lib/nav-config';
-import { ADMIN_NAV_GROUPS } from '@/lib/admin-nav';
-import { useSidebarHeader } from '@/lib/sidebar-header-context';
 import { useAdmin } from '@/lib/admin-context';
+import { ADMIN_NAV_GROUPS } from '@/lib/admin-nav';
+import { ROLE_NAV } from '@/lib/nav-config';
+import { useSidebarHeader } from '@/lib/sidebar-header-context';
+import { ArrowLeft, ChevronDown, ChevronRight, LogOut, Menu, PanelLeftClose, Shield } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-const GROUP_STORAGE_KEY = 'admin-sidebar:groups';
-const PIN_STORAGE_KEY = 'sidebar:pinned';
+const GROUP_STORAGE_KEY = 'admin-sidebar:groups-v2';
 
 const ROLE_LABELS: Record<string, string> = {
   student: 'Estudiante',
@@ -32,65 +33,38 @@ const ROLE_LABELS: Record<string, string> = {
   ministerio: 'Ministerio',
 };
 
-function loadExpandedState(): Record<string, boolean> {
-  if (typeof localStorage === 'undefined') return {};
-  try {
-    const raw = localStorage.getItem(GROUP_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveExpandedState(state: Record<string, boolean>) {
-  if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(GROUP_STORAGE_KEY, JSON.stringify(state));
-}
-
-function loadPinState(): boolean {
-  if (typeof localStorage === 'undefined') return false;
-  return localStorage.getItem(PIN_STORAGE_KEY) === 'true';
-}
-
-function savePinState(pinned: boolean) {
-  if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(PIN_STORAGE_KEY, String(pinned));
-}
-
 export function AppSidebar() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const { backTo, backLabel } = useSidebarHeader();
-  const { open, setOpen } = useSidebar();
+  const { open, toggleSidebar } = useSidebar();
 
-  const role = (user?.role || 'student') as string;
+  const lastKnownUser = useRef(user);
+  useEffect(() => {
+    if (user) lastKnownUser.current = user;
+  }, [user]);
+
+  const displayUser = user || lastKnownUser.current;
+  const role = (displayUser?.role || 'student') as string;
   const navItems = ROLE_NAV[role as keyof typeof ROLE_NAV] || ROLE_NAV.student;
-  const isAdmin = role === 'admin';
+  const isAdmin = role === 'admin' || role === 'ministerio';
+  const adminPath = role === 'ministerio' ? '/ministerio/admin' : '/admin';
+  const homeRoute = role === 'admin' ? '/admin/mis-cursos' : role === 'ministerio' ? '/ministerio' : (navItems[0]?.href || '/auth');
   const { currentTab, setCurrentTab } = useAdmin();
 
-  // Pin state (separate from sidebar open state)
-  // Initialize to false to avoid SSR hydration mismatch (localStorage is undefined on server)
-  const [isPinned, setIsPinned] = useState<boolean>(false);
-
-  // Sync pin state from localStorage after mount
-  useEffect(() => {
-    setIsPinned(loadPinState());
-  }, []);
-
-  // Admin group expansion state
+  // Admin group expansion state (starts completely closed)
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
-    const stored = loadExpandedState();
     const initial: Record<string, boolean> = {};
     for (const group of ADMIN_NAV_GROUPS) {
-      initial[group.id] = stored[group.id] !== undefined ? stored[group.id] : true;
+      initial[group.id] = false;
     }
     return initial;
   });
 
   // Auto-expand group containing the active admin sub-tab
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!isAdmin || pathname !== adminPath) return;
     setExpandedGroups((prev) => {
       let changed = false;
       const next = { ...prev };
@@ -103,41 +77,11 @@ export function AppSidebar() {
       }
       return changed ? next : prev;
     });
-  }, [currentTab, isAdmin]);
+  }, [currentTab, isAdmin, pathname]);
 
-  // Persist expanded state
-  useEffect(() => {
-    saveExpandedState(expandedGroups);
-  }, [expandedGroups]);
 
-  // Persist pin state
-  useEffect(() => {
-    savePinState(isPinned);
-  }, [isPinned]);
 
-  const togglePin = useCallback(() => {
-    setIsPinned((prev) => {
-      const next = !prev;
-      // When pinning, force sidebar open. When unpinning, keep current state.
-      if (next) {
-        setOpen(true);
-      }
-      return next;
-    });
-  }, [setOpen]);
 
-  // Hover handlers: expand on enter, collapse on leave (only when not pinned)
-  const handleMouseEnter = useCallback(() => {
-    if (!isPinned) {
-      setOpen(true);
-    }
-  }, [isPinned, setOpen]);
-
-  const handleMouseLeave = useCallback(() => {
-    if (!isPinned) {
-      setOpen(false);
-    }
-  }, [isPinned, setOpen]);
 
   const toggleGroup = useCallback((groupId: string) => {
     setExpandedGroups((prev) => ({
@@ -147,101 +91,122 @@ export function AppSidebar() {
   }, []);
 
   const isActive = (href: string) => {
-    if (href === '/dashboard') return pathname === '/dashboard';
+    if (href === '/ministerio') return pathname === href;
     return pathname === href || pathname.startsWith(href + '/');
   };
 
-  const handleNavClick = (href: string) => {
-    router.push(href);
-  };
-
   // Get user initial for avatar fallback
-  const userInitial = (user?.name?.charAt(0) || user?.email?.charAt(0) || 'U').toUpperCase();
+  const userInitial = (displayUser?.name?.charAt(0) || displayUser?.email?.charAt(0) || 'U').toUpperCase();
 
   return (
-    <div onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} className="flex h-full w-full flex-col">
-      <SidebarHeader className="group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center">
+    <div className="flex h-full w-full flex-col">
+      <SidebarHeader className="h-16 justify-center">
         {backTo ? (
-          <button
-            onClick={() => router.push(backTo)}
-            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
-          >
-            <ArrowLeft className="size-4 shrink-0" />
-            <span className="group-data-[collapsible=icon]:hidden">{backLabel || 'Volver'}</span>
-          </button>
+          <SidebarMenu className="group-data-[collapsible=icon]:items-center">
+            <SidebarMenuItem className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+              <SidebarMenuButton
+                onClick={() => router.push(backTo)}
+                className="group-data-[collapsible=icon]:justify-center"
+                tooltip={backLabel || 'Volver'}
+              >
+                <ArrowLeft className="size-4 shrink-0" />
+                <span className="group-data-[collapsible=icon]:hidden">{backLabel || 'Volver'}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         ) : (
-          <div className="relative flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-sidebar-accent transition-colors group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-0 group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:justify-center">
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-full"
-            >
-              <div className="size-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-                <Shield className="size-4 text-primary-foreground" />
-              </div>
-              <span className="font-bold text-sm group-data-[collapsible=icon]:hidden">MSM</span>
-            </button>
-            <button
-              onClick={togglePin}
-              className="absolute right-2 p-1 rounded-md hover:bg-sidebar-accent transition-colors group-data-[collapsible=icon]:hidden"
-              title={isPinned ? 'Desanclar sidebar' : 'Anclar sidebar'}
-            >
-              {isPinned ? (
-                <PinOff className="size-4 text-sidebar-foreground/70" />
-              ) : (
-                <Pin className="size-4 text-sidebar-foreground/50" />
-              )}
-            </button>
-          </div>
+          <SidebarMenu className="group-data-[collapsible=icon]:items-center">
+            <SidebarMenuItem className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+              <SidebarMenuButton
+                size="lg"
+                onClick={() => !open && toggleSidebar()}
+                className={`group-data-[collapsible=icon]:!p-0 ${open ? "pointer-events-none" : ""}`}
+              >
+                <div className="group/logo relative flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                  <Shield className="size-4 transition-all group-data-[collapsible=icon]:group-hover/logo:scale-0 group-data-[collapsible=icon]:group-hover/logo:opacity-0" />
+                  <Menu className="absolute size-4 scale-0 opacity-0 transition-all group-data-[collapsible=icon]:group-hover/logo:scale-100 group-data-[collapsible=icon]:group-hover/logo:opacity-100" />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
+                  <span className="truncate font-semibold">MSM</span>
+                </div>
+              </SidebarMenuButton>
+              <button
+                onClick={toggleSidebar}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-sidebar-accent transition-colors group-data-[collapsible=icon]:hidden z-10"
+                title="Comprimir sidebar"
+              >
+                <PanelLeftClose className="size-5 text-sidebar-foreground/70" />
+              </button>
+            </SidebarMenuItem>
+          </SidebarMenu>
         )}
       </SidebarHeader>
 
       <SidebarContent
-        className="group-data-[collapsible=icon]:p-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        className="group-data-[collapsible=icon]:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
       >
-        <SidebarMenu className="group-data-[collapsible=icon]:items-center">
-          {navItems.map((item) => (
-            <SidebarMenuItem key={item.href} className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
-              <SidebarMenuButton
-                isActive={isActive(item.href)}
-                onClick={() => handleNavClick(item.href)}
-                tooltip={item.label}
-              >
-                <item.icon className="size-4 shrink-0" />
-                <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
+        <SidebarGroup className="group-data-[collapsible=icon]:px-0">
+          <SidebarMenu className="group-data-[collapsible=icon]:items-center">
+            {loading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <SidebarMenuItem key={i} className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+                  <SidebarMenuButton disabled>
+                    <Skeleton className="size-4 shrink-0 rounded-md" />
+                    <Skeleton className="h-4 w-24 rounded-md group-data-[collapsible=icon]:hidden" />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))
+            ) : navItems.map((item) => (
+              <SidebarMenuItem key={item.href} className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive(item.href)}
+                  tooltip={item.label}
+                >
+                  <Link href={item.href}>
+                    <item.icon className="size-4 shrink-0" />
+                    <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
 
         {isAdmin && (
           <>
         <SidebarSeparator />
             {ADMIN_NAV_GROUPS.map((group) => (
-              <SidebarGroup key={group.id} className="group-data-[collapsible=icon]:p-0">
-                <button
-                  onClick={() => toggleGroup(group.id)}
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:px-0"
-                >
-                  <group.icon className="size-4 shrink-0" />
-                  <span className="flex-1 truncate group-data-[collapsible=icon]:hidden">{group.label}</span>
-                  <span className="group-data-[collapsible=icon]:hidden">
-                    {expandedGroups[group.id] ? (
-                      <ChevronDown className="size-4 shrink-0" />
-                    ) : (
-                      <ChevronRight className="size-4 shrink-0" />
-                    )}
-                  </span>
-                </button>
+              <SidebarGroup key={group.id} className="group-data-[collapsible=icon]:px-0">
+                <SidebarMenu className="group-data-[collapsible=icon]:items-center">
+                  <SidebarMenuItem className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+                    <SidebarMenuButton
+                      onClick={() => toggleGroup(group.id)}
+                      className="font-medium text-sidebar-foreground/70"
+                      tooltip={group.label}
+                    >
+                      <group.icon className={`size-4 shrink-0 ${expandedGroups[group.id] ? 'hidden group-data-[collapsible=icon]:block' : ''}`} />
+                      <span className="flex-1 truncate group-data-[collapsible=icon]:hidden">{group.label}</span>
+                      <span className="group-data-[collapsible=icon]:hidden">
+                        {expandedGroups[group.id] ? (
+                          <ChevronDown className="size-4 shrink-0" />
+                        ) : (
+                          <ChevronRight className="size-4 shrink-0" />
+                        )}
+                      </span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
                 {expandedGroups[group.id] && (
                   <SidebarGroupContent>
                     <SidebarMenu className="group-data-[collapsible=icon]:items-center">
                       {group.items.map((item) => (
                         <SidebarMenuItem key={item.id} className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
                           <SidebarMenuButton
-                            isActive={currentTab === item.id}
+                            isActive={pathname === `/admin/${item.id}` || (pathname === adminPath && currentTab === item.id)}
                             onClick={() => {
                               setCurrentTab(item.id);
-                              if (pathname !== '/admin') router.push('/admin');
+                              router.push(`/admin/${item.id}`);
                             }}
                             tooltip={item.label}
                           >
@@ -259,24 +224,35 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:items-center">
-        <div className="flex items-center gap-3 px-2 py-1.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-0">
-          <Avatar className="size-8 shrink-0">
-            <AvatarFallback className="text-sm font-medium bg-primary text-primary-foreground">
-              {userInitial}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col gap-0.5 min-w-0 group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-medium text-sidebar-foreground truncate">
-              {user?.name || user?.email?.split('@')[0] || 'Usuario'}
-            </span>
-            <span className="text-xs text-sidebar-foreground/70 truncate">{user?.email}</span>
-          </div>
+      <SidebarFooter>
+        <div className="flex items-center gap-3 px-2 py-1.5 group-data-[collapsible=icon]:justify-center">
+          {loading ? (
+            <div className="size-8 shrink-0" />
+          ) : (
+            <Avatar className="size-8 shrink-0">
+              <AvatarFallback className="text-sm font-medium bg-primary text-primary-foreground">
+                {userInitial}
+              </AvatarFallback>
+            </Avatar>
+          )}
+          {loading ? (
+            <div className="flex flex-col gap-1.5 min-w-0 group-data-[collapsible=icon]:hidden">
+              <Skeleton className="h-4 w-24 rounded-md" />
+              <Skeleton className="h-3 w-32 rounded-md" />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-0.5 min-w-0 group-data-[collapsible=icon]:hidden">
+              <span className="text-sm font-medium text-sidebar-foreground truncate">
+                {displayUser?.name || displayUser?.email?.split('@')[0] || 'Usuario'}
+              </span>
+              <span className="text-xs text-sidebar-foreground/70 truncate">{displayUser?.email}</span>
+            </div>
+          )}
         </div>
-        <SidebarSeparator className="group-data-[collapsible=icon]:hidden" />
+        <SidebarSeparator />
         <SidebarMenu className="group-data-[collapsible=icon]:items-center">
           <SidebarMenuItem className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
-            <SidebarMenuButton onClick={signOut} className="text-red-600 hover:text-red-600" tooltip="Cerrar sesión">
+            <SidebarMenuButton onClick={signOut} className="text-red-600 hover:text-red-600 group-data-[collapsible=icon]:!p-2 group-data-[collapsible=icon]:!size-8" tooltip="Cerrar sesión">
               <LogOut className="size-4 text-red-600 shrink-0" />
               <span className="group-data-[collapsible=icon]:hidden">Cerrar sesión</span>
             </SidebarMenuButton>

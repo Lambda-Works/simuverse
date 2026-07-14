@@ -102,9 +102,18 @@
     @apply border-border;
   }
 
+  html {
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', system-ui, sans-serif;
+    overflow-x: hidden;
+  }
+
+  html:has(body[data-scroll-locked]) {
+    overflow: hidden !important;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -147,5 +156,11 @@
   @keyframes slide-in-right {
     from { opacity: 0; transform: translateX(16px); }
     to { opacity: 1; transform: translateX(0); }
+  }
+
+  /* Ocultar el ícono de revelar contraseña nativo de Edge/IE */
+  input[type="password"]::-ms-reveal,
+  input[type="password"]::-ms-clear {
+    display: none;
   }
 }

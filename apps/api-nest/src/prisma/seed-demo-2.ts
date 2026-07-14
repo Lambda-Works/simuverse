@@ -1,4 +1,4 @@
-import { PrismaClient, FileUploadType } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -88,13 +88,13 @@ async function main() {
   const existingFiles = await prisma.fileUpload.count();
   if (existingFiles === 0) {
     const files = [
-      { uploaded_by_id: admin!.id, course_id: courseO!.id, file_name: 'Resolucion_123_2024.pdf', file_type: 'pdf', upload_type: 'ministry_requirement' as FileUploadType, file_size_bytes: 245000, file_path: '/uploads/ministry/res_123_2024.pdf', description: 'Resolución ministerial — requisitos para cursos de administración' },
-      { uploaded_by_id: admin!.id, course_id: courseO!.id, file_name: 'Planilla_QC04_Lote078.xlsx', file_type: 'xlsx', upload_type: 'scenario_resource' as FileUploadType, file_size_bytes: 15800, file_path: '/uploads/courses/ofimatica/qc04.xlsx', description: 'Planilla de control de calidad — Lote L-2024-078' },
-      { uploaded_by_id: admin!.id, course_id: courseA!.id, file_name: 'Normativa_SENASA_HACCP_2024.pdf', file_type: 'pdf', upload_type: 'ministry_requirement' as FileUploadType, file_size_bytes: 380000, file_path: '/uploads/ministry/senasa_haccp_2024.pdf', description: 'Normativa SENASA HACCP actualizada' },
-      { uploaded_by_id: admin!.id, course_id: courseA!.id, file_name: 'Registro_Autoclave_Enero2024.xlsx', file_type: 'xlsx', upload_type: 'scenario_resource' as FileUploadType, file_size_bytes: 22300, file_path: '/uploads/courses/alimentos/autoclave_ene24.xlsx', description: 'Registro mensual de temperatura de autoclaves' },
+      { uploaded_by_id: admin!.id, course_id: courseO!.id, file_name: 'Resolucion_123_2024.pdf', file_type: 'pdf', upload_type: 'ministry_requirement', file_size_bytes: 245000, file_path: '/uploads/ministry/res_123_2024.pdf', description: 'Resolución ministerial — requisitos para cursos de administración' },
+      { uploaded_by_id: admin!.id, course_id: courseO!.id, file_name: 'Planilla_QC04_Lote078.xlsx', file_type: 'xlsx', upload_type: 'scenario_resource', file_size_bytes: 15800, file_path: '/uploads/courses/ofimatica/qc04.xlsx', description: 'Planilla de control de calidad — Lote L-2024-078' },
+      { uploaded_by_id: admin!.id, course_id: courseA!.id, file_name: 'Normativa_SENASA_HACCP_2024.pdf', file_type: 'pdf', upload_type: 'ministry_requirement', file_size_bytes: 380000, file_path: '/uploads/ministry/senasa_haccp_2024.pdf', description: 'Normativa SENASA HACCP actualizada' },
+      { uploaded_by_id: admin!.id, course_id: courseA!.id, file_name: 'Registro_Autoclave_Enero2024.xlsx', file_type: 'xlsx', upload_type: 'scenario_resource', file_size_bytes: 22300, file_path: '/uploads/courses/alimentos/autoclave_ene24.xlsx', description: 'Registro mensual de temperatura de autoclaves' },
     ];
     for (const f of files) {
-      await prisma.fileUpload.create({ data: f });
+      await prisma.fileUpload.create({ data: f as any });
     }
   }
 

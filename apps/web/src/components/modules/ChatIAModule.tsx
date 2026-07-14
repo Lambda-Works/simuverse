@@ -1,6 +1,6 @@
 'use client'
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, MessageCircle, Loader, AlertCircle, Zap } from 'lucide-react';
+import { AlertCircle, Loader, MessageCircle, Send, Zap } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 import { chatService } from '../../services/ChatService';
 
 interface ChatMessage {

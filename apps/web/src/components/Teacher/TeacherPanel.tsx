@@ -6,7 +6,8 @@
  * Shows/hides admin_data based on admin configuration
  */
 
-import React, { useState, useEffect } from 'react';
+import { apiClient } from '@/services/ApiClient';
+import { useEffect, useState } from 'react';
 import './TeacherPanel.css';
 
 interface Simulation {
@@ -61,13 +62,9 @@ export function TeacherPanel({ simulationId }: TeacherPanelProps) {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/simulations/${simulationId}`);
+      const response = await apiClient.get(`/simulations/${simulationId}`);
 
-      if (!response.ok) {
-        throw new Error(`Error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = response.data;
       setSimulation(data);
     } catch (err) {
       console.error('❌ Error loading simulation:', err);
@@ -156,7 +153,7 @@ export function TeacherPanel({ simulationId }: TeacherPanelProps) {
                       ([key, value]) => (
                         <div key={key} className="breakdown-item">
                           <span>{key}:</span>
-                          <span>{value}/10</span>
+                          <span>{String(value)}/10</span>
                         </div>
                       )
                     )}
@@ -214,23 +211,23 @@ export function TeacherPanel({ simulationId }: TeacherPanelProps) {
         <div className="section admin-data">
           <h3>⚙️ Configuración de IA (Habilitada por Admin)</h3>
           <div className="section-content">
-            {simulation.admin_data.ai_config && (
+            {simulation.admin_data?.ai_config && (
               <div className="item">
                 <strong>Configuración del Sistema:</strong>
 
-                {simulation.admin_data.ai_config.systemPrompt && (
+                {simulation.admin_data?.ai_config.systemPrompt && (
                   <div className="sub-item">
                     <span className="label">Instrucción (systemPrompt):</span>
                     <p className="code-block">
-                      {simulation.admin_data.ai_config.systemPrompt}
+                      {simulation.admin_data?.ai_config.systemPrompt}
                     </p>
                   </div>
                 )}
 
-                {simulation.admin_data.ai_config.base_role && (
+                {simulation.admin_data?.ai_config.base_role && (
                   <div className="sub-item">
                     <span className="label">Rol Asignado:</span>
-                    <p>{simulation.admin_data.ai_config.base_role}</p>
+                    <p>{simulation.admin_data?.ai_config.base_role}</p>
                   </div>
                 )}
 
@@ -239,26 +236,26 @@ export function TeacherPanel({ simulationId }: TeacherPanelProps) {
                   <div className="params-grid">
                     <div className="param">
                       <span>temperature:</span>
-                      <span className="value">{simulation.admin_data.ai_config.temperature}</span>
+                      <span className="value">{simulation.admin_data?.ai_config.temperature}</span>
                     </div>
                     <div className="param">
                       <span>top_p:</span>
-                      <span className="value">{simulation.admin_data.ai_config.top_p}</span>
+                      <span className="value">{simulation.admin_data?.ai_config.top_p}</span>
                     </div>
                     <div className="param">
                       <span>max_tokens:</span>
-                      <span className="value">{simulation.admin_data.ai_config.max_tokens}</span>
+                      <span className="value">{simulation.admin_data?.ai_config.max_tokens}</span>
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {simulation.admin_data.score_calculation && (
+            {simulation.admin_data?.score_calculation && (
               <div className="item">
                 <strong>Detalles del Cálculo de Puntuación:</strong>
                 <pre className="code-block">
-                  {JSON.stringify(simulation.admin_data.score_calculation, null, 2)}
+                  {JSON.stringify(simulation.admin_data?.score_calculation, null, 2)}
                 </pre>
               </div>
             )}

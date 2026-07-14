@@ -12,6 +12,6 @@ export class CreateUserDto {
   name: string;
 
   @IsOptional()
-  @IsEnum(['student', 'teacher', 'admin', 'ministerio'] as const)
+  @IsString()
   role?: string;
 }

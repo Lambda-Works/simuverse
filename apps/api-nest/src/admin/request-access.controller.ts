@@ -35,12 +35,17 @@ export class RequestAccessController {
   @Public()
   @Post()
   async request(@Body() body: RequestAccessDto) {
-    await this.prisma.$queryRawUnsafe(
-      `INSERT INTO access_requests (student_id, course_id, student_name, student_email, course_name, reason, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'pending')`,
-      body.student_id, body.course_id, body.student_name,
-      body.student_email, body.course_name, body.reason || '',
-    );
+    await this.prisma.accessRequest.create({
+      data: {
+        student_id: body.student_id,
+        course_id: body.course_id || '',
+        student_name: body.student_name,
+        student_email: body.student_email,
+        course_name: body.course_name || '',
+        reason: body.reason || '',
+        status: 'pending',
+      },
+    });
     return { success: true, message: 'Solicitud enviada' };
   }
 }

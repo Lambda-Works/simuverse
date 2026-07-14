@@ -6,9 +6,8 @@
  * - 'serviceWorker' in navigator is guarded for SSR
  * - Returns safe defaults when navigator is unavailable
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
-import React from 'react'
+import { renderHook } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useServiceWorker } from '../useServiceWorker'
 
 // ─── Test Suite ────────────────────────────────────────────────────────────────

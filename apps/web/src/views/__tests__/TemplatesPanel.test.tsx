@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * RED phase: Tests describe the EXPECTED behavior AFTER migration to apiClient.
@@ -23,8 +23,8 @@ vi.mock('@/services/ApiClient', () => ({
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: { id: 'admin-1', role: 'administrador' },
-    hasRole: (role: string) => role === 'administrador',
+    user: { id: 'admin-1', role: 'admin' },
+    hasRole: (role: string) => role === 'admin',
     loading: false,
   }),
 }));

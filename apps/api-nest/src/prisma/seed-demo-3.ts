@@ -1,4 +1,4 @@
-import { PrismaClient, FileUploadType } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -130,13 +130,13 @@ async function main() {
   const fileCount = await prisma.fileUpload.count();
   if (fileCount <= 4) {
     const extraFiles = [
-      { uploaded_by_id: admin!.id, course_id: courseT!.id, file_name: 'Catalogo_Defectos_Textiles.pdf', file_type: 'pdf', upload_type: 'scenario_resource' as FileUploadType, file_size_bytes: 125000, file_path: '/uploads/courses/textil/catalogo_defectos.pdf', description: 'Catálogo visual de defectos textiles con ejemplos fotográficos' },
-      { uploaded_by_id: admin!.id, course_id: courseT!.id, file_name: 'ISO_2859-1_Tablas_Muestreo.xlsx', file_type: 'xlsx', upload_type: 'scenario_resource' as FileUploadType, file_size_bytes: 48200, file_path: '/uploads/courses/textil/tablas_iso.xlsx', description: 'Tablas de muestreo ISO 2859-1 completas' },
-      { uploaded_by_id: admin!.id, course_id: courseM!.id, file_name: 'Manual_Mantenimiento_CNC_Haas.pdf', file_type: 'pdf', upload_type: 'scenario_resource' as FileUploadType, file_size_bytes: 890000, file_path: '/uploads/courses/metalurgica/manual_haas.pdf', description: 'Manual técnico de tornos CNC Haas serie ST' },
-      { uploaded_by_id: admin!.id, course_id: courseM!.id, file_name: 'Historial_Fallas_CNC_2024.xlsx', file_type: 'xlsx', upload_type: 'scenario_resource' as FileUploadType, file_size_bytes: 34200, file_path: '/uploads/courses/metalurgica/historial_fallas.xlsx', description: 'Historial de fallas de los 3 CNC últimos 12 meses' },
+      { uploaded_by_id: admin!.id, course_id: courseT!.id, file_name: 'Catalogo_Defectos_Textiles.pdf', file_type: 'pdf', upload_type: 'scenario_resource', file_size_bytes: 125000, file_path: '/uploads/courses/textil/catalogo_defectos.pdf', description: 'Catálogo visual de defectos textiles con ejemplos fotográficos' },
+      { uploaded_by_id: admin!.id, course_id: courseT!.id, file_name: 'ISO_2859-1_Tablas_Muestreo.xlsx', file_type: 'xlsx', upload_type: 'scenario_resource', file_size_bytes: 48200, file_path: '/uploads/courses/textil/tablas_iso.xlsx', description: 'Tablas de muestreo ISO 2859-1 completas' },
+      { uploaded_by_id: admin!.id, course_id: courseM!.id, file_name: 'Manual_Mantenimiento_CNC_Haas.pdf', file_type: 'pdf', upload_type: 'scenario_resource', file_size_bytes: 890000, file_path: '/uploads/courses/metalurgica/manual_haas.pdf', description: 'Manual técnico de tornos CNC Haas serie ST' },
+      { uploaded_by_id: admin!.id, course_id: courseM!.id, file_name: 'Historial_Fallas_CNC_2024.xlsx', file_type: 'xlsx', upload_type: 'scenario_resource', file_size_bytes: 34200, file_path: '/uploads/courses/metalurgica/historial_fallas.xlsx', description: 'Historial de fallas de los 3 CNC últimos 12 meses' },
     ];
     for (const f of extraFiles) {
-      await prisma.fileUpload.create({ data: f });
+      await prisma.fileUpload.create({ data: f as any });
     }
   }
 

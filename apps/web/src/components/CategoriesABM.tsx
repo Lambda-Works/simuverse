@@ -1,11 +1,13 @@
 'use client'
-import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card } from '@/components/ui/card';
-import { Trash2, Edit2, Plus } from 'lucide-react';
-import { API_BASE } from '@/lib/api';
+import { useAdmin } from '@/lib/admin-context';
+import { apiClient } from '@/services/ApiClient';
+import { Edit2, Plus, Trash2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 interface Category {
   id: number;
@@ -16,6 +18,7 @@ interface Category {
 }
 
 export function CategoriesABM() {
+  const { readOnly } = useAdmin();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -34,8 +37,8 @@ export function CategoriesABM() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch(`${API_BASE}/categories`);
-      const data = await response.json();
+      const response = await apiClient.get('/categories');
+      const data = response.data;
       setCategories(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -49,25 +52,15 @@ export function CategoriesABM() {
     e.preventDefault();
 
     if (!formData.name || !formData.code) {
-      alert('Nombre y código son obligatorios');
+      toast.error('Nombre y código son obligatorios');
       return;
     }
 
     try {
       if (editingId) {
-        // Update
-        await fetch(`${API_BASE}/categories/${editingId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
-        });
+        await apiClient.put(`/categories/${editingId}`, formData);
       } else {
-        // Create
-        await fetch(`${API_BASE}/categories`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
-        });
+        await apiClient.post('/categories', formData);
       }
 
       // Reset form
@@ -79,22 +72,35 @@ export function CategoriesABM() {
       await fetchCategories();
     } catch (error) {
       console.error('Error saving category:', error);
-      alert('Error al guardar la categoría');
+      toast.error('Error al guardar la categoría');
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Estás seguro de eliminar esta categoría?')) return;
+  const handleDelete = (id: number) => {
+    toast.error('¿Estás seguro de eliminar esta categoría?', {
+      action: {
+        label: 'Eliminar',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/categories/${id}`);
+            await fetchCategories();
+            toast.success('Categoría eliminada');
+          } catch (error) {
+            console.error('Error deleting category:', error);
+            toast.error('Error al eliminar la categoría');
+          }
+        },
+      },
+      duration: 5000,
+    });
+  };
 
+  const handleReactivate = async (id: number) => {
     try {
-      await fetch(`${API_BASE}/categories/${id}`, {
-        method: 'DELETE',
-      });
+      await apiClient.put(`/categories/${id}/reactivate`);
       await fetchCategories();
-    } catch (error) {
-      console.error('Error deleting category:', error);
-      alert('Error al eliminar la categoría');
-    }
+      toast.success('Categoría reactivada');
+    } catch { toast.error('Error al reactivar'); }
   };
 
   const handleEdit = (category: Category) => {
@@ -124,7 +130,7 @@ export function CategoriesABM() {
           <h2 className="text-2xl font-bold">Gestión de Categorías</h2>
           <p className="text-gray-600 mt-1">Crea y administra familias de cursos</p>
         </div>
-        {!isAddingNew && (
+{!isAddingNew && !readOnly && (
           <Button
             onClick={() => setIsAddingNew(true)}
             className="bg-blue-600 hover:bg-blue-700"
@@ -201,22 +207,28 @@ export function CategoriesABM() {
                   Creado: {new Date(category.created_at).toLocaleDateString()}
                 </p>
               </div>
-              <div className="flex gap-2">
-                <Button
+<div className="flex gap-2">
+                {!readOnly && <Button
                   onClick={() => handleEdit(category)}
                   size="sm"
                   variant="outline"
                 >
                   <Edit2 className="w-4 h-4" />
-                </Button>
-                <Button
+                </Button>}
+                {!readOnly && (category as any).is_active !== false && <Button
                   onClick={() => handleDelete(category.id)}
                   size="sm"
                   variant="outline"
                   className="text-red-600"
                 >
                   <Trash2 className="w-4 h-4" />
-                </Button>
+                </Button>}
+                {!readOnly && (category as any).is_active === false && <Button
+                  onClick={() => handleReactivate(category.id)}
+                  size="sm"
+                  variant="outline"
+                  className="text-green-600 border-green-300"
+                >🔄</Button>}
               </div>
             </div>
           </Card>

@@ -1,17 +1,27 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DeepSeekService } from './deepseek.service';
 import axios from 'axios';
+import * as fs from 'fs';
 
 // Mock axios
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
+
+// Mock fs
+jest.mock('fs');
+const mockedFs = fs as jest.Mocked<typeof fs>;
 
 describe('DeepSeekService', () => {
   let service: DeepSeekService;
 
   beforeEach(async () => {
     // Set env var for API key
-    process.env.OPENCODE_ZEN_API_KEY = 'test-api-key';
+    process.env.DEEPSEEK_API_KEY = 'test-api-key';
+
+    // Default mock: both files not found → fallback strings
+    mockedFs.readFileSync.mockImplementation(() => {
+      throw new Error('ENOENT');
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [DeepSeekService],
@@ -22,7 +32,7 @@ describe('DeepSeekService', () => {
   });
 
   afterEach(() => {
-    delete process.env.OPENCODE_ZEN_API_KEY;
+    delete process.env.DEEPSEEK_API_KEY;
   });
 
   it('should be defined', () => {
@@ -180,6 +190,39 @@ describe('DeepSeekService', () => {
         },
         expect.any(Object),
       );
+    });
+  });
+
+  describe('getEmploymentAxis()', () => {
+    it('should return non-empty string when file exists', async () => {
+      const mockContent = 'Eje Empleabilidad content';
+      mockedFs.readFileSync.mockImplementation((filePath: string) => {
+        if (filePath.toString().includes('employment-axis.md')) {
+          return mockContent;
+        }
+        // For system-prompt.md, throw to keep default
+        throw new Error('ENOENT');
+      });
+
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [DeepSeekService],
+      }).compile();
+
+      const service = module.get<DeepSeekService>(DeepSeekService);
+      expect(service.getEmploymentAxis()).toBe(mockContent);
+    });
+
+    it('should return empty string when file is missing', async () => {
+      mockedFs.readFileSync.mockImplementation(() => {
+        throw new Error('ENOENT');
+      });
+
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [DeepSeekService],
+      }).compile();
+
+      const service = module.get<DeepSeekService>(DeepSeekService);
+      expect(service.getEmploymentAxis()).toBe('');
     });
   });
 });

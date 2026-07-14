@@ -57,6 +57,12 @@ export class CatalogController {
     return this.categoriesService.remove(id);
   }
 
+  @Put('categories/:id/reactivate')
+  @HttpCode(HttpStatus.OK)
+  async reactivateCategory(@Param('id', ParseIntPipe) id: number) {
+    return this.categoriesService.reactivate(id);
+  }
+
   // ── Tech Sheets ─────────────────────────────────────────────────
 
   @Get('tech-sheets/valid/list')

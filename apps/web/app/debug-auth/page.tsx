@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { apiClient } from '@/services/ApiClient';
+import { useEffect, useState } from 'react';
 
 export default function DebugAuthPage() {
   const [logs, setLogs] = useState<string[]>([]);

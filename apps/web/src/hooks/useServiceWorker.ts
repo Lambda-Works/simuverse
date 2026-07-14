@@ -92,8 +92,8 @@ export const useServiceWorker = () => {
     if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && typeof window !== 'undefined' && 'SyncManager' in window) {
       try {
         const registration = await navigator.serviceWorker.ready;
-        await (registration.sync as any).register('sync-actions');
-        await (registration.sync as any).register('sync-logs');
+        await (registration as any).sync.register('sync-actions');
+        await (registration as any).sync.register('sync-logs');
         console.log('[PWA] Sync triggered');
       } catch (error) {
         console.error('[PWA] Sync failed:', error);

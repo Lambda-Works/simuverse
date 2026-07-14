@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import React from 'react';
 import { SidebarHeaderProvider, useSidebarHeader } from '@/lib/sidebar-header-context';
+import { act, renderHook } from '@testing-library/react';
+import React from 'react';
+import { describe, expect, it } from 'vitest';
 
 function createWrapper() {
   return function Wrapper({ children }: { children: React.ReactNode }) {
