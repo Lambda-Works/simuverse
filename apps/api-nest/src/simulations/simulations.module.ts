@@ -50,10 +50,5 @@ import { ConversationStateService } from './conversation-state.service';
     ConversationStateService,
     TriggerService,
   ],
-
-  controllers: [SimulationsController, SimulationReviewController],
-
-  providers: [SimulationsService, SimulationInstanceService, AIService, CrisisEngine],
-  exports: [SimulationsService, SimulationInstanceService, AIService, CrisisEngine],
 })
 export class SimulationsModule {}
