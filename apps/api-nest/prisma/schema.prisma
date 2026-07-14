@@ -54,8 +54,10 @@ enum TelemetryActionType {
 }
 
 enum Difficulty {
-  easy
+  very_low
+  low
   medium
+  easy
   hard
 }
 
@@ -284,6 +286,9 @@ model Scenario {
   expected_outcomes Json?
   is_active         Boolean    @default(true)
   config            Json?
+  sequence_index    Int        @default(1)
+  agent_key         String?    @db.VarChar(50)
+  prior_context     String?    @db.Text
   created_at        DateTime   @default(now())
   updated_at        DateTime   @updatedAt
 
@@ -291,6 +296,7 @@ model Scenario {
   instances SimulationInstance[]
   tasks     Task[]
 
+  @@index([course_id, sequence_index])
   @@map("scenarios")
 }
 
@@ -304,6 +310,8 @@ model SimulationInstance {
   score               Float?
   feedback            String?                  @db.Text
   time_spent_seconds  Int?
+  session_state       Json?
+  practice_summary    String?                  @db.Text
   started_at          DateTime                 @default(now())
   completed_at        DateTime?
   updated_at          DateTime                 @updatedAt
@@ -314,6 +322,7 @@ model SimulationInstance {
   logs          PracticeLogs[]
   notifications Notification[]
 
+  @@index([course_id, student_id])
   @@map("simulation_instances")
 }
 

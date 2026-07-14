@@ -324,17 +324,41 @@ describe('Catalog (e2e)', () => {
         const res = await request(app.getHttpServer())
           .post('/api/catalog/documents')
           .set('Authorization', `Bearer ${adminToken}`)
-          .send({ course_id: 'c1', document_name: 'Doc', document_type: 'case' })
+          .send({ course_id: 'c1', document_name: 'Doc', document_type: 'case', file_url: 'https://drive.google.com/file/d/abc123/view' })
           .expect(201);
 
         expect(res.body).toHaveProperty('id', 1);
+      });
+
+      it('should reject missing file_url', async () => {
+        await request(app.getHttpServer())
+          .post('/api/catalog/documents')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ course_id: 'c1', document_name: 'Doc' })
+          .expect(400);
+      });
+
+      it('should reject invalid file_url', async () => {
+        await request(app.getHttpServer())
+          .post('/api/catalog/documents')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ course_id: 'c1', document_name: 'Doc', file_url: 'not-a-url' })
+          .expect(400);
+      });
+
+      it('should reject non-http(s) file_url', async () => {
+        await request(app.getHttpServer())
+          .post('/api/catalog/documents')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ course_id: 'c1', document_name: 'Doc', file_url: 'ftp://example.com/doc.pdf' })
+          .expect(400);
       });
     });
 
     describe('DELETE /api/catalog/documents/:id', () => {
       it('should delete a document', async () => {
         prismaMock.courseDocument.findUnique.mockResolvedValue({ id: 1 });
-        prismaMock.courseDocument.delete.mockResolvedValue({});
+        prismaMock.courseDocument.update.mockResolvedValue({ id: 1, is_active: false });
 
         await request(app.getHttpServer())
           .delete('/api/catalog/documents/1')

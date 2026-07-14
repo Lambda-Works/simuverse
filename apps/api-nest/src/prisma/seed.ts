@@ -212,13 +212,19 @@ async function main() {
   console.log('🎬 Creando escenario "Primer Día"...');
   const scenario = await prisma.scenario.upsert({
     where: { id: 'scenario-primer-dia-001' },
-    update: {},
+    update: {
+      scenario_type: 'practice',
+      sequence_index: 1,
+      agent_key: 'practica-1',
+    },
     create: {
       id: 'scenario-primer-dia-001',
       course_id: course.id,
       title: 'Primer Día en Administración Las Tradiciones',
       description: 'Tu primer día como empleado de oficina. Tu compañero Carlos necesita ayuda con una planilla de sueldos.',
-      scenario_type: 'daily_operations',
+      scenario_type: 'practice',
+      sequence_index: 1,
+      agent_key: 'practica-1',
       difficulty: 'easy',
       content: {
         context: 'Es lunes por la mañana. Estás en tu escritorio. Tu compañero Carlos se acerca con una planilla de Excel y te pide ayuda.',

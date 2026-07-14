@@ -45,7 +45,7 @@ export class SessionMemoryService {
 
   /**
    * Append a new turn to the in-memory cache.
-   * Does NOT persist to DB — that's AsyncPersistenceService's job.
+   * Does NOT persist to DB — flushed via SessionCheckpointService (2-min + close).
    */
   append(simulationId: string, turn: Omit<ChatTurn, 'turn_number'>): ChatTurn {
     let session = this.cache.get(simulationId);
@@ -193,5 +193,32 @@ export class SessionMemoryService {
     );
 
     return session;
+  }
+
+  /** Snapshot of in-memory session (for checkpoint). */
+  getSessionSnapshot(simulationId: string): SessionMemory | undefined {
+    return this.cache.get(simulationId);
+  }
+
+  /** Restore trigger state after hydrate from DB. */
+  restoreTriggers(
+    simulationId: string,
+    triggeredEmails: string[],
+    lastTriggerFires: Record<string, number>,
+  ): void {
+    let session = this.cache.get(simulationId);
+    if (!session) {
+      session = {
+        simulationId,
+        turns: [],
+        hydrated: true,
+        turnCount: 0,
+        triggeredEmails: [],
+        lastTriggerFires: {},
+      };
+      this.cache.set(simulationId, session);
+    }
+    session.triggeredEmails = [...triggeredEmails];
+    session.lastTriggerFires = { ...lastTriggerFires };
   }
 }

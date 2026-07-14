@@ -1,4 +1,4 @@
-import { BarChart3, FileText, Home, LucideIcon } from 'lucide-react';
+import { FileText, Home, MessageSquare, LucideIcon } from 'lucide-react';
 
 export type AppRole = 'student' | 'teacher' | 'admin' | 'ministerio';
 
@@ -14,17 +14,16 @@ export const ROLE_NAV: Record<AppRole, NavItem[]> = {
   ],
   teacher: [
     { label: 'Mis Cursos', href: '/profesor/cursos', icon: Home },
-    { label: 'Evaluaciones', href: '/profesor/evaluaciones', icon: BarChart3 },
+    { label: 'Sesiones', href: '/profesor/sesiones', icon: MessageSquare },
     { label: 'Legajos', href: '/profesor/legajos', icon: FileText },
   ],
   admin: [
     { label: 'Mis Cursos', href: '/admin/mis-cursos', icon: Home },
-    { label: 'Evaluaciones', href: '/admin/evaluaciones', icon: BarChart3 },
+    { label: 'Sesiones', href: '/admin/sesiones', icon: MessageSquare },
     { label: 'Legajos', href: '/admin/legajos', icon: FileText },
   ],
   ministerio: [
     { label: 'Ministerio', href: '/ministerio', icon: Home },
-    { label: 'Evaluaciones', href: '/ministerio/evaluaciones', icon: BarChart3 },
     { label: 'Legajos', href: '/ministerio/legajos', icon: FileText },
   ],
 };

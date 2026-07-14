@@ -2,10 +2,9 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { useAdmin } from '@/lib/admin-context';
 import { apiClient } from '@/services/ApiClient';
-import { FileText, Plus, Trash2 } from 'lucide-react';
+import { ExternalLink, FileText, Plus, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -14,7 +13,7 @@ interface Document {
   course_id: string;
   document_name: string;
   document_type: string;
-  document_content: string;
+  file_url: string | null;
   created_at: string;
 }
 
@@ -23,19 +22,26 @@ interface Course {
   title: string;
 }
 
+function isValidFileUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export function DocumentsABM() {
   const { readOnly } = useAdmin();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddingNew, setIsAddingNew] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     course_id: '',
     document_name: '',
-    document_type: 'case',
-    document_content: '',
+    file_url: '',
   });
 
   // Fetch data
@@ -71,30 +77,35 @@ export function DocumentsABM() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.course_id || !formData.document_name) {
-      toast.error('Curso y nombre del documento son obligatorios');
+    if (!formData.course_id || !formData.document_name || !formData.file_url) {
+      toast.error('Curso, nombre y URL del documento son obligatorios');
+      return;
+    }
+
+    if (!isValidFileUrl(formData.file_url.trim())) {
+      toast.error('La URL debe comenzar con http:// o https://');
       return;
     }
 
     try {
       const payload = {
-        ...formData,
+        course_id: formData.course_id,
+        document_name: formData.document_name,
+        file_url: formData.file_url.trim(),
         uploaded_by: sessionStorage.getItem('userId') || 'system',
       };
 
       await apiClient.post('/documents', payload);
 
-      // Reset form
       setFormData({
         course_id: '',
         document_name: '',
-        document_type: 'case',
-        document_content: '',
+        file_url: '',
       });
       setIsAddingNew(false);
 
-      // Refresh list
       await fetchDocuments();
+      toast.success('Documento guardado');
     } catch (error) {
       console.error('Error saving document:', error);
       toast.error('Error al guardar el documento');
@@ -132,10 +143,8 @@ export function DocumentsABM() {
     setFormData({
       course_id: '',
       document_name: '',
-      document_type: 'case',
-      document_content: '',
+      file_url: '',
     });
-    setEditingId(null);
     setIsAddingNew(false);
   };
 
@@ -148,21 +157,14 @@ export function DocumentsABM() {
     return course ? course.title : courseId;
   };
 
-  const typeLabels: Record<string, string> = {
-    case: '📋 Caso',
-    contract: '📜 Contrato',
-    policy: '📋 Política',
-    legal: '⚖️ Legal',
-    procedure: '🔄 Procedimiento',
-    other: '📄 Otro',
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold">Gestión de Documentos</h2>
-          <p className="text-gray-600 mt-1">Carga documentos para que el Chat IA los use como base de conocimiento</p>
+          <p className="text-gray-600 mt-1">
+            Registra enlaces a documentos del curso (Google Drive, Dropbox u otro enlace HTTPS)
+          </p>
         </div>
 {!isAddingNew && !readOnly && (
           <Button
@@ -209,30 +211,17 @@ export function DocumentsABM() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Tipo de Documento</label>
-              <select
-                value={formData.document_type}
-                onChange={(e) => setFormData({ ...formData, document_type: e.target.value })}
-                className="w-full p-2 border rounded-md"
-              >
-                <option value="case">📋 Caso de Estudio</option>
-                <option value="contract">📜 Contrato</option>
-                <option value="policy">📋 Política</option>
-                <option value="legal">⚖️ Legal</option>
-                <option value="procedure">🔄 Procedimiento</option>
-                <option value="other">📄 Otro</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Contenido</label>
-              <Textarea
-                value={formData.document_content}
-                onChange={(e) => setFormData({ ...formData, document_content: e.target.value })}
-                placeholder="Pega el contenido del documento aquí..."
-                rows={6}
+              <label className="block text-sm font-medium mb-2">URL del Documento</label>
+              <Input
+                type="url"
+                value={formData.file_url}
+                onChange={(e) => setFormData({ ...formData, file_url: e.target.value })}
+                placeholder="https://drive.google.com/... o https://www.dropbox.com/..."
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Enlace de Google Drive, Dropbox u otro recurso accesible por HTTPS
+              </p>
             </div>
 
             <div className="flex gap-3">
@@ -258,12 +247,21 @@ export function DocumentsABM() {
                   <div>
                     <h4 className="font-semibold text-lg">{doc.document_name}</h4>
                     <div className="flex gap-3 mt-1 text-sm">
-                      <span className="text-gray-600">Tipo: {typeLabels[doc.document_type]}</span>
                       <span className="text-gray-600">Curso: {getCourseName(doc.course_id)}</span>
                     </div>
                   </div>
                 </div>
-                <p className="text-sm text-gray-600 mt-3 line-clamp-2">{doc.document_content}</p>
+                {doc.file_url && (
+                  <a
+                    href={doc.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline mt-3"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    {doc.file_url}
+                  </a>
+                )}
                 <p className="text-xs text-gray-400 mt-2">
                   Creado: {new Date(doc.created_at).toLocaleDateString()}
                 </p>
@@ -291,7 +289,7 @@ export function DocumentsABM() {
 
       {documents.length === 0 && !isAddingNew && (
         <Card className="p-8 text-center">
-          <p className="text-gray-600">No hay documentos. Sube tu primer documento para empezar.</p>
+          <p className="text-gray-600">No hay documentos. Agrega un enlace a tu primer documento para empezar.</p>
         </Card>
       )}
     </div>

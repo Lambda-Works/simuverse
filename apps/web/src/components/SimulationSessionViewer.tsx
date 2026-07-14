@@ -2,8 +2,7 @@
 /**
  * SimulationSessionViewer.tsx
  * Visor de sesiones de simulación para Profesor / Admin / Ministerio.
- * Muestra: diálogo completo IA↔Alumno, solución propuesta por IA, número de referencia,
- * resumen de aciertos/desaciertos y evaluación final.
+ * Muestra: diálogo completo IA↔Alumno, solución propuesta por IA y número de referencia.
  */
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,15 +11,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Bot,
-    CheckCircle2,
     Download,
     Filter,
-    GraduationCap, Hash,
+    Hash,
     Info,
     MessageSquare,
     Search,
     User,
-    XCircle
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -53,7 +50,7 @@ interface SessionDetail {
     overall_score: number; overall_feedback: string; kpi_results: any;
     completion_percentage: number; time_spent_seconds: number; evaluated_at: string;
   } | null;
-  summary: {
+  summary?: {
     total_turns: number; student_turns: number; evaluated_turns: number;
     correct_turns: number; incorrect_turns: number;
   };
@@ -103,16 +100,6 @@ function ChatBubble({ log, showSolution }: { log: ChatLog; showSolution: boolean
             {isAI ? '🤖 IA' : '🎓 Alumno'} · Turno #{log.turn_number}
           </span>
           <span className="text-xs text-gray-400 font-mono">[{log.ref_number}]</span>
-          {log.is_correct === 1 && (
-            <span className="flex items-center gap-1 text-xs text-green-700 bg-green-100 px-1.5 py-0.5 rounded">
-              <CheckCircle2 className="w-3 h-3" /> Correcto +{log.score_impact}
-            </span>
-          )}
-          {log.is_correct === 0 && (
-            <span className="flex items-center gap-1 text-xs text-red-700 bg-red-100 px-1.5 py-0.5 rounded">
-              <XCircle className="w-3 h-3" /> Incorrecto {log.score_impact}
-            </span>
-          )}
         </div>
 
         {/* Message */}
@@ -131,8 +118,8 @@ function ChatBubble({ log, showSolution }: { log: ChatLog; showSolution: boolean
           </div>
         )}
 
-        {/* Correct answer / AI solution (only for incorrect student turns) */}
-        {!isAI && log.is_correct === 0 && showSolution && (
+        {/* AI solution (student turns with available context) */}
+        {!isAI && showSolution && (log.correct_answer || log.ai_solution) && (
           <div className="mt-2 space-y-2">
             {log.correct_answer && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs">
@@ -184,22 +171,21 @@ function SessionDetailDialog({
 
   const handleExport = () => {
     if (!data) return;
+    const summary = data.summary ?? {
+      total_turns: 0, student_turns: 0, evaluated_turns: 0, correct_turns: 0, incorrect_turns: 0,
+    };
     const lines = [
       `=== SESIÓN ${instanceId} ===`,
       `Alumno: ${data.instance.student_name} (${data.instance.student_email})`,
       `Curso: ${data.instance.course_title} | Escenario: ${data.instance.scenario_title}`,
       `Inicio: ${new Date(data.instance.started_at).toLocaleString('es-AR')}`,
-      `Score: ${data.instance.score} | Tiempo: ${Math.round(data.instance.time_spent_seconds / 60)} min`,
+      `Tiempo: ${Math.round(data.instance.time_spent_seconds / 60)} min`,
       '',
-      `--- DIÁLOGO (${data.summary.total_turns} turnos) ---`,
+      `--- DIÁLOGO (${summary.total_turns} turnos) ---`,
       ...data.logs.map(l =>
         `[${l.ref_number}] T${l.turn_number} ${l.speaker.toUpperCase()}: ${l.message_text}` +
-        (l.is_correct === 0 ? `\n  ❌ INCORRECTO | IA: ${l.ai_solution || '—'}` : '')
+        (l.ai_solution ? `\n  IA: ${l.ai_solution}` : '')
       ),
-      '',
-      `--- EVALUACIÓN ---`,
-      `Score final: ${data.evaluation?.overall_score ?? 'N/A'}`,
-      `Feedback: ${data.evaluation?.overall_feedback ?? 'N/A'}`,
     ];
     const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
     const a = Object.assign(document.createElement('a'), {
@@ -223,7 +209,12 @@ function SessionDetailDialog({
           <div className="py-12 text-center text-gray-500">Cargando sesión...</div>
         ) : !data ? (
           <div className="py-8 text-center text-red-500">No se pudo cargar la sesión.</div>
-        ) : (
+        ) : (() => {
+          const summary = data.summary ?? {
+            total_turns: 0, student_turns: 0, evaluated_turns: 0, correct_turns: 0, incorrect_turns: 0,
+          };
+          const aiTurns = summary.total_turns - summary.student_turns;
+          return (
           <>
             {/* Metadata header */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
@@ -237,23 +228,22 @@ function SessionDetailDialog({
                 <p className="font-semibold text-sm">{data.instance.scenario_title}</p>
                 <Badge variant="outline" className="text-xs mt-1">{data.instance.difficulty}</Badge>
               </Card>
-              <Card className="p-3 bg-green-50">
-                <p className="text-xs text-green-600">Score Final</p>
-                <p className="text-2xl font-bold text-green-700">{data.instance.score ?? '—'}</p>
-                <p className="text-xs text-gray-500">{data.summary.correct_turns}✅ {data.summary.incorrect_turns}❌</p>
+              <Card className="p-3 bg-indigo-50">
+                <p className="text-xs text-indigo-600">Turnos</p>
+                <p className="text-2xl font-bold text-indigo-700">{summary.total_turns}</p>
+                <p className="text-xs text-gray-500">{summary.student_turns} del alumno</p>
               </Card>
               <Card className="p-3 bg-orange-50">
                 <p className="text-xs text-orange-600">Duración</p>
                 <p className="text-2xl font-bold text-orange-700">{Math.round(data.instance.time_spent_seconds / 60)} min</p>
-                <p className="text-xs text-gray-500">{data.summary.total_turns} turnos</p>
+                <p className="text-xs text-gray-500">{data.instance.status}</p>
               </Card>
             </div>
 
             <Tabs defaultValue="dialogue" className="mt-4">
-              <TabsList className="grid grid-cols-3 w-full">
+              <TabsList className="grid grid-cols-2 w-full">
                 <TabsTrigger value="dialogue">💬 Diálogo Completo</TabsTrigger>
-                <TabsTrigger value="analysis">📊 Análisis</TabsTrigger>
-                <TabsTrigger value="evaluation">🎓 Evaluación</TabsTrigger>
+                <TabsTrigger value="analysis">📊 Resumen</TabsTrigger>
               </TabsList>
 
               {/* ─── DIÁLOGO ─────────────────── */}
@@ -278,7 +268,7 @@ function SessionDetailDialog({
                       onChange={e => setShowSolutions(e.target.checked)}
                       className="rounded"
                     />
-                    Mostrar solución IA en errores
+                    Mostrar solución IA
                   </label>
                   <Button size="sm" variant="outline" onClick={handleExport}>
                     <Download className="w-4 h-4 mr-1" /> Exportar
@@ -294,160 +284,27 @@ function SessionDetailDialog({
                 </div>
               </TabsContent>
 
-              {/* ─── ANÁLISIS ─────────────────── */}
+              {/* ─── RESUMEN ─────────────────── */}
               <TabsContent value="analysis" className="mt-4 space-y-4">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   <Card className="p-4 text-center">
-                    <p className="text-3xl font-bold text-blue-700">{data.summary.student_turns}</p>
-                    <p className="text-sm text-gray-500">Respuestas del alumno</p>
+                    <p className="text-3xl font-bold text-blue-700">{summary.total_turns}</p>
+                    <p className="text-sm text-gray-500">Total de mensajes</p>
                   </Card>
                   <Card className="p-4 text-center">
-                    <p className="text-3xl font-bold text-green-700">{data.summary.correct_turns}</p>
-                    <p className="text-sm text-gray-500">Respuestas correctas</p>
+                    <p className="text-3xl font-bold text-indigo-700">{summary.student_turns}</p>
+                    <p className="text-sm text-gray-500">Mensajes del alumno</p>
                   </Card>
                   <Card className="p-4 text-center">
-                    <p className="text-3xl font-bold text-red-700">{data.summary.incorrect_turns}</p>
-                    <p className="text-sm text-gray-500">Respuestas incorrectas</p>
+                    <p className="text-3xl font-bold text-purple-700">{aiTurns}</p>
+                    <p className="text-sm text-gray-500">Mensajes de la IA</p>
                   </Card>
                 </div>
-
-                {/* Accuracy bar */}
-                {data.summary.evaluated_turns > 0 && (
-                  <Card className="p-4">
-                    <p className="text-sm font-semibold mb-2">Tasa de aciertos</p>
-                    <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-green-500 rounded-full"
-                        style={{ width: `${Math.round(data.summary.correct_turns / data.summary.evaluated_turns * 100)}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {Math.round(data.summary.correct_turns / data.summary.evaluated_turns * 100)}%
-                      ({data.summary.correct_turns} de {data.summary.evaluated_turns} evaluados)
-                    </p>
-                  </Card>
-                )}
-
-                {/* Incorrect turns with AI solution */}
-                {data.logs.filter(l => l.is_correct === 0).length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-sm mb-3 text-red-700">
-                      ❌ Respuestas incorrectas del alumno y solución IA:
-                    </h4>
-                    <div className="space-y-3">
-                      {data.logs.filter(l => l.is_correct === 0).map(log => (
-                        <Card key={log.id} className="p-4 border-l-4 border-l-red-400 bg-red-50">
-                          <div className="flex items-start justify-between mb-2">
-                            <span className="font-mono text-xs text-gray-500 bg-white px-2 py-0.5 rounded border">
-                              <Hash className="w-3 h-3 inline mr-1" />{log.ref_number}
-                            </span>
-                            <span className="text-xs text-red-600">Turno #{log.turn_number}</span>
-                          </div>
-                          {log.challenge_description && (
-                            <p className="text-xs text-gray-600 italic mb-2">
-                              📋 {log.challenge_description}
-                            </p>
-                          )}
-                          <div className="bg-white rounded p-2 text-sm text-red-800 border border-red-200 mb-2">
-                            <span className="text-xs font-semibold text-red-500">Respuesta del alumno:</span>
-                            <p className="mt-1">{log.message_text}</p>
-                          </div>
-                          {log.correct_answer && (
-                            <div className="bg-amber-50 rounded p-2 text-sm text-amber-800 border border-amber-200 mb-2">
-                              <span className="text-xs font-semibold text-amber-600">✏️ Respuesta correcta:</span>
-                              <p className="mt-1">{log.correct_answer}</p>
-                            </div>
-                          )}
-                          {log.ai_solution && (
-                            <div className="bg-green-50 rounded p-2 text-sm text-green-800 border border-green-200">
-                              <span className="text-xs font-semibold text-green-600">💡 Solución propuesta por IA:</span>
-                              <p className="mt-1">{log.ai_solution}</p>
-                            </div>
-                          )}
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </TabsContent>
-
-              {/* ─── EVALUACIÓN ─────────────────── */}
-              <TabsContent value="evaluation" className="mt-4">
-                {!data.evaluation ? (
-                  <div className="py-8 text-center text-gray-400">
-                    <GraduationCap className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                    <p>Esta sesión no tiene evaluación registrada.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      {(() => {
-                        const evalScore = Number(data.evaluation.overall_score);
-                        return (
-                          <>
-                            <div className={`text-4xl font-bold px-5 py-3 rounded-xl
-                              ${evalScore >= 85 ? 'bg-green-100 text-green-700' :
-                                evalScore >= 70 ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-red-100 text-red-700'}`}>
-                              {isNaN(evalScore) ? '—' : evalScore.toFixed(1)}
-                            </div>
-                            <div>
-                              <p className="font-semibold">
-                                {isNaN(evalScore) ? '—' : evalScore >= 85 ? '✅ Aprobado con distinción' :
-                                 evalScore >= 70 ? '⚠️ Aprobado (regular)' :
-                                 '❌ No aprobado'}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                Completitud: {data.evaluation.completion_percentage}%
-                                · {Math.round(data.evaluation.time_spent_seconds / 60)} min
-                                · {new Date(data.evaluation.evaluated_at).toLocaleString('es-AR')}
-                              </p>
-                            </div>
-                          </>
-                        );
-                      })()}
-                    </div>
-
-                    {/* KPIs */}
-                    {data.evaluation.kpi_results && (() => {
-                      const kpis = typeof data.evaluation!.kpi_results === 'string'
-                        ? JSON.parse(data.evaluation!.kpi_results || '{}')
-                        : (data.evaluation!.kpi_results || {});
-                      return Object.keys(kpis).length > 0 ? (
-                        <Card className="p-4">
-                          <h4 className="font-semibold text-sm mb-3">KPIs evaluados:</h4>
-                          {Object.entries(kpis).map(([k, v]) => {
-                            const pct = Math.min(100, Number(v));
-                            const color = pct >= 85 ? 'bg-green-500' : pct >= 70 ? 'bg-yellow-500' : 'bg-red-500';
-                            return (
-                              <div key={k} className="mb-2">
-                                <div className="flex justify-between text-xs mb-1">
-                                  <span className="font-medium">{k}</span>
-                                  <span className={pct >= 85 ? 'text-green-700' : pct >= 70 ? 'text-yellow-700' : 'text-red-700'}>{pct}%</span>
-                                </div>
-                                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                                  <div className={`h-full ${color} rounded-full`} style={{ width: `${pct}%` }} />
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </Card>
-                      ) : null;
-                    })()}
-
-                    {/* Feedback */}
-                    {data.evaluation.overall_feedback && (
-                      <Card className="p-4 bg-blue-50 border-blue-200">
-                        <h4 className="font-semibold text-sm text-blue-800 mb-2">💬 Feedback del evaluador IA:</h4>
-                        <p className="text-sm text-blue-900">{data.evaluation.overall_feedback}</p>
-                      </Card>
-                    )}
-                  </div>
-                )}
               </TabsContent>
             </Tabs>
           </>
-        )}
+          );
+        })()}
       </DialogContent>
     </Dialog>
   );

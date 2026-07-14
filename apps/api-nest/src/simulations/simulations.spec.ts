@@ -43,6 +43,11 @@ describe('Simulations (e2e)', () => {
       scenario: {
         findUnique: jest.fn(),
         findMany: jest.fn(),
+        findFirst: jest.fn(),
+      },
+      simulationChatLog: {
+        findMany: jest.fn().mockResolvedValue([]),
+        create: jest.fn(),
       },
       telemetryLog: {
         create: jest.fn(),
@@ -107,6 +112,28 @@ describe('Simulations (e2e)', () => {
       prismaMock.course.findUnique.mockResolvedValue({
         id: courseId, title: 'Admin Course', category: 'administracion', is_active: true,
       });
+      prismaMock.scenario.findMany.mockResolvedValue([
+        {
+          id: 'sc-1',
+          course_id: courseId,
+          title: 'Práctica 1',
+          sequence_index: 1,
+          agent_key: 'practica-1',
+          scenario_type: 'practice',
+          is_active: true,
+          prior_context: null,
+          difficulty: 'medium',
+        },
+      ]);
+      prismaMock.simulationInstance.findMany.mockResolvedValue([]);
+      prismaMock.simulationInstance.findFirst.mockResolvedValue(null);
+      prismaMock.simulationInstance.create.mockResolvedValue({
+        id: 'inst-1',
+        student_id: 'student-id',
+        course_id: courseId,
+        scenario_id: 'sc-1',
+        status: 'in_progress',
+      });
       prismaMock.simulation.findFirst.mockResolvedValue(null);
       prismaMock.simulation.create.mockResolvedValue({
         id: 'sim-uuid', student_id: 'student-id', course_id: courseId,
@@ -121,8 +148,9 @@ describe('Simulations (e2e)', () => {
         .send({ course_id: courseId })
         .expect(201);
 
-      expect(response.body).toHaveProperty('id', 'sim-uuid');
-      expect(response.body).toHaveProperty('status', 'active');
+      expect(response.body).toHaveProperty('id', 'inst-1');
+      expect(response.body).toHaveProperty('session_id', 'inst-1');
+      expect(response.body).toHaveProperty('agent_key', 'practica-1');
     });
 
     it('should return 404 if course not found', async () => {
@@ -204,6 +232,7 @@ describe('Simulations (e2e)', () => {
 
   describe('PUT /api/simulations/:id/pause', () => {
     it('should pause an active simulation', async () => {
+      prismaMock.simulationInstance.findUnique.mockResolvedValue(null);
       prismaMock.simulation.findUnique.mockResolvedValue({
         id: 'sim-uuid', student_id: 'student-id', course_id: 'course-uuid',
         status: 'active', started_at: new Date(),
@@ -223,6 +252,7 @@ describe('Simulations (e2e)', () => {
 
   describe('PUT /api/simulations/:id/resume', () => {
     it('should resume a paused simulation', async () => {
+      prismaMock.simulationInstance.findUnique.mockResolvedValue(null);
       prismaMock.simulation.findUnique.mockResolvedValue({
         id: 'sim-uuid', student_id: 'student-id', course_id: 'course-uuid',
         status: 'paused', started_at: new Date(),
@@ -242,6 +272,7 @@ describe('Simulations (e2e)', () => {
 
   describe('PUT /api/simulations/:id/complete', () => {
     it('should complete a simulation', async () => {
+      prismaMock.simulationInstance.findUnique.mockResolvedValue(null);
       prismaMock.simulation.findUnique.mockResolvedValue({
         id: 'sim-uuid', student_id: 'student-id', course_id: 'course-uuid',
         status: 'active', started_at: new Date(),
@@ -262,6 +293,7 @@ describe('Simulations (e2e)', () => {
 
   describe('PUT /api/simulations/:id/abandon', () => {
     it('should abandon a simulation', async () => {
+      prismaMock.simulationInstance.findUnique.mockResolvedValue(null);
       prismaMock.simulation.findUnique.mockResolvedValue({
         id: 'sim-uuid', student_id: 'student-id', course_id: 'course-uuid',
         status: 'active', started_at: new Date(),
@@ -312,9 +344,30 @@ describe('Simulations (e2e)', () => {
   // ─── T020: SimulationInstance service ──────────────────────────────────
 
   describe('Simulation Instance Lifecycle', () => {
+    const practiceScenario = {
+      id: 'scenario-uuid',
+      course_id: 'course-uuid',
+      title: 'Práctica 1',
+      sequence_index: 1,
+      agent_key: 'practica-1',
+      scenario_type: 'practice',
+      is_active: true,
+      prior_context: null,
+      difficulty: 'medium',
+    };
+
+    beforeEach(() => {
+      prismaMock.scenario.findMany.mockResolvedValue([practiceScenario]);
+      prismaMock.simulationInstance.findMany.mockResolvedValue([]);
+    });
+
     it('should not create duplicate active instance for same scenario', async () => {
       prismaMock.simulationInstance.findFirst.mockResolvedValue({
-        id: 'existing-instance', status: 'in_progress',
+        id: 'existing-instance',
+        status: 'in_progress',
+        scenario_id: 'scenario-uuid',
+        student_id: 'student-id',
+        course_id: 'course-uuid',
       });
 
       const response = await request(app.getHttpServer())

@@ -142,15 +142,19 @@ describe('Route page files', () => {
       expect(content.startsWith("'use client'")).toBe(true)
     })
 
-    it('should import EvaluationsPage from @/views/EvaluationsPage', () => {
+    it('should import useRouter from next/navigation', () => {
       const content = readRouteFile(path)!
-      expect(content).toContain("import EvaluationsPage from '@/views/EvaluationsPage'")
+      expect(content).toContain("import { useRouter } from 'next/navigation'")
     })
 
-    it('should export default function EvaluationsRoute rendering <EvaluationsPage />', () => {
+    it('should redirect away from evaluaciones', () => {
+      const content = readRouteFile(path)!
+      expect(content).toContain("router.replace('/dashboard')")
+    })
+
+    it('should export default function EvaluationsRoute', () => {
       const content = readRouteFile(path)!
       expect(content).toContain('export default function EvaluationsRoute')
-      expect(content).toContain('<EvaluationsPage />')
     })
   })
 
@@ -177,6 +181,58 @@ describe('Route page files', () => {
       const content = readRouteFile(path)!
       expect(content).toContain('export default function StudentLedgerRoute')
       expect(content).toContain('<StudentLedger />')
+    })
+  })
+
+  // 2.7a — /profesor/sesiones
+  describe('app/(authenticated)/profesor/sesiones/page.tsx', () => {
+    const path = '(authenticated)/profesor/sesiones/page.tsx'
+
+    it('should exist', () => {
+      const content = readRouteFile(path)
+      expect(content).not.toBeNull()
+    })
+
+    it('should have use client directive', () => {
+      const content = readRouteFile(path)!
+      expect(content.startsWith("'use client'")).toBe(true)
+    })
+
+    it('should import TeacherSessionsPage from @/views/TeacherSessionsPage', () => {
+      const content = readRouteFile(path)!
+      expect(content).toContain("import TeacherSessionsPage from '@/views/TeacherSessionsPage'")
+    })
+
+    it('should export default function ProfesorSesionesPage rendering <TeacherSessionsPage />', () => {
+      const content = readRouteFile(path)!
+      expect(content).toContain('export default function ProfesorSesionesPage')
+      expect(content).toContain('<TeacherSessionsPage />')
+    })
+  })
+
+  // 2.7b — /admin/sesiones
+  describe('app/(authenticated)/admin/sesiones/page.tsx', () => {
+    const path = '(authenticated)/admin/sesiones/page.tsx'
+
+    it('should exist', () => {
+      const content = readRouteFile(path)
+      expect(content).not.toBeNull()
+    })
+
+    it('should have use client directive', () => {
+      const content = readRouteFile(path)!
+      expect(content.startsWith("'use client'")).toBe(true)
+    })
+
+    it('should import TeacherSessionsPage from @/views/TeacherSessionsPage', () => {
+      const content = readRouteFile(path)!
+      expect(content).toContain("import TeacherSessionsPage from '@/views/TeacherSessionsPage'")
+    })
+
+    it('should export default function AdminSesionesPage rendering <TeacherSessionsPage />', () => {
+      const content = readRouteFile(path)!
+      expect(content).toContain('export default function AdminSesionesPage')
+      expect(content).toContain('<TeacherSessionsPage />')
     })
   })
 

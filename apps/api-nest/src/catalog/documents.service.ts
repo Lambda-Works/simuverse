@@ -7,6 +7,18 @@ import { UpdateDocumentDto } from './dto/update-document.dto';
 export class DocumentsService {
   constructor(private prisma: PrismaService) {}
 
+  private assertValidUrl(url: string): void {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        throw new BadRequestException('file_url must use http or https');
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      throw new BadRequestException('file_url must be a valid URL');
+    }
+  }
+
   async findAll(courseId?: string) {
     const where = courseId ? { course_id: courseId } : {};
     return this.prisma.courseDocument.findMany({
@@ -24,13 +36,14 @@ export class DocumentsService {
   }
 
   async create(dto: CreateDocumentDto) {
+    const fileUrl = dto.file_url.trim();
+    this.assertValidUrl(fileUrl);
     return this.prisma.courseDocument.create({
       data: {
         course_id: dto.course_id,
         document_name: dto.document_name,
         document_type: dto.document_type || 'other',
-        document_content: dto.document_content,
-        file_url: dto.file_url,
+        file_url: fileUrl,
         uploaded_by: dto.uploaded_by,
       },
     });
@@ -38,7 +51,12 @@ export class DocumentsService {
 
   async update(id: number, dto: UpdateDocumentDto) {
     await this.findOne(id);
-    return this.prisma.courseDocument.update({ where: { id }, data: dto });
+    const data = { ...dto };
+    if (data.file_url) {
+      data.file_url = data.file_url.trim();
+      this.assertValidUrl(data.file_url);
+    }
+    return this.prisma.courseDocument.update({ where: { id }, data });
   }
 
   async remove(id: number) {

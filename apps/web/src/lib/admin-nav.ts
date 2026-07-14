@@ -27,6 +27,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { id: 'courses', label: 'Cursos', icon: GraduationCap },
       { id: 'categories', label: 'Categorías', icon: Tags },
       { id: 'scenarios', label: 'Escenarios', icon: Clapperboard },
+      { id: 'practices', label: 'Prácticas', icon: Play },
       { id: 'templates', label: 'Plantillas', icon: LayoutTemplate },
       { id: 'documents', label: 'Documentos', icon: FilePlus },
       { id: 'techsheets', label: 'Fichas Técnicas', icon: ClipboardList },

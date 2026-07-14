@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import axios from 'axios';
 import { DeepSeekService } from '../../catalog/deepseek.service';
+import { OpenAiService } from './openai.service';
 
 export interface PromptData {
   base_role: string;
@@ -14,6 +15,12 @@ export interface PromptData {
   role_behavior?: string;
   chatbot_humano_enabled?: boolean;
   current_state?: string;
+  /** Practice agent identity e.g. practica-1 */
+  agent_key?: string;
+  /** Practice difficulty label */
+  difficulty?: string;
+  /** Summary of previous practice for continuity */
+  prior_context?: string;
 }
 
 /** Section identifiers for priority-based trimming (higher index = trimmed first). */
@@ -45,7 +52,10 @@ export class AIService {
   private geminiApiKey: string;
   private geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
-  constructor(private readonly deepseek: DeepSeekService) {
+  constructor(
+    private readonly deepseek: DeepSeekService,
+    @Optional() private readonly openai?: OpenAiService,
+  ) {
     this.geminiApiKey = process.env.GEMINI_API_KEY || '';
   }
 
@@ -159,9 +169,40 @@ export class AIService {
       role_behavior,
       chatbot_humano_enabled,
       current_state,
+      agent_key,
+      difficulty,
+      prior_context,
     } = promptData;
 
     const sections: PromptSection[] = [];
+
+    const employmentAxis = this.deepseek?.getEmploymentAxis?.() ?? '';
+    if (employmentAxis) {
+      sections.push({
+        id: 'employment_axis',
+        header: 'EJE EMPLEABILIDAD',
+        body: employmentAxis.trim(),
+        priority: 0,
+      });
+    }
+
+    // Practice identity / difficulty / prior context
+    if (agent_key || difficulty || prior_context) {
+      const parts: string[] = [
+        'MODO: solo prácticas y tareas. NO evalúes, califiques ni asignes notas.',
+      ];
+      if (agent_key) parts.push(`Identidad del agente: ${agent_key}`);
+      if (difficulty) parts.push(`Dificultad de la práctica: ${difficulty}`);
+      if (prior_context) {
+        parts.push(`Contexto resumido de prácticas anteriores:\n${prior_context}`);
+      }
+      sections.push({
+        id: 'practice_context',
+        header: 'CONTEXTO DE PRÁCTICA',
+        body: parts.join('\n'),
+        priority: 0,
+      });
+    }
 
     // 1. Base role (highest priority — never trimmed)
     sections.push({
@@ -261,11 +302,11 @@ export class AIService {
       greeting:
         'Estás dando la bienvenida al estudiante. Sé cálido, presentate brevemente y explicá de qué trata la simulación. No des tareas todavía.',
       development:
-        'El estudiante está trabajando en las tareas del escenario. Sé profesional, guiá sin dar respuestas directas, y evaluá sus decisiones.',
+        'El estudiante está trabajando en las tareas del escenario. Sé profesional, guiá sin dar respuestas directas. NO evalúes ni califiques.',
       milestone:
         'Se alcanzó un hito importante (evento, crisis o logro). Reconocé el progreso del estudiante, hacé un breve resumen y motivá a continuar.',
       closing:
-        'La simulación está por finalizar. Hacé un cierre amable, resumí los puntos clave y agradecé la participación.',
+        'La simulación está por finalizar. Hacé un cierre amable, resumí los puntos clave de la práctica y agradecé la participación.',
     };
     return instructions[state] ?? 'Responde de forma profesional y contextual.';
   }
@@ -327,13 +368,22 @@ export class AIService {
     conversationHistory: Array<{ role: string; content: string }> = [],
     fallbackCtx?: FallbackContext,
   ): Promise<AIResponse> {
-    // Check if DeepSeek is available first
+    // Primary: OpenAI gpt-5.4-nano (chat only)
+    if (this.openai?.isConfigured()) {
+      try {
+        const response = await this.openai.chat(userMessage, systemPrompt, conversationHistory);
+        return { response, mode: 'live' };
+      } catch (error) {
+        this.logger.warn(`OpenAI failed, falling back to DeepSeek: ${(error as Error).message}`);
+      }
+    }
+
+    // Fallback: DeepSeek
     if (process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_API_KEY.trim() !== '') {
       try {
         return await this.sendMessageToDeepSeek(userMessage, systemPrompt, conversationHistory);
       } catch (error) {
         this.logger.warn(`DeepSeek failed, falling back: ${(error as Error).message}`);
-        // Fall through to Gemini or fallback
       }
     }
 

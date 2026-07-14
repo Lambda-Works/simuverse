@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, MinLength } from 'class-validator';
+import { IsString, IsOptional, IsEnum, MinLength, IsUrl } from 'class-validator';
 
 export enum DocumentTypeEnum {
   case = 'case',
@@ -22,13 +22,8 @@ export class CreateDocumentDto {
   @IsEnum(DocumentTypeEnum)
   document_type?: DocumentTypeEnum;
 
-  @IsOptional()
-  @IsString()
-  document_content?: string;
-
-  @IsOptional()
-  @IsString()
-  file_url?: string;
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  file_url: string;
 
   @IsOptional()
   @IsString()

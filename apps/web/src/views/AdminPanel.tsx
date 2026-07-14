@@ -4,6 +4,7 @@ import { AssignmentsABM } from '@/components/AssignmentsABM';
 import { CategoriesABM } from '@/components/CategoriesABM';
 import { CompaniesABM } from '@/components/CompaniesABM';
 import { DocumentsABM } from '@/components/DocumentsABM';
+import { PracticesABM } from '@/components/PracticesABM';
 import { EndorsersABM } from '@/components/EndorsersABM';
 import { FoundationABM } from '@/components/FoundationABM';
 import { GlobalStatsDashboard } from '@/components/GlobalStatsDashboard';
@@ -12,7 +13,7 @@ import { ReportsABM } from '@/components/ReportsABM';
 import { RolesABM } from '@/components/RolesABM';
 import { ScenariosABM } from '@/components/ScenariosABM';
 import { SimulationCalendar } from '@/components/SimulationCalendar';
-import { SimulationSessionViewer } from '@/components/SimulationSessionViewer';
+import TeacherSessionsPage from '@/views/TeacherSessionsPage';
 import { TeacherGroupsABM } from '@/components/TeacherGroupsABM';
 import { TechSheetsABM } from '@/components/TechSheetsABM';
 import { TemplatesABM } from '@/components/TemplatesABM';
@@ -971,6 +972,7 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
 
         {/* Documents Tab */}
         {currentTab === 'documents' && <DocumentsABM />}
+        {currentTab === 'practices' && <PracticesABM />}
 
         {/* Tech Sheets Tab */}
         {currentTab === 'techsheets' && <TechSheetsABM />}
@@ -991,7 +993,7 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
         {currentTab === 'prompt-templates' && <PromptTemplatesABM />}
 
         {/* Sessions Tab - Solo admin/teacher */}
-        {currentTab === 'sessions' && <SimulationSessionViewer />}
+        {currentTab === 'sessions' && <TeacherSessionsPage />}
 
         {/* Users Tab */}
         {currentTab === 'users' && <UsersABM />}

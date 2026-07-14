@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsUrl } from 'class-validator';
 import { DocumentTypeEnum } from './create-document.dto';
 
 export class UpdateDocumentDto {
@@ -11,10 +11,6 @@ export class UpdateDocumentDto {
   document_type?: DocumentTypeEnum;
 
   @IsOptional()
-  @IsString()
-  document_content?: string;
-
-  @IsOptional()
-  @IsString()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
   file_url?: string;
 }

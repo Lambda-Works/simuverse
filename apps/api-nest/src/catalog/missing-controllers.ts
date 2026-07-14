@@ -388,6 +388,13 @@ export class SimulationSessionsController {
         difficulty: inst.scenario ? inst.scenario.difficulty : '',
         course_title: inst.course ? inst.course.title : 'Unknown',
       },
+      summary: {
+        total_turns: chatLogs.length,
+        student_turns: chatLogs.filter((l: any) => l.speaker === 'student').length,
+        evaluated_turns: chatLogs.filter((l: any) => l.is_correct !== null && l.is_correct !== undefined).length,
+        correct_turns: chatLogs.filter((l: any) => l.is_correct === true).length,
+        incorrect_turns: chatLogs.filter((l: any) => l.is_correct === false).length,
+      },
       logs: chatLogs.map((l: any) => ({
         id: l.id,
         turn_number: l.turn_number,

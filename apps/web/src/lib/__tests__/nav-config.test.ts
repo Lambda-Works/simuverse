@@ -28,40 +28,41 @@ describe('nav-config', () => {
   });
 
   describe('student sees exactly 1 item', () => {
-    it('has 1 item: Dashboard', () => {
+    it('has 1 item: Mis Cursos', () => {
       expect(ROLE_NAV.student).toHaveLength(1);
-      expect(ROLE_NAV.student[0].href).toBe('/dashboard');
+      expect(ROLE_NAV.student[0].href).toBe('/estudiante/cursos');
     });
   });
 
-  describe('teacher sees 3 items', () => {
-    it('has 3 items with correct hrefs', () => {
+  describe('teacher sees cursos, sesiones, legajos', () => {
+    it('has 3 items without evaluaciones', () => {
       expect(ROLE_NAV.teacher).toHaveLength(3);
       const hrefs = ROLE_NAV.teacher.map((i) => i.href);
-      expect(hrefs).toContain('/dashboard');
-      expect(hrefs).toContain('/evaluations');
-      expect(hrefs).toContain('/legajos');
+      expect(hrefs).toContain('/profesor/cursos');
+      expect(hrefs).toContain('/profesor/sesiones');
+      expect(hrefs).toContain('/profesor/legajos');
+      expect(hrefs).not.toContain('/profesor/evaluaciones');
     });
   });
 
-  describe('admin sees 4 items', () => {
-    it('has 4 items including admin', () => {
-      expect(ROLE_NAV.admin).toHaveLength(4);
+  describe('admin sees cursos, sesiones, legajos', () => {
+    it('has 3 items without evaluaciones', () => {
+      expect(ROLE_NAV.admin).toHaveLength(3);
       const hrefs = ROLE_NAV.admin.map((i) => i.href);
-      expect(hrefs).toContain('/dashboard');
-      expect(hrefs).toContain('/admin');
-      expect(hrefs).toContain('/evaluations');
-      expect(hrefs).toContain('/legajos');
+      expect(hrefs).toContain('/admin/mis-cursos');
+      expect(hrefs).toContain('/admin/sesiones');
+      expect(hrefs).toContain('/admin/legajos');
+      expect(hrefs).not.toContain('/admin/evaluaciones');
     });
   });
 
-  describe('ministerio sees 3 items', () => {
-    it('has 3 items matching teacher', () => {
-      expect(ROLE_NAV.ministerio).toHaveLength(3);
+  describe('ministerio sees 2 items', () => {
+    it('has 2 items without evaluaciones', () => {
+      expect(ROLE_NAV.ministerio).toHaveLength(2);
       const hrefs = ROLE_NAV.ministerio.map((i) => i.href);
-      expect(hrefs).toContain('/dashboard');
-      expect(hrefs).toContain('/evaluations');
-      expect(hrefs).toContain('/legajos');
+      expect(hrefs).toContain('/ministerio');
+      expect(hrefs).toContain('/ministerio/legajos');
+      expect(hrefs).not.toContain('/ministerio/evaluaciones');
     });
   });
 });

@@ -149,9 +149,11 @@ describe('Simulations Controller PR4 (e2e)', () => {
       chatbot_humano_enabled: false,
     });
 
-    // Default chat log mocks (needed for async persistence)
+    // Default chat log mocks (needed for checkpoint hydration)
     prismaMock.simulationChatLog.findMany.mockResolvedValue([]);
     prismaMock.simulationChatLog.create.mockResolvedValue({});
+    prismaMock.simulationInstance.findUnique.mockResolvedValue(null);
+    prismaMock.simulationInstance.update.mockResolvedValue({});
   });
 
   // ─── Task 4.1: Feature flag gate tests ────────────────────────────────
@@ -205,7 +207,27 @@ describe('Simulations Controller PR4 (e2e)', () => {
       expect(Array.isArray(response.body.triggers)).toBe(true);
     });
 
-    it('should persist both user and AI turns when chatbot_humano enabled', async () => {
+    it('should buffer user and AI turns in memory (not DB) when chatbot_humano enabled', async () => {
+      const simId = 'sim-buffer-test';
+      prismaMock.simulation.findUnique.mockImplementation(({ where, include }) => {
+        if (where.id === simId) {
+          if (include?.course) {
+            return Promise.resolve({
+              id: simId, student_id: 'student-id', course_id: 'course-uuid',
+              status: 'active', started_at: new Date(),
+              course: {
+                title: 'Course A', category: 'administracion',
+                scenarios: [{ id: 'sc-1', description: 'Test', content: {} }],
+              },
+            });
+          }
+          return Promise.resolve({
+            id: simId, student_id: 'student-id', course_id: 'course-uuid',
+            status: 'active', started_at: new Date(),
+          });
+        }
+        return Promise.resolve(null);
+      });
       prismaMock.courseConfig.findUnique.mockResolvedValue({
         id: 'cfg-1', course_id: 'course-uuid',
         base_role: 'Tutor', course_context: 'C',
@@ -213,15 +235,78 @@ describe('Simulations Controller PR4 (e2e)', () => {
         chatbot_humano_enabled: true,
       });
       prismaMock.simulationChatLog.findMany.mockResolvedValue([]);
-      prismaMock.simulationChatLog.create.mockResolvedValue({});
 
       await request(app.getHttpServer())
-        .post('/api/simulations/sim-uuid/message')
+        .post(`/api/simulations/${simId}/message`)
         .set('Authorization', `Bearer ${studentToken}`)
         .send({ message: 'Test message' })
         .expect(201);
 
-      // Should have called create twice (user turn + AI turn)
+      // B1: turns stay in memory until checkpoint — no immediate DB writes
+      expect(prismaMock.simulationChatLog.create).not.toHaveBeenCalled();
+
+      const messagesRes = await request(app.getHttpServer())
+        .get(`/api/simulations/${simId}/messages`)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .expect(200);
+
+      expect(messagesRes.body.messages).toHaveLength(2);
+      expect(messagesRes.body.messages[0].speaker).toBe('student');
+      expect(messagesRes.body.messages[1].speaker).toBe('ai');
+    });
+  });
+
+  describe('POST /api/simulations/:id/checkpoint', () => {
+    it('should flush buffered turns to DB', async () => {
+      const simId = 'sim-checkpoint-test';
+      prismaMock.simulation.findUnique.mockImplementation(({ where, include }) => {
+        if (where.id === simId) {
+          if (include?.course) {
+            return Promise.resolve({
+              id: simId, student_id: 'student-id', course_id: 'course-uuid',
+              status: 'active', started_at: new Date(),
+              course: {
+                title: 'Course A', category: 'administracion',
+                scenarios: [{ id: 'sc-1', description: 'Test', content: {} }],
+              },
+            });
+          }
+          return Promise.resolve({
+            id: simId, student_id: 'student-id', course_id: 'course-uuid',
+            status: 'active', started_at: new Date(),
+          });
+        }
+        return Promise.resolve(null);
+      });
+      prismaMock.simulationInstance.findUnique.mockResolvedValue({
+        id: simId,
+        student_id: 'student-id',
+        course_id: 'course-uuid',
+        scenario_id: 'sc-1',
+        session_state: null,
+        scenario: {
+          id: 'sc-1',
+          agent_key: 'practica-1',
+          sequence_index: 1,
+          prior_context: null,
+          difficulty: 'medium',
+        },
+      });
+      prismaMock.simulationChatLog.findMany.mockResolvedValue([]);
+      prismaMock.simulationChatLog.create.mockResolvedValue({});
+
+      await request(app.getHttpServer())
+        .post(`/api/simulations/${simId}/message`)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({ message: 'Checkpoint me' })
+        .expect(201);
+
+      const res = await request(app.getHttpServer())
+        .post(`/api/simulations/${simId}/checkpoint`)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .expect(200);
+
+      expect(res.body.turns_saved).toBe(2);
       expect(prismaMock.simulationChatLog.create).toHaveBeenCalledTimes(2);
     });
   });

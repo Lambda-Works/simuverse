@@ -908,8 +908,7 @@ const PIPELINE_STEPS = [
   { key: 'step_4', label: 'KPIs', field: 'step_4_kpis' as const },
   { key: 'step_5', label: 'Preguntas', field: 'step_5_questions' as const },
   { key: 'step_6', label: 'Simulacion', field: 'step_6_simulation_prompt' as const },
-  { key: 'step_7', label: 'Prompt de Evaluación', field: 'step_7_evaluation_prompt' as const },
-  { key: 'step_8', label: 'Prompt de Coaching', field: 'step_8_coaching_prompt' as const },
+  { key: 'step_7', label: 'Coaching', field: 'step_7_coaching_prompt' as const },
 ];
 
 function getStepStatus(
@@ -935,7 +934,7 @@ function getStepStatus(
 
   if (pipelineStatus === 'completed') return 'completed';
 
-  // Running states: 'running', 'step_1' .. 'step_8'
+  // Running states: 'running', 'step_1' .. 'step_7'
   if (pipelineStatus === 'running') return stepIndex === 0 ? 'running' : 'pending';
 
   // Extract step number from 'step_N'

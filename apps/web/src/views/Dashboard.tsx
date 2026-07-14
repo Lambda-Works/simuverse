@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
-import { Award, BookOpen, CalendarDays, CheckCircle2, Clock, CreditCard, Eye, GraduationCap, HelpCircle, Mail, MessageSquare, Phone, Play, Settings, Shield, User } from 'lucide-react';
+import { Award, BookOpen, CalendarDays, CheckCircle2, Clock, CreditCard, Eye, GraduationCap, HelpCircle, Lock, Mail, MessageSquare, Phone, Play, Settings, Shield, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -28,6 +28,17 @@ interface Assignment {
   status: string;
 }
 
+interface CoursePracticeProgress {
+  total: number;
+  completed_count: number;
+  practices: Array<{
+    id: string;
+    agent_key: string;
+    title: string;
+    status: 'locked' | 'available' | 'in_progress' | 'completed';
+  }>;
+}
+
 const Dashboard = () => {
   const { user, signOut, loading, isAuthenticated, hasRole } = useAuth();
   const router = useRouter();
@@ -36,6 +47,7 @@ const Dashboard = () => {
   const [enrichedAssignments, setEnrichedAssignments] = useState<any[]>([]);
   const [assignmentsLoaded, setAssignmentsLoaded] = useState(false);
   const [reviewModal, setReviewModal] = useState<{ instanceId: string; courseTitle: string } | null>(null);
+  const [coursePractices, setCoursePractices] = useState<Record<string, CoursePracticeProgress>>({});
 
   // Estado del formulario de solicitud de acceso
   const [form, setForm] = useState({ nombre: '', apellido: '', dni: '', celular: '', email: '' });
@@ -89,6 +101,26 @@ const Dashboard = () => {
           const enriched = enrichedRes.data;
           if (Array.isArray(enriched)) setEnrichedAssignments(enriched);
         } catch { /* silent */ }
+
+        const visibleCourses =
+          assignList.length > 0
+            ? allCourses.filter((c) => assignList.some((a) => a.course_id === c.id))
+            : [];
+        if (visibleCourses.length > 0) {
+          const entries = await Promise.all(
+            visibleCourses.map(async (c) => {
+              try {
+                const res = await apiClient.get(`/practices/course/${c.id}/progress`);
+                return [c.id, res.data as CoursePracticeProgress] as const;
+              } catch {
+                return [c.id, null] as const;
+              }
+            }),
+          );
+          setCoursePractices(
+            Object.fromEntries(entries.filter(([, v]) => v != null) as [string, CoursePracticeProgress][]),
+          );
+        }
 
         setAssignmentsLoaded(true);
       } catch (error) {
@@ -401,6 +433,7 @@ const Dashboard = () => {
                   const hasScore = enriched && enriched.overall_score !== null && enriched.overall_score !== undefined;
                   const passed = hasScore && Number(enriched.overall_score) >= 70;
                   const calStatus = enriched?.calendar_status;
+                  const practiceSummary = coursePractices[course.id];
 
                   return (
                     <Card
@@ -427,6 +460,43 @@ const Dashboard = () => {
                             <Badge key={mod} variant="outline" className="text-xs">{mod}</Badge>
                           ))}
                         </div>
+                        {/* Prácticas del curso (progreso secuencial) */}
+                        {isStudentOnly && practiceSummary && (
+                          <div className="mb-3 space-y-1.5">
+                            {practiceSummary.total > 0 ? (
+                              <>
+                                <p className="text-xs font-medium text-muted-foreground">
+                                  Prácticas: {practiceSummary.completed_count}/{practiceSummary.total} completadas
+                                </p>
+                                <div className="flex flex-wrap gap-1">
+                                  {practiceSummary.practices.map((p) => (
+                                    <Badge
+                                      key={p.id}
+                                      variant="outline"
+                                      className={`text-xs gap-1 ${
+                                        p.status === 'completed'
+                                          ? 'border-green-300 bg-green-50/50 text-green-700'
+                                          : p.status === 'locked'
+                                            ? 'opacity-60'
+                                            : p.status === 'in_progress'
+                                              ? 'border-primary bg-primary/5'
+                                              : ''
+                                      }`}
+                                    >
+                                      {p.status === 'locked' && <Lock className="w-3 h-3" />}
+                                      {p.status === 'completed' && <CheckCircle2 className="w-3 h-3 text-green-600" />}
+                                      {p.agent_key}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">
+                                Este curso aún no tiene prácticas configuradas.
+                              </p>
+                            )}
+                          </div>
+                        )}
                         {/* Info de intentos / score */}
                         {enriched && (
                           <div className="flex items-center justify-between text-xs text-muted-foreground mb-3 bg-muted/40 rounded-md px-2 py-1.5">

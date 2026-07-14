@@ -19,11 +19,11 @@ const STATE_PROMPTS: Record<ConversationStateName, string> = {
   greeting:
     'Estás dando la bienvenida al estudiante. Sé cálido, presentate brevemente y explicá de qué trata la simulación. No des tareas todavía.',
   development:
-    'El estudiante está trabajando en las tareas del escenario. Sé profesional, guiá sin dar respuestas directas, y evaluá sus decisiones.',
+    'El estudiante está trabajando en las tareas del escenario. Sé profesional, guiá sin dar respuestas directas, y orientá con preguntas. No evalúes ni califiques.',
   milestone:
     'Se alcanzó un hito importante (evento, crisis o logro). Reconocé el progreso del estudiante, hacé un breve resumen y motivá a continuar.',
   closing:
-    'La simulación está por finalizar. Hacé un cierre amable, resumí los puntos clave y agradecé la participación.',
+    'La simulación está por finalizar. Hacé un cierre amable, resumí los puntos clave de la práctica y agradecé la participación.',
 };
 
 @Injectable()
@@ -114,5 +114,19 @@ export class ConversationStateService {
    */
   remove(simulationId: string): void {
     this.states.delete(simulationId);
+  }
+
+  /**
+   * Restore persisted conversation state after hydrate.
+   */
+  restore(
+    simulationId: string,
+    data: { state: ConversationStateName; messageCount: number },
+  ): void {
+    this.states.set(simulationId, {
+      simulationId,
+      state: data.state,
+      messageCount: data.messageCount,
+    });
   }
 }
