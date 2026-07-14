@@ -1,6 +1,6 @@
 import {
     ArrowRightLeft, BookOpen,
-    Bot, BotMessageSquare, Building, Building2, CalendarDays, ChartBar, ChartNoAxesCombined, Clapperboard, ClipboardList, FileChartColumnIncreasing, FilePlus, GraduationCap, HandHeart, LayoutTemplate, LucideIcon, Play, ShieldCheck, Tags, UserCheck, UserRound, UserRoundPlus, Users, Users2, Wrench
+    Bot, BotMessageSquare, Building, Building2, CalendarDays, ChartBar, ChartNoAxesCombined, Clapperboard, ClipboardList, FileChartColumnIncreasing, FilePlus, FileText, GraduationCap, HandHeart, LayoutTemplate, LucideIcon, Play, ShieldCheck, Tags, UserCheck, UserRound, Users, Users2, Wrench
 } from 'lucide-react';
 
 export interface AdminNavItem {
@@ -50,7 +50,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { id: 'users', label: 'Usuarios', icon: UserRound },
       { id: 'roles', label: 'Roles y Permisos', icon: ShieldCheck, excludeRoles: ['ministerio'] },
       { id: 'groups', label: 'Grupos', icon: Users2 },
-      { id: 'requests', label: 'Solicitudes', icon: UserRoundPlus, excludeRoles: ['ministerio'] },
+      { id: 'terms', label: 'Términos', icon: FileText, excludeRoles: ['ministerio'] },
     ],
   },
   {

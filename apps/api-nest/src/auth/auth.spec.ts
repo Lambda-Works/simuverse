@@ -14,6 +14,14 @@ describe('Auth (e2e)', () => {
         findUnique: jest.fn(),
         create: jest.fn(),
       },
+      termsVersion: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      userTermsAcceptance: {
+        create: jest.fn(),
+        findUnique: jest.fn(),
+        upsert: jest.fn(),
+      },
       $connect: jest.fn(),
       $disconnect: jest.fn(),
     };
@@ -57,8 +65,8 @@ describe('Auth (e2e)', () => {
         })
         .expect(201);
 
-      expect(response.body).toHaveProperty('access_token');
-      expect(response.body).toHaveProperty('refresh_token');
+      expect(response.body).toHaveProperty('token');
+      expect(response.body).toHaveProperty('refreshToken');
       expect(response.body.user).toEqual({
         id: 'uuid-123',
         email: 'test@example.com',

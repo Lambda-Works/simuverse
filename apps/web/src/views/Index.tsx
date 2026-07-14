@@ -17,11 +17,11 @@ const Index = () => {
             <Shield className="w-10 h-10 text-primary" />
           </div>
           <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-4">
-            Motor de Simulación<br />
-            <span className="text-primary">Modular</span>
+            SimuVerse
           </h1>
+          <p className="text-xl text-primary font-medium mb-3">Motor de Simulación Modular</p>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-8">
-            Plataforma educativa inmersiva con IA. Simulaciones adaptables tipo Lego para cualquier curso — de seguros a oratoria, de contabilidad a RRHH.
+            Plataforma educativa inmersiva con IA. Simulaciones adaptables para prácticas profesionalizantes.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button size="lg" onClick={() => router.push('/auth')} className="gap-2" disabled={loading}>
@@ -52,7 +52,10 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t py-4">
         <div className="container mx-auto px-4 text-center text-xs text-muted-foreground">
-          MSM — Motor de Simulación Modular © {new Date().getFullYear()}
+          MSM — Motor de Simulación Modular © {new Date().getFullYear()} ·{' '}
+          <a href="/terminos" className="underline hover:text-foreground">
+            Términos
+          </a>
         </div>
       </footer>
     </div>

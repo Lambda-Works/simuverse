@@ -58,7 +58,7 @@ describe('use client directive — components', () => {
     'SimulationSessionViewer.tsx',
     'SimulationCalendar.tsx',
     'GlobalStatsDashboard.tsx',
-    'AccessRequestsPanel.tsx',
+    'TermsABM.tsx',
     'StudentCertificate.tsx',
   ]
 

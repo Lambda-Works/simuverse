@@ -13,7 +13,6 @@ interface GlobalStats {
   approval_rate: number;
   completed_this_week: number;
   top_courses: Array<{ title: string; uses: number; avg_score: string }>;
-  pending_access_requests: number;
   top_students: Array<{ name: string; avg_score: string; sims: number }>;
 }
 
@@ -56,14 +55,6 @@ export function GlobalStatsDashboard() {
           </h2>
           <p className="text-muted-foreground mt-1">Resumen general del sistema — actualizado en tiempo real</p>
         </div>
-        {stats.pending_access_requests > 0 && (
-          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-4 py-2 rounded-lg">
-            <AlertCircle className="w-4 h-4 text-amber-600" />
-            <span className="text-sm font-medium text-amber-700">
-              {stats.pending_access_requests} solicitud{stats.pending_access_requests !== 1 ? 'es' : ''} pendiente{stats.pending_access_requests !== 1 ? 's' : ''}
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Métricas principales */}

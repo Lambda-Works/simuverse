@@ -6,11 +6,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { authChangeEvent } from '@/hooks/useAuth';
+import { useRecaptcha } from '@/hooks/useRecaptcha';
+import {
+  firebaseEmailLogin,
+  firebaseGoogleLogin,
+  getFirebaseIdToken,
+  isFirebaseConfigured,
+} from '@/lib/firebase';
 import { apiClient } from '@/services/ApiClient';
 import { Bot, Eye, EyeOff, GraduationCap, Shield, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+
+type TermsInfo = { id: number; version: string; title: string; content: string } | null;
 
 const Auth = () => {
   const router = useRouter();
@@ -18,58 +27,95 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-
-  // Visibilidad de contraseña (independiente para login y signup)
   const [showLoginPwd, setShowLoginPwd] = useState(false);
   const [showSignupPwd, setShowSignupPwd] = useState(false);
+  const [terms, setTerms] = useState<TermsInfo>(null);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
 
-  // Verificación anti-robot (solo para login)
-  const [robotChecked, setRobotChecked] = useState(false);
+  const loginCaptcha = useRecaptcha();
+  const signupCaptcha = useRecaptcha();
+
+  useEffect(() => {
+    apiClient
+      .get('/auth/terms/current')
+      .then((r) => setTerms(r.data || null))
+      .catch(() => setTerms(null));
+  }, []);
+
+  const persistSession = async (user: any, token: string) => {
+    sessionStorage.setItem('token', token);
+    sessionStorage.setItem('user', JSON.stringify(user));
+    sessionStorage.removeItem('refreshToken');
+    authChangeEvent.dispatchEvent(new Event('authChange'));
+    toast.success('Sesión iniciada exitosamente');
+    setTimeout(() => {
+      router.replace(
+        user.role === 'ministerio'
+          ? '/ministerio'
+          : user.role === 'admin'
+            ? '/admin/mis-cursos'
+            : user.role === 'teacher'
+              ? '/profesor/cursos'
+              : '/estudiante/cursos',
+      );
+    }, 150);
+  };
+
+  const loadProfileWithToken = async (token: string) => {
+    sessionStorage.setItem('token', token);
+    const profile = await apiClient.get('/auth/me');
+    const user = {
+      id: profile.data.id,
+      email: profile.data.email,
+      name: profile.data.name,
+      role: profile.data.role,
+      terms_accepted: profile.data.terms_accepted,
+    };
+    if (profile.data.terms_accepted === false && profile.data.current_terms) {
+      sessionStorage.setItem('user', JSON.stringify(user));
+      sessionStorage.setItem('pending_terms', JSON.stringify(profile.data.current_terms));
+      authChangeEvent.dispatchEvent(new Event('authChange'));
+      router.replace('/auth/terms');
+      return;
+    }
+    await persistSession(user, token);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!robotChecked) {
-      toast.error('Por favor confirmá que no sos un robot');
+    if (loginCaptcha.enabled && !loginCaptcha.token) {
+      toast.error('Completá el reCAPTCHA');
       return;
     }
     setLoading(true);
     try {
-      const response = await apiClient.post('/auth/login', { email, password });
-      const { token, user, refreshToken } = response.data;
-      
-      console.log('✅ Login Response:', { token, user });
-      
-      // Guardar token, refreshToken y usuario en localStorage
-      sessionStorage.setItem('token', token);
-      sessionStorage.setItem('user', JSON.stringify(user));
-      if (refreshToken) sessionStorage.setItem('refreshToken', refreshToken);
-      
-      console.log('✅ sessionStorage saved:', {
-        token: sessionStorage.getItem('token'),
-        user: sessionStorage.getItem('user')
-      });
-      
-      // Disparar evento custom para notificar al AuthProvider
-      authChangeEvent.dispatchEvent(new Event('authChange'));
-      
-      toast.success('Sesión iniciada exitosamente');
-      
-      // Forzar redirección después de un delay mínimo
-      setTimeout(() => {
-        router.replace(user.role === 'ministerio' ? '/ministerio' : user.role === 'admin' ? '/admin/mis-cursos' : user.role === 'teacher' ? '/profesor/cursos' : '/estudiante/cursos');
-      }, 150);
+      if (isFirebaseConfigured) {
+        await firebaseEmailLogin(email, password);
+        const token = await getFirebaseIdToken(true);
+        if (!token) throw new Error('No se pudo obtener el token de Firebase');
+        await loadProfileWithToken(token);
+      } else {
+        const response = await apiClient.post('/auth/login', {
+          email,
+          password,
+          recaptchaToken: loginCaptcha.token,
+        });
+        const { token, user, refreshToken } = response.data;
+        if (refreshToken) sessionStorage.setItem('refreshToken', refreshToken);
+        await persistSession(user, token);
+      }
     } catch (error: any) {
-      let errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || 'Error al iniciar sesión';
-      
+      let errorMsg =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        'Error al iniciar sesión';
       if (errorMsg === 'Unauthorized' || error.response?.status === 401) {
         errorMsg = 'Credenciales incorrectas';
-      } else if (errorMsg === 'Bad Request' || errorMsg.includes('code 400') || error.response?.status === 400) {
-        errorMsg = 'Formato inválido';
       }
-      
       toast.error(errorMsg);
-      // Resetear robot check tras un error para volver a confirmar
-      setRobotChecked(false);
+      loginCaptcha.reset();
     }
     setLoading(false);
   };
@@ -80,37 +126,76 @@ const Auth = () => {
       toast.error('Por favor ingrese su nombre completo');
       return;
     }
+    if (terms && !acceptTerms) {
+      toast.error('Debés aceptar los términos y condiciones');
+      return;
+    }
+    if (signupCaptcha.enabled && !signupCaptcha.token) {
+      toast.error('Completá el reCAPTCHA');
+      return;
+    }
     setLoading(true);
     try {
       const response = await apiClient.post('/auth/register', {
         email,
         password,
         name: fullName,
+        recaptchaToken: signupCaptcha.token,
+        acceptTerms: terms ? acceptTerms : true,
+        termsVersionId: terms?.id,
       });
-      const { token, user, refreshToken } = response.data;
-      
-      // Guardar token, refreshToken y usuario en localStorage
-      sessionStorage.setItem('token', token);
-      sessionStorage.setItem('user', JSON.stringify(user));
-      if (refreshToken) sessionStorage.setItem('refreshToken', refreshToken);
-      
-      // Disparar evento custom para notificar al AuthProvider
-      authChangeEvent.dispatchEvent(new Event('authChange'));
-      
-      toast.success('Cuenta creada exitosamente');
-      
-      // Forzar redirección después de un delay mínimo
-      setTimeout(() => {
-        router.replace(user.role === 'ministerio' ? '/ministerio' : user.role === 'admin' ? '/admin/mis-cursos' : user.role === 'teacher' ? '/profesor/cursos' : '/estudiante/cursos');
-      }, 150);
-    } catch (error: any) {
-      let errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || 'Error al crear cuenta';
-      
-      if (errorMsg === 'Bad Request' || errorMsg.includes('code 400') || error.response?.status === 400) {
-        errorMsg = 'Faltan datos o el formato es inválido';
+
+      if (isFirebaseConfigured && response.data.requiresFirebaseSignIn) {
+        await firebaseEmailLogin(email, password);
+        const token = await getFirebaseIdToken(true);
+        if (!token) throw new Error('No se pudo obtener el token de Firebase');
+        await loadProfileWithToken(token);
+      } else {
+        const { token, user, refreshToken } = response.data;
+        if (refreshToken) sessionStorage.setItem('refreshToken', refreshToken);
+        await persistSession(user, token);
       }
-      
+    } catch (error: any) {
+      let errorMsg =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        'Error al crear cuenta';
+      if (error.response?.status === 400) {
+        errorMsg = error.response?.data?.message || 'Faltan datos o el formato es inválido';
+      }
       toast.error(errorMsg);
+      signupCaptcha.reset();
+    }
+    setLoading(false);
+  };
+
+  const handleGoogle = async () => {
+    if (signupCaptcha.enabled && !signupCaptcha.token && !loginCaptcha.token) {
+      toast.error('Completá el reCAPTCHA antes de continuar con Google');
+      return;
+    }
+    setLoading(true);
+    try {
+      if (!isFirebaseConfigured) {
+        toast.error('Firebase no está configurado');
+        return;
+      }
+      await firebaseGoogleLogin();
+      const token = await getFirebaseIdToken(true);
+      if (!token) throw new Error('No se pudo obtener el token de Firebase');
+      // Ensure local user + optional terms acceptance for brand-new Google users
+      sessionStorage.setItem('token', token);
+      if (terms && acceptTerms) {
+        try {
+          await apiClient.post('/auth/accept-terms', { termsVersionId: terms.id });
+        } catch {
+          // profile gate will force acceptance if needed
+        }
+      }
+      await loadProfileWithToken(token);
+    } catch (error: any) {
+      toast.error(error.message || 'Error con Google Sign-In');
     }
     setLoading(false);
   };
@@ -127,13 +212,13 @@ const Auth = () => {
         <span className="sm:hidden">Volver</span>
       </Button>
       <div className="w-full max-w-md fade-in">
-        <div className="text-center mb-8">
+        <header className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
             <Shield className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold">MSM</h1>
+          <h1 className="text-3xl font-bold">SimuVerse</h1>
           <p className="text-muted-foreground mt-1">Motor de Simulación Modular</p>
-        </div>
+        </header>
 
         <Card className="glass-card">
           <CardHeader>
@@ -147,7 +232,6 @@ const Auth = () => {
                 <TabsTrigger value="signup">Registrarse</TabsTrigger>
               </TabsList>
 
-              {/* ── LOGIN ──────────────────────────────────────────────────── */}
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4 mt-4">
                   <div className="space-y-2">
@@ -156,13 +240,11 @@ const Auth = () => {
                       id="login-email"
                       type="email"
                       value={email}
-                      onChange={e => setEmail(e.target.value)}
+                      onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="alumno@ejemplo.com"
                     />
                   </div>
-
-                  {/* Campo contraseña con ojo */}
                   <div className="space-y-2">
                     <Label htmlFor="login-password">Contraseña</Label>
                     <div className="relative">
@@ -170,7 +252,7 @@ const Auth = () => {
                         id="login-password"
                         type={showLoginPwd ? 'text' : 'password'}
                         value={password}
-                        onChange={e => setPassword(e.target.value)}
+                        onChange={(e) => setPassword(e.target.value)}
                         required
                         placeholder="••••••••"
                         className="pr-10"
@@ -178,7 +260,7 @@ const Auth = () => {
                       <button
                         type="button"
                         tabIndex={-1}
-                        onClick={() => setShowLoginPwd(v => !v)}
+                        onClick={() => setShowLoginPwd((v) => !v)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition"
                         aria-label={showLoginPwd ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                       >
@@ -187,33 +269,25 @@ const Auth = () => {
                     </div>
                   </div>
 
-                  {/* Verificación anti-robot */}
-                  <div className="flex items-center gap-3 rounded-lg border border-input bg-muted/40 px-4 py-3">
-                    <Checkbox
-                      id="robot-check"
-                      checked={robotChecked}
-                      onCheckedChange={v => setRobotChecked(!!v)}
-                    />
-                    <label
-                      htmlFor="robot-check"
-                      className="flex items-center gap-2 text-sm cursor-pointer select-none"
-                    >
-                      <Bot className="w-4 h-4 text-muted-foreground" />
-                      No soy un robot
-                    </label>
-                  </div>
+                  <div ref={loginCaptcha.containerRef} className="flex justify-center min-h-[78px]" />
+                  {!loginCaptcha.enabled && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Bot className="w-3 h-3" />
+                      reCAPTCHA no configurado (modo desarrollo)
+                    </div>
+                  )}
 
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={loading || !robotChecked}
-                  >
+                  <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? 'Ingresando...' : 'Iniciar Sesión'}
                   </Button>
+                  {isFirebaseConfigured && (
+                    <Button type="button" variant="outline" className="w-full" onClick={handleGoogle} disabled={loading}>
+                      Continuar con Google
+                    </Button>
+                  )}
                 </form>
               </TabsContent>
 
-              {/* ── REGISTRO ───────────────────────────────────────────────── */}
               <TabsContent value="signup">
                 <form onSubmit={handleSignup} className="space-y-4 mt-4">
                   <div className="space-y-2">
@@ -222,7 +296,7 @@ const Auth = () => {
                       id="signup-name"
                       type="text"
                       value={fullName}
-                      onChange={e => setFullName(e.target.value)}
+                      onChange={(e) => setFullName(e.target.value)}
                       required
                       placeholder="Juan Pérez"
                     />
@@ -233,13 +307,11 @@ const Auth = () => {
                       id="signup-email"
                       type="email"
                       value={email}
-                      onChange={e => setEmail(e.target.value)}
+                      onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="alumno@ejemplo.com"
                     />
                   </div>
-
-                  {/* Campo contraseña con ojo */}
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Contraseña</Label>
                     <div className="relative">
@@ -247,7 +319,7 @@ const Auth = () => {
                         id="signup-password"
                         type={showSignupPwd ? 'text' : 'password'}
                         value={password}
-                        onChange={e => setPassword(e.target.value)}
+                        onChange={(e) => setPassword(e.target.value)}
                         required
                         minLength={6}
                         placeholder="Mínimo 6 caracteres"
@@ -256,7 +328,7 @@ const Auth = () => {
                       <button
                         type="button"
                         tabIndex={-1}
-                        onClick={() => setShowSignupPwd(v => !v)}
+                        onClick={() => setShowSignupPwd((v) => !v)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition"
                         aria-label={showSignupPwd ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                       >
@@ -265,10 +337,47 @@ const Auth = () => {
                     </div>
                   </div>
 
+                  {terms && (
+                    <div className="space-y-2 rounded-lg border p-3">
+                      <div className="flex items-start gap-2">
+                        <Checkbox
+                          id="accept-terms"
+                          checked={acceptTerms}
+                          onCheckedChange={(v) => setAcceptTerms(!!v)}
+                        />
+                        <label htmlFor="accept-terms" className="text-sm leading-snug cursor-pointer">
+                          Acepto los{' '}
+                          <button
+                            type="button"
+                            className="underline text-primary"
+                            onClick={() => setShowTerms((s) => !s)}
+                          >
+                            términos y condiciones
+                          </button>{' '}
+                          (v{terms.version})
+                        </label>
+                      </div>
+                      {showTerms && (
+                        <div className="max-h-40 overflow-y-auto text-xs text-muted-foreground whitespace-pre-wrap border-t pt-2">
+                          <strong>{terms.title}</strong>
+                          {'\n\n'}
+                          {terms.content}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div ref={signupCaptcha.containerRef} className="flex justify-center min-h-[78px]" />
+
                   <Button type="submit" className="w-full" disabled={loading}>
                     <GraduationCap className="w-4 h-4 mr-2" />
                     {loading ? 'Registrando...' : 'Crear Cuenta'}
                   </Button>
+                  {isFirebaseConfigured && (
+                    <Button type="button" variant="outline" className="w-full" onClick={handleGoogle} disabled={loading}>
+                      Registrarse con Google
+                    </Button>
+                  )}
                 </form>
               </TabsContent>
             </Tabs>

@@ -1,5 +1,4 @@
 'use client'
-import { AccessRequestsPanel } from '@/components/AccessRequestsPanel';
 import { AssignmentsABM } from '@/components/AssignmentsABM';
 import { CategoriesABM } from '@/components/CategoriesABM';
 import { CompaniesABM } from '@/components/CompaniesABM';
@@ -17,6 +16,7 @@ import TeacherSessionsPage from '@/views/TeacherSessionsPage';
 import { TeacherGroupsABM } from '@/components/TeacherGroupsABM';
 import { TechSheetsABM } from '@/components/TechSheetsABM';
 import { TemplatesABM } from '@/components/TemplatesABM';
+import { TermsABM } from '@/components/TermsABM';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -145,6 +145,9 @@ interface CourseForm {
   tech_sheet_id: number | null;
   categories: string[];
   simulated_company_id: number | null;
+  password: string;
+  clear_password: boolean;
+  teacher_ids: string[];
 }
 
 const emptyForm: CourseForm = {
@@ -160,6 +163,9 @@ const emptyForm: CourseForm = {
   tech_sheet_id: null,
   categories: [],
   simulated_company_id: null,
+  password: '',
+  clear_password: false,
+  teacher_ids: [],
 };
 
 const AdminPanel = ({ tabId }: { tabId?: string }) => {
@@ -195,6 +201,7 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
   const [showPromptConfigModal, setShowPromptConfigModal] = useState(false);
   const [selectedCourseForPromptConfig, setSelectedCourseForPromptConfig] = useState<any>(null);
   const [courseFilter, setCourseFilter] = useState<'all' | 'active' | 'inactive'>('all'); // Filtro de cursos
+  const [teachers, setTeachers] = useState<Array<{ id: string; name: string; email: string }>>([]);
 
   useEffect(() => {
     if (!loading && (!user || (!hasRole('admin') && !hasRole('ministerio')))) router.push('/auth');
@@ -229,6 +236,9 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
         .then(r => r.data)
         .then(d => setSimCompanies(Array.isArray(d) ? d.map((c: any) => ({ id: c.id, name: c.name, short_name: c.short_name })) : []))
         .catch(() => {});
+      apiClient.get('/users?role=teacher')
+        .then(r => setTeachers(Array.isArray(r.data) ? r.data : []))
+        .catch(() => {});
     }
   }, [user]);
 
@@ -252,6 +262,9 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
       tech_sheet_id: form.tech_sheet_id || null,
       simulated_company_id: form.simulated_company_id || null,
       created_by: user!.id,
+      teacher_ids: form.teacher_ids,
+      ...(form.password ? { password: form.password } : {}),
+      ...(form.clear_password ? { clear_password: true } : {}),
     };
 
     try {
@@ -285,6 +298,11 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
       is_active: course.is_active,
       tech_sheet_id: course.tech_sheet_id || null,
       simulated_company_id: course.simulated_company_id || null,
+      password: '',
+      clear_password: false,
+      teacher_ids: Array.isArray(course.teachers)
+        ? course.teachers.map((t: any) => t.teacher?.id || t.teacher_id || t.id).filter(Boolean)
+        : [],
     });
     setEditingId(course.id);
     setDialogOpen(true);
@@ -841,6 +859,62 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
                     )}
 
                     {/* Active toggle */}
+                    <div className="space-y-2">
+                      <Label>Contraseña del curso (opcional)</Label>
+                      <Input
+                        type="password"
+                        placeholder={editingId ? 'Dejar vacío para no cambiar' : 'Vacío = acceso libre'}
+                        value={form.password}
+                        onChange={(e) => setForm((p) => ({ ...p, password: e.target.value, clear_password: false }))}
+                      />
+                      {editingId && (
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <input
+                            type="checkbox"
+                            checked={form.clear_password}
+                            onChange={(e) =>
+                              setForm((p) => ({
+                                ...p,
+                                clear_password: e.target.checked,
+                                password: e.target.checked ? '' : p.password,
+                              }))
+                            }
+                          />
+                          Quitar contraseña (acceso libre)
+                        </label>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Docentes asociados</Label>
+                      <div className="max-h-32 overflow-y-auto rounded border p-2 space-y-1">
+                        {teachers.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No hay docentes cargados</p>
+                        ) : (
+                          teachers.map((t) => {
+                            const checked = form.teacher_ids.includes(t.id);
+                            return (
+                              <label key={t.id} className="flex items-center gap-2 text-sm">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() =>
+                                    setForm((p) => ({
+                                      ...p,
+                                      teacher_ids: checked
+                                        ? p.teacher_ids.filter((id) => id !== t.id)
+                                        : [...p.teacher_ids, t.id],
+                                    }))
+                                  }
+                                />
+                                {t.name} <span className="text-xs text-muted-foreground">({t.email})</span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+
                     <div className="flex items-center justify-between">
                       <Label>Curso Activo</Label>
                       <Switch checked={form.is_active} onCheckedChange={v => setForm(p => ({ ...p, is_active: v }))} />
@@ -1004,8 +1078,8 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
         {/* Stats Tab */}
         {currentTab === 'stats' && <GlobalStatsDashboard />}
 
-        {/* Access Requests Tab */}
-        {currentTab === 'requests' && <AccessRequestsPanel />}
+        {/* Terms Tab */}
+        {currentTab === 'terms' && <TermsABM />}
 
         {/* Teacher Groups Tab */}
         {currentTab === 'groups' && <TeacherGroupsABM />}

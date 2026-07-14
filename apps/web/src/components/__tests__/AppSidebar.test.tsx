@@ -70,6 +70,7 @@ vi.mock('lucide-react', () => {
     UserRound: icon('UserRound'),
     ShieldCheck: icon('ShieldCheck'),
     Users2: icon('Users2'),
+    FileText: icon('FileText'),
     UserRoundPlus: icon('UserRoundPlus'),
     Wrench: icon('Wrench'),
     ArrowRightLeft: icon('ArrowRightLeft'),

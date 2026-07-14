@@ -51,7 +51,7 @@ describe('Users (e2e)', () => {
     await app.close();
   });
 
-  // Mock the JwtStrategy.validate() user lookup
+  // Mock the FirebaseStrategy (JWT fallback) user lookup
   beforeEach(() => {
     prismaMock.user.findUnique.mockImplementation(({ where }) => {
       if (where.id === 'admin-id' || where.id === 'student-id') {
@@ -103,7 +103,7 @@ describe('Users (e2e)', () => {
 
     it('should return a user by id', async () => {
       prismaMock.user.findUnique.mockImplementation(({ where }) => {
-        // JwtStrategy validate() looks up the token user first
+        // FirebaseStrategy validate() looks up the token user first
         if (where.id === 'admin-id') {
           return Promise.resolve({
             id: 'admin-id', name: 'Admin', email: 'admin@test.com', role: 'admin',
@@ -199,8 +199,8 @@ describe('Users (e2e)', () => {
         .expect(401);
     });
 
-    it('should delete a user', async () => {
-      prismaMock.user.delete.mockResolvedValue({
+    it('should soft-delete a user', async () => {
+      prismaMock.user.update.mockResolvedValue({
         id: 'u1', name: 'Alice', email: 'alice@test.com', role: 'student',
       });
 
@@ -213,7 +213,7 @@ describe('Users (e2e)', () => {
     });
 
     it('should return 404 for non-existent user', async () => {
-      prismaMock.user.delete.mockRejectedValue({ code: 'P2025' });
+      prismaMock.user.update.mockRejectedValue({ code: 'P2025' });
 
       await request(app.getHttpServer())
         .delete('/api/users/nonexistent')

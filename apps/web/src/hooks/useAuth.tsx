@@ -1,6 +1,7 @@
 'use client'
 
 import { DEMO_USERS } from '@/services/demoData';
+import { firebaseLogout, isFirebaseConfigured, onFirebaseAuthChanged, getFirebaseIdToken } from '@/lib/firebase';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 type AppRole = 'student' | 'teacher' | 'admin' | 'ministerio';
@@ -10,6 +11,7 @@ interface AuthUser {
   email: string;
   name: string;
   role: AppRole;
+  terms_accepted?: boolean;
 }
 
 interface AuthContextType {
@@ -23,7 +25,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Custom event for storage changes in same tab
 export const authChangeEvent = new EventTarget();
 
 export const useAuth = () => {
@@ -37,9 +38,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load auth state from localStorage — ONLY runs on client (useEffect)
-  // SSR-safe: initialState is {user:null, token:null, loading:true},
-  // so the server and first client render match (no hydration mismatch).
   useEffect(() => {
     if (typeof sessionStorage === 'undefined') {
       setLoading(false);
@@ -55,27 +53,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(storedToken);
         setUser(userData);
         setLoading(false);
-        return;
       } catch {
         sessionStorage.removeItem('token');
         sessionStorage.removeItem('user');
+        setLoading(false);
       }
-    }
-
-    // ── Demo mode: only when explicitly enabled ────────────────────────
-    if (typeof window !== 'undefined' &&
-        process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
-      const demoUser = DEMO_USERS[0]; // admin@fepei.com
+    } else if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+      const demoUser = DEMO_USERS[0];
       sessionStorage.setItem('token', 'demo-' + demoUser.id);
       sessionStorage.setItem('user', JSON.stringify(demoUser));
       setToken('demo-' + demoUser.id);
       setUser(demoUser);
+      setLoading(false);
+    } else {
+      setLoading(false);
     }
 
-    setLoading(false);
+    if (isFirebaseConfigured) {
+      const unsub = onFirebaseAuthChanged(async (fbUser) => {
+        if (!fbUser) return;
+        const idToken = await getFirebaseIdToken(false);
+        if (idToken) {
+          sessionStorage.setItem('token', idToken);
+          setToken(idToken);
+        }
+      });
+      return () => unsub();
+    }
   }, []);
 
-  // Listen for localStorage changes (cross-tab sync)
   useEffect(() => {
     if (typeof window === 'undefined' || typeof sessionStorage === 'undefined') return;
 
@@ -114,13 +120,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sessionStorage.removeItem('token');
       sessionStorage.removeItem('user');
       sessionStorage.removeItem('refreshToken');
-      window.location.href = '/auth';
+      sessionStorage.removeItem('pending_terms');
+      void firebaseLogout().finally(() => {
+        window.location.href = '/auth';
+      });
     }
   };
 
-  const hasRole = (role: AppRole): boolean => {
-    return user?.role === role;
-  };
+  const hasRole = (role: AppRole): boolean => user?.role === role;
 
   const value: AuthContextType = {
     user,
