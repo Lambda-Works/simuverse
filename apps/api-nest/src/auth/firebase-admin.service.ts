@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { resolveFirebaseCredentials } from './firebase-credentials';
 
 /**
  * Firebase Admin wrapper. Uses dynamic imports so Jest unit tests that boot
@@ -10,31 +11,23 @@ export class FirebaseAdminService implements OnModuleInit {
   private configured = false;
 
   async onModuleInit() {
-    const projectId = process.env.FIREBASE_PROJECT_ID;
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+    const credentials = resolveFirebaseCredentials();
 
-    if (!projectId || !clientEmail || !privateKey) {
+    if (!credentials) {
       this.logger.warn(
-        'Firebase Admin not configured (missing FIREBASE_*). Auth will use JWT_SECRET fallback for tests/dev.',
+        'Firebase Admin not configured (set FIREBASE_SERVICE_ACCOUNT_PATH or FIREBASE_*). Auth will use JWT_SECRET fallback for tests/dev.',
       );
       return;
     }
 
-    privateKey = privateKey.replace(/\\n/g, '\n');
-
     const { cert, getApps, initializeApp } = await import('firebase-admin/app');
     if (!getApps().length) {
       initializeApp({
-        credential: cert({
-          projectId,
-          clientEmail,
-          privateKey,
-        }),
+        credential: cert(credentials),
       });
     }
     this.configured = true;
-    this.logger.log(`Firebase Admin initialized for project ${projectId}`);
+    this.logger.log(`Firebase Admin initialized for project ${credentials.projectId}`);
   }
 
   get isConfigured(): boolean {

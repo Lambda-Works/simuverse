@@ -370,17 +370,14 @@ async function main() {
   }
 
   // Sync seed users to Firebase when Admin credentials are present
-  if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+  const firebaseCredentials = (await import('../auth/firebase-credentials')).resolveFirebaseCredentials();
+  if (firebaseCredentials) {
     try {
       const { cert, getApps, initializeApp } = await import('firebase-admin/app');
       const { getAuth } = await import('firebase-admin/auth');
       if (!getApps().length) {
         initializeApp({
-          credential: cert({
-            projectId: process.env.FIREBASE_PROJECT_ID,
-            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-            privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-          }),
+          credential: cert(firebaseCredentials),
         });
       }
       const seedUsers = [admin, teacher1, teacher2, student1, student2, student3, ministerio];

@@ -1,13 +1,20 @@
 # ============================================
-# Secrets & Environment
+# Secrets & credentials (never commit)
 # ============================================
+secrets/
+secrets/*.json
+**/*-firebase-adminsdk-*.json
 .env
 .env.local
 .env.*
 !env.example
 !env.prod.example
+!env.*.example
 env
 env.prod
+env.firebase
+env.openai
+env.recaptcha
 
 # ============================================
 # Dependencies

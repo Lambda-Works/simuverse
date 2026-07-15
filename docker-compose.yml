@@ -49,6 +49,8 @@ services:
     container_name: simuverse-api-nest
     restart: unless-stopped
     working_dir: /app/apps/api-nest
+    env_file:
+      - .env
     environment:
       NODE_ENV: development
       PORT: "5001"
@@ -106,6 +108,8 @@ services:
     container_name: simuverse-web
     restart: unless-stopped
     working_dir: /app/apps/web
+    env_file:
+      - .env
     environment:
       NODE_ENV: development
       NEXT_PUBLIC_API_URL: http://localhost:${PUERTO_BACKEND:-5000}/api

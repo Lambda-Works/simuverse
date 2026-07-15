@@ -5,27 +5,26 @@
  * Usage (from apps/api-nest):
  *   npx ts-node src/scripts/migrate-users-to-firebase.ts
  *
- * Requires FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY, DATABASE_URL.
+ * Requires FIREBASE_SERVICE_ACCOUNT_PATH (JSON) or FIREBASE_* env vars, and DATABASE_URL.
  */
 import { PrismaClient } from '@prisma/client';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { UserImportRecord, getAuth } from 'firebase-admin/auth';
+import { resolveFirebaseCredentials } from '../auth/firebase-credentials';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  let privateKey = process.env.FIREBASE_PRIVATE_KEY;
-
-  if (!projectId || !clientEmail || !privateKey) {
-    throw new Error('Missing FIREBASE_* env vars');
+  const credentials = resolveFirebaseCredentials();
+  if (!credentials) {
+    throw new Error(
+      'Missing Firebase credentials (FIREBASE_SERVICE_ACCOUNT_PATH or FIREBASE_* env vars)',
+    );
   }
-  privateKey = privateKey.replace(/\\n/g, '\n');
 
   if (!getApps().length) {
     initializeApp({
-      credential: cert({ projectId, clientEmail, privateKey }),
+      credential: cert(credentials),
     });
   }
 
@@ -33,7 +32,7 @@ async function main() {
     where: { password_hash: { not: null }, is_active: true },
   });
 
-  console.log(`Migrating ${users.length} users to Firebase project ${projectId}...`);
+  console.log(`Migrating ${users.length} users to Firebase project ${credentials.projectId}...`);
 
   const batchSize = 100;
   for (let i = 0; i < users.length; i += batchSize) {
