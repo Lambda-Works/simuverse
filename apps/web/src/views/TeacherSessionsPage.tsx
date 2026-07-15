@@ -9,8 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { apiClient } from '@/services/ApiClient';
-import { Bot, Clock, MessageSquare, Search, User } from 'lucide-react';
+import { Bot, Clock, Download, FileText, MessageSquare, Search, User } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 
 interface SessionRow {
   id: string;
@@ -39,10 +40,20 @@ interface HourGroup {
   }>;
 }
 
+interface SessionSubmission {
+  id: string;
+  file_name: string;
+  file_type: string;
+  file_size_bytes: string;
+  created_at: string;
+  download_url: string;
+}
+
 interface SessionDetail {
   instance: SessionRow & { practice_summary?: string };
   logs_by_hour: HourGroup[];
   summary: { total_turns: number; student_turns: number };
+  submissions?: SessionSubmission[];
 }
 
 export default function TeacherSessionsPage() {
@@ -238,6 +249,57 @@ export default function TeacherSessionsPage() {
                   <p className="text-sm mt-2 bg-muted/40 p-2 rounded">
                     {detail.instance.practice_summary}
                   </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Entregas ({detail.submissions?.length ?? 0})
+                </h3>
+                {!detail.submissions?.length ? (
+                  <p className="text-xs text-muted-foreground">Sin archivos subidos en esta sesión.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {detail.submissions.map((f) => (
+                      <li
+                        key={f.id}
+                        className="flex items-center justify-between gap-2 border rounded-md px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{f.file_name}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {f.file_type} · {Math.round(Number(f.file_size_bytes) / 1024)} KB ·{' '}
+                            {new Date(f.created_at).toLocaleString('es-AR')}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="shrink-0"
+                          onClick={async () => {
+                            try {
+                              const res = await apiClient.get(f.download_url, {
+                                responseType: 'blob',
+                              } as any);
+                              const blob = new Blob([res.data]);
+                              const url = URL.createObjectURL(blob);
+                              const a = Object.assign(document.createElement('a'), {
+                                href: url,
+                                download: f.file_name,
+                              });
+                              a.click();
+                              URL.revokeObjectURL(url);
+                            } catch {
+                              toast.error('No se pudo descargar el archivo');
+                            }
+                          }}
+                        >
+                          <Download className="w-4 h-4 mr-1" /> Descargar
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
 

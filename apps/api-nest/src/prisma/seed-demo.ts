@@ -251,20 +251,7 @@ async function main() {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // 10. ACCESS REQUESTS
-  // ═══════════════════════════════════════════════════════════════
-  console.log('📩 Solicitudes de acceso...');
-  const existingRequests = await prisma.accessRequest.count();
-  if (existingRequests === 0) {
-    const requests = [
-      { student_id: student2!.id, course_id: course4!.id, student_name: student2!.name, student_email: student2!.email, course_name: 'Gestión de Mantenimiento Industrial', reason: 'Me interesa aprender sobre mantenimiento predictivo en entornos industriales.', status: 'pending' },
-      { student_id: student3!.id, course_id: course2!.id, student_name: student3!.name, student_email: student3!.email, course_name: 'Control de Calidad en Industria Textil', reason: 'Quiero ampliar mis conocimientos en control de calidad para aplicar en mi trabajo actual.', status: 'pending' },
-    ];
-    for (const r of requests) {
-      await prisma.accessRequest.create({ data: r });
-    }
-  }
+  // Access requests removed — students self-enroll with course password
 
   // ═══════════════════════════════════════════════════════════════
   // 11. MINISTRY REQUIREMENTS + KPIs + TASKS

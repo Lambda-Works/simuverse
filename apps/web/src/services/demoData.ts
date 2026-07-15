@@ -315,7 +315,7 @@ export function generateAdminData(): Array<Record<string, unknown>> {
     },
     iaConfig: {
       enabled: true,
-      provider: 'gemini',
+      provider: 'openai',
       systemPrompt: `Actúa como ${c.ai_role}`,
       temperature: 0.5,
     },

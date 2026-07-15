@@ -1,0 +1,23 @@
+# SimuVerse — contexto ampliado para asistentes
+
+## Qué es
+
+SimuVerse (Motor de Simulación Modular) es una plataforma web para prácticas profesionalizantes.
+Los docentes crean o administran cursos, prácticas y fichas técnicas; los alumnos se inscriben a cursos
+(libres o con contraseña) y realizan sesiones de simulación con un agente de IA.
+
+## Roles
+
+- admin: configuración global, cursos, términos, usuarios
+- teacher: prácticas, sesiones de alumnos, contraseña de curso
+- student: inscripción a cursos, simulaciones
+- ministerio: auditoría / lectura
+
+## Autenticación
+
+Firebase Authentication (email/password y Google). La API valida ID tokens de Firebase.
+Los roles viven en la base de datos local (RBAC).
+
+## SEO / descubrimiento
+
+Sitio orientado a español (es). Indexar solo rutas públicas listadas en /llms.txt.

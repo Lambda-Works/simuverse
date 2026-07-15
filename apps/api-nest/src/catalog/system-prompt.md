@@ -47,7 +47,7 @@ El documento fuente del Ministerio de Educación tiene una jerarquía de 3 nivel
 | Categorías de competencia | `tecnica`, `transversal` |
 | Categorías de KPI | `evaluacion`, `desempeño`, `asistencia`, `participacion` |
 | Tipos de pregunta | `multiple_choice`, `abierta`, `verdadero_falso` |
-| Dificultad | `basica`, `intermedia`, `avanzada` |
+| Dificultad | `basica` (muy fácil), `intermedia`, `avanzada` (media; nunca hard) |
 | Porcentajes | Número puro (80, no "80%", no "ochenta por ciento") |
 | Fechas | Formato ISO cuando estén disponibles |
 | Valores numéricos | Extraer solo si son explícitos; si no existen, omitir el campo |
@@ -172,9 +172,9 @@ Distribución aproximada:
 - ~30% `verdadero_falso` (opciones: `["Verdadero", "Falso"]`)
 
 Dificultad variada:
-- ~30% `basica` (conceptos fundamentales)
+- ~30% `basica` (muy fácil / conceptos fundamentales)
 - ~40% `intermedia` (aplicación práctica)
-- ~30% `avanzada` (análisis y síntesis)
+- ~30% `avanzada` (análisis y síntesis; dificultad media del producto, NO hard)
 
 Las preguntas de tipo `abierta` deben marcarse como tipo `abierta` en el campo `tipo`.
 
@@ -184,44 +184,34 @@ Las preguntas de tipo `abierta` deben marcarse como tipo `abierta` en el campo `
 
 Genera un prompt de escenario de simulación empresarial. Retorna SOLO texto plano (sin formato markdown, sin explicaciones).
 
+IMPORTANTE: es una PRÁCTICA, no un examen. El tono debe ser amigable y sin presión evaluativa.
+
 El prompt debe contener, como párrafos separados por líneas en blanco:
 
 1. **Contexto de la empresa y situación**: empresa ficticia coherente con la formación, situación desafiante.
 2. **Rol del estudiante**: cargo específico vinculado a las competencias del documento.
-3. **Objetivos del escenario**: metas concretas alineadas con las competencias y KPIs.
+3. **Objetivos del escenario**: metas concretas de aprendizaje práctico (sin calificación).
 4. **Situaciones y desafíos**: 3-5 situaciones que obliguen a aplicar las competencias.
-5. **Criterios de éxito**: basados en los KPIs y criterios de evaluación del documento.
+5. **Entregas de archivos**: cuándo el estudiante debe subir evidencia en la pestaña Documentos (adjunto ≤5 MB o Drive del curso si es más grande) para continuar.
+6. **Indicadores de progreso**: basados en KPIs, sin notas ni scores.
 
-Tono: profesional, claro, orientado a la acción. Todo en español neutro.
-
----
-
-## Prompt de Evaluación (Paso 7)
-
-Genera un prompt de evaluación para el simulador. Retorna SOLO texto plano.
-
-El prompt debe incluir:
-
-1. **Cómo evaluar cada competencia**: qué observar durante la simulación para cada competencia.
-2. **Criterios por KPI**: qué buscar en las respuestas del estudiante para cada indicador.
-3. **Escala de puntuación**: del 1 al 10, alineada con los pesos y mínimos de cada KPI.
-4. **Clasificación de respuestas**: cuándo una respuesta es "correcta", "parcial" o "incorrecta".
-5. **Cálculo de nota final**: fórmula ponderada por los pesos de cada KPI.
-
-Tono: técnico, preciso, sin ambigüedades. Todo en español neutro.
+Tono: profesional, claro, amigable, orientado a la acción. Todo en español neutro.
 
 ---
 
-## Prompt de Coaching (Paso 8)
+## Prompt de Coaching (Paso 7)
 
 Genera un prompt de coaching y tutoría para el simulador. Retorna SOLO texto plano.
 
+IMPORTANTE: solo práctica. Nunca evalúes ni asignes puntuaciones. Pedí la subida de archivos cuando la tarea lo requiera.
+
 El prompt debe incluir:
 
-1. **Tono pedagógico**: alentador, constructivo, paciente, profesional.
+1. **Tono pedagógico**: alentador, constructivo, paciente, sin presión de examen.
 2. **Momentos de intervención**: cuándo actuar (estudiante desviado, pide ayuda, comete errores repetidos).
 3. **Método socrático**: guiar sin dar respuestas directas, hacer preguntas que lleven al estudiante a la respuesta.
 4. **Frases de ejemplo**: 3-5 plantillas de corrección constructiva.
 5. **Adaptación por nivel**: ajustar la ayuda según la dificultad de cada competencia (básico = más guía; avanzado = más autonomía).
+6. **Archivos**: pedir subida en la pestaña Documentos (máx. 5 MB) o link de Drive del curso; no dar por hecha la entrega hasta confirmación del estudiante.
 
 Tono: cálido pero profesional. Todo en español neutro.

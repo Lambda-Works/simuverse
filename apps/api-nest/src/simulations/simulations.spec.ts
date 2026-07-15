@@ -441,13 +441,9 @@ describe('AIService (unit)', () => {
     });
   });
 
-  describe('sendMessageToGemini (fallback mode)', () => {
-    it('should return scripted response when API key is missing', async () => {
-      // Ensure no key is set
-      const original = process.env.GEMINI_API_KEY;
-      delete process.env.GEMINI_API_KEY;
-
-      const result = await aiService.sendMessageToGemini(
+  describe('sendMessage (fallback mode)', () => {
+    it('should return scripted response when no providers are configured', async () => {
+      const result = await aiService.sendMessage(
         'Hola, como estas?',
         'Sos un tutor',
         [],
@@ -457,16 +453,10 @@ describe('AIService (unit)', () => {
       expect(result).toHaveProperty('mode', 'scripted');
       expect(typeof result.response).toBe('string');
       expect(result.response.length).toBeGreaterThan(0);
-
-      // Restore
-      if (original) process.env.GEMINI_API_KEY = original;
     });
 
     it('should detect greeting intent', async () => {
-      const original = process.env.GEMINI_API_KEY;
-      delete process.env.GEMINI_API_KEY;
-
-      const result = await aiService.sendMessageToGemini(
+      const result = await aiService.sendMessage(
         'Hola profesor',
         'Sos un tutor',
         [],
@@ -474,15 +464,10 @@ describe('AIService (unit)', () => {
 
       expect(result.mode).toBe('scripted');
       expect(result.response.length).toBeGreaterThan(0);
-
-      if (original) process.env.GEMINI_API_KEY = original;
     });
 
     it('should detect problem intent', async () => {
-      const original = process.env.GEMINI_API_KEY;
-      delete process.env.GEMINI_API_KEY;
-
-      const result = await aiService.sendMessageToGemini(
+      const result = await aiService.sendMessage(
         'Hay un problema urgente con el servidor',
         'Sos un tutor',
         [],
@@ -490,8 +475,6 @@ describe('AIService (unit)', () => {
 
       expect(result.mode).toBe('scripted');
       expect(result.response.length).toBeGreaterThan(0);
-
-      if (original) process.env.GEMINI_API_KEY = original;
     });
   });
 });

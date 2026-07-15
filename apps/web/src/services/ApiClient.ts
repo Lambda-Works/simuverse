@@ -2,26 +2,30 @@
 
 import { routeDemoRequest } from '@/services/demoData';
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import { getFirebaseIdToken, isFirebaseConfigured, firebaseLogout } from '@/lib/firebase';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 /** Helper – clear all auth data and redirect to /auth */
-const clearAuthAndRedirect = () => {
+const clearAuthAndRedirect = async () => {
   sessionStorage.removeItem('token');
   sessionStorage.removeItem('user');
   sessionStorage.removeItem('refreshToken');
-  // Dispatch storage event so AuthProvider reacts in the same tab
+  sessionStorage.removeItem('pending_terms');
+  try {
+    await firebaseLogout();
+  } catch {
+    /* ignore */
+  }
   window.dispatchEvent(new Event('storage'));
   window.location.href = '/auth';
 };
 
-// ── Demo mode: auto-activa en Vercel o con NEXT_PUBLIC_DEMO_MODE=true ───
-const DEMO_MODE = typeof window !== 'undefined' && (
-  process.env.NEXT_PUBLIC_DEMO_MODE === 'true' ||
-  window.location.hostname.includes('vercel.app')
-);
+const DEMO_MODE =
+  typeof window !== 'undefined' &&
+  (process.env.NEXT_PUBLIC_DEMO_MODE === 'true' ||
+    window.location.hostname.includes('vercel.app'));
 
-/** Wrap demo handler response so it looks like an Axios response */
 function demoResponse(method: string, url: string, data?: unknown) {
   const result = routeDemoRequest(method, url, data);
   return Promise.resolve({
@@ -35,11 +39,7 @@ function demoResponse(method: string, url: string, data?: unknown) {
 
 class ApiClient {
   private client: AxiosInstance;
-
-  /** Flag para evitar múltiples refreshes simultáneos */
   private isRefreshing = false;
-
-  /** Cola de requests que fallaron con 401 mientras se estaba renovando el token */
   private failedQueue: Array<{
     resolve: (token: string) => void;
     reject: (err: unknown) => void;
@@ -60,31 +60,28 @@ class ApiClient {
       headers: { 'Content-Type': 'application/json' },
     });
 
-    // ── Request interceptor: inyectar JWT ──────────────────────────────────
-    this.client.interceptors.request.use((config) => {
-      const token = sessionStorage.getItem('token');
+    this.client.interceptors.request.use(async (config) => {
+      let token = sessionStorage.getItem('token');
+      if (isFirebaseConfigured) {
+        const fbToken = await getFirebaseIdToken(false);
+        if (fbToken) {
+          token = fbToken;
+          sessionStorage.setItem('token', fbToken);
+        }
+      }
       if (token) config.headers.Authorization = `Bearer ${token}`;
       return config;
     });
 
-    // ── Response interceptor: manejo de 401 con auto-refresh ──────────────
     this.client.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-        // Solo intentar refresh en 401 y si no es ya un retry
         if (error.response?.status !== 401 || originalRequest._retry) {
           return Promise.reject(error);
         }
 
-        const refreshToken = sessionStorage.getItem('refreshToken');
-        if (!refreshToken) {
-          clearAuthAndRedirect();
-          return Promise.reject(error);
-        }
-
-        // Si ya hay un refresh en progreso, encolar este request
         if (this.isRefreshing) {
           return new Promise<string>((resolve, reject) => {
             this.failedQueue.push({ resolve, reject });
@@ -98,26 +95,35 @@ class ApiClient {
         this.isRefreshing = true;
 
         try {
-          const res = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
-          const { token: newToken, refreshToken: newRefreshToken } = res.data;
+          let newToken: string | null = null;
+
+          if (isFirebaseConfigured) {
+            newToken = await getFirebaseIdToken(true);
+          } else {
+            const refreshToken = sessionStorage.getItem('refreshToken');
+            if (!refreshToken) throw new Error('No refresh token');
+            const res = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+            newToken = res.data.token;
+            if (res.data.refreshToken) {
+              sessionStorage.setItem('refreshToken', res.data.refreshToken);
+            }
+          }
+
+          if (!newToken) throw new Error('Unable to refresh token');
 
           sessionStorage.setItem('token', newToken);
-          if (newRefreshToken) sessionStorage.setItem('refreshToken', newRefreshToken);
-
-          // Notificar al AuthProvider que el token cambió
           window.dispatchEvent(new Event('storage'));
-
           this.processQueue(null, newToken);
           originalRequest.headers.Authorization = `Bearer ${newToken}`;
           return this.client(originalRequest);
         } catch (refreshError) {
           this.processQueue(refreshError, null);
-          clearAuthAndRedirect();
+          await clearAuthAndRedirect();
           return Promise.reject(refreshError);
         } finally {
           this.isRefreshing = false;
         }
-      }
+      },
     );
   }
 

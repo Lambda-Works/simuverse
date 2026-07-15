@@ -156,7 +156,9 @@ export class SimulationsController {
   @Get(':id/emails')
   async getEmails(@Param('id') id: string) {
     const scenario = await this.simulationsService.getSimulationScenario(id);
-    return (scenario?.content as any)?.emails || [];
+    const content = (scenario?.content as any) || {};
+    // ScenariosABM historically saved as initial_emails; runtime/seeds use emails
+    return content.emails || content.initial_emails || [];
   }
 
   @Get(':id/documents')
@@ -204,7 +206,7 @@ export class SimulationsController {
         course_context: config?.course_context || '',
       };
 
-      const aiResponse = await this.aiService.sendMessageToGemini(
+      const aiResponse = await this.aiService.sendMessage(
         dto.message,
         systemPrompt,
         [],
@@ -255,7 +257,7 @@ export class SimulationsController {
 
     const proactiveMessages: string[] = triggerResults.map((r) => r.message);
 
-    const aiResponse = await this.aiService.sendMessageToGemini(
+    const aiResponse = await this.aiService.sendMessage(
       dto.message,
       systemPrompt,
       resolvedHistory,

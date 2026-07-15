@@ -1,0 +1,29 @@
+# SimuVerse
+
+> Plataforma educativa de simulaciones profesionalizantes con IA (SimuVerse / MSM).
+
+## Producto
+
+SimuVerse permite a docentes configurar prácticas secuenciales y a alumnos entrenar en escenarios simulados con un agente conversacional.
+
+## Rutas públicas
+
+- / — Landing
+- /auth — Login y registro
+- /terminos — Términos y condiciones vigentes
+- /llms.txt — Este archivo
+- /llms-full.txt — Contexto ampliado
+- /sitemap.xml
+- /robots.txt
+
+## Rutas privadas (no indexar)
+
+- /estudiante/*
+- /profesor/*
+- /admin/*
+- /ministerio/*
+- /simulation/*
+
+## Contacto
+
+Documentación en el repositorio del proyecto.

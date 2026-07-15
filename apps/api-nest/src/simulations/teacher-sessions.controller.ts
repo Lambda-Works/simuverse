@@ -126,6 +126,11 @@ export class TeacherSessionsController {
       orderBy: { turn_number: 'asc' },
     });
 
+    const submissions = await this.prisma.fileUpload.findMany({
+      where: { simulation_instance_id: id, is_active: true },
+      orderBy: { created_at: 'desc' },
+    });
+
     // Group messages by hour for teacher view
     const byHour: Record<string, typeof logs> = {};
     for (const log of logs) {
@@ -174,6 +179,14 @@ export class TeacherSessionsController {
             created_at: l.created_at,
           })),
         })),
+      submissions: submissions.map((f) => ({
+        id: f.id,
+        file_name: f.file_name,
+        file_type: f.file_type,
+        file_size_bytes: f.file_size_bytes.toString(),
+        created_at: f.created_at,
+        download_url: `/files/${f.id}/download`,
+      })),
       summary: {
         total_turns: logs.length,
         student_turns: logs.filter((l) => l.speaker === 'student').length,

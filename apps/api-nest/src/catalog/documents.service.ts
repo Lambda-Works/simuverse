@@ -8,8 +8,12 @@ export class DocumentsService {
   constructor(private prisma: PrismaService) {}
 
   private assertValidUrl(url: string): void {
+    const trimmed = url.trim();
+    if (/^\/api\/files\/[^/]+\/download\/?$/.test(trimmed)) {
+      return;
+    }
     try {
-      const parsed = new URL(url);
+      const parsed = new URL(trimmed);
       if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
         throw new BadRequestException('file_url must use http or https');
       }

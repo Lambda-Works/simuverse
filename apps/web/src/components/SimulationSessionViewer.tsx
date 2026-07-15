@@ -46,6 +46,9 @@ interface SessionDetail {
     scenario_title: string; scenario_type: string; difficulty: string; course_title: string;
   };
   logs: ChatLog[];
+  submissions?: Array<{
+    id: string; file_name: string; file_type: string; file_size_bytes: string; created_at: string; download_url: string;
+  }>;
   evaluation: {
     overall_score: number; overall_feedback: string; kpi_results: any;
     completion_percentage: number; time_spent_seconds: number; evaluated_at: string;
@@ -241,9 +244,10 @@ function SessionDetailDialog({
             </div>
 
             <Tabs defaultValue="dialogue" className="mt-4">
-              <TabsList className="grid grid-cols-2 w-full">
-                <TabsTrigger value="dialogue">💬 Diálogo Completo</TabsTrigger>
-                <TabsTrigger value="analysis">📊 Resumen</TabsTrigger>
+              <TabsList className="grid grid-cols-3 w-full">
+                <TabsTrigger value="dialogue">Diálogo</TabsTrigger>
+                <TabsTrigger value="files">Entregas ({data.submissions?.length ?? 0})</TabsTrigger>
+                <TabsTrigger value="analysis">Resumen</TabsTrigger>
               </TabsList>
 
               {/* ─── DIÁLOGO ─────────────────── */}
@@ -282,6 +286,52 @@ function SessionDetailDialog({
                     <ChatBubble key={log.id} log={log} showSolution={showSolutions} />
                   ))}
                 </div>
+              </TabsContent>
+
+              <TabsContent value="files" className="mt-4">
+                {!data.submissions?.length ? (
+                  <p className="text-center text-gray-400 py-8">Sin archivos entregados en esta sesión.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {data.submissions.map((f) => (
+                      <Card key={f.id} className="p-3 flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-sm">{f.file_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {f.file_type} · {Math.round(Number(f.file_size_bytes) / 1024)} KB ·{' '}
+                            {new Date(f.created_at).toLocaleString('es-AR')}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            try {
+                              const res = await apiClient.get(
+                                f.download_url.startsWith('/api/')
+                                  ? f.download_url.replace(/^\/api/, '')
+                                  : f.download_url,
+                                { responseType: 'blob' } as any,
+                              );
+                              const blob = new Blob([res.data]);
+                              const url = URL.createObjectURL(blob);
+                              const a = Object.assign(document.createElement('a'), {
+                                href: url,
+                                download: f.file_name,
+                              });
+                              a.click();
+                              URL.revokeObjectURL(url);
+                            } catch {
+                              /* ignore */
+                            }
+                          }}
+                        >
+                          <Download className="w-4 h-4 mr-1" /> Descargar
+                        </Button>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </TabsContent>
 
               {/* ─── RESUMEN ─────────────────── */}

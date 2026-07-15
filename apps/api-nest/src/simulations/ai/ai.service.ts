@@ -1,5 +1,4 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
-import axios from 'axios';
 import { DeepSeekService } from '../../catalog/deepseek.service';
 import { OpenAiService } from './openai.service';
 
@@ -49,15 +48,11 @@ export interface FallbackContext {
 @Injectable()
 export class AIService {
   private readonly logger = new Logger(AIService.name);
-  private geminiApiKey: string;
-  private geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
   constructor(
     private readonly deepseek: DeepSeekService,
     @Optional() private readonly openai?: OpenAiService,
-  ) {
-    this.geminiApiKey = process.env.GEMINI_API_KEY || '';
-  }
+  ) {}
 
   // ─── Fallback offline engine ─────────────────────────────────────────
 
@@ -187,9 +182,13 @@ export class AIService {
     }
 
     // Practice identity / difficulty / prior context
-    if (agent_key || difficulty || prior_context) {
+    {
       const parts: string[] = [
         'MODO: solo prácticas y tareas. NO evalúes, califiques ni asignes notas.',
+        'Transmití un tono amigable y sin presión: el estudiante está practicando, no rindiendo un examen.',
+        'Cuando la práctica requiera entregar un archivo o evidencia, pedile explícitamente que lo suba en la pestaña Documentos (máx. 5 MB).',
+        'Si el archivo es más grande, indicá que use el link de Drive del curso (si está configurado) desde Documentos.',
+        'No avances como si la entrega estuviera hecha hasta que el estudiante confirme que subió el archivo o el link.',
       ];
       if (agent_key) parts.push(`Identidad del agente: ${agent_key}`);
       if (difficulty) parts.push(`Dificultad de la práctica: ${difficulty}`);
@@ -362,13 +361,29 @@ export class AIService {
     return trimmed;
   }
 
-  async sendMessageToGemini(
+  async sendMessage(
     userMessage: string,
     systemPrompt: string,
     conversationHistory: Array<{ role: string; content: string }> = [],
     fallbackCtx?: FallbackContext,
+    preferDeepSeek: boolean = false,
   ): Promise<AIResponse> {
-    // Primary: OpenAI gpt-5.4-nano (chat only)
+    if (preferDeepSeek) {
+      // DeepSeek → scripted (skip OpenAI)
+      if (process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_API_KEY.trim() !== '') {
+        try {
+          return await this.sendMessageToDeepSeek(userMessage, systemPrompt, conversationHistory);
+        } catch (error) {
+          this.logger.warn(`DeepSeek failed, falling back: ${(error as Error).message}`);
+        }
+      }
+      return {
+        response: this.generateFallbackResponse(userMessage, systemPrompt, fallbackCtx),
+        mode: 'scripted',
+      };
+    }
+
+    // Default: OpenAI → DeepSeek → scripted
     if (this.openai?.isConfigured()) {
       try {
         const response = await this.openai.chat(userMessage, systemPrompt, conversationHistory);
@@ -378,7 +393,6 @@ export class AIService {
       }
     }
 
-    // Fallback: DeepSeek
     if (process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_API_KEY.trim() !== '') {
       try {
         return await this.sendMessageToDeepSeek(userMessage, systemPrompt, conversationHistory);
@@ -387,59 +401,10 @@ export class AIService {
       }
     }
 
-    const isKeyMissing =
-      !this.geminiApiKey ||
-      this.geminiApiKey === 'tu_gemini_api_key_aqui' ||
-      this.geminiApiKey.trim() === '';
-
-    if (isKeyMissing) {
-      return {
-        response: this.generateFallbackResponse(userMessage, systemPrompt, fallbackCtx),
-        mode: 'scripted',
-      };
-    }
-
-    try {
-      const messages = [
-        ...conversationHistory.map((msg) => ({
-          role: msg.role === 'user' ? 'user' : 'model',
-          parts: [{ text: msg.content }],
-        })),
-        {
-          role: 'user',
-          parts: [{ text: userMessage }],
-        },
-      ];
-
-      const response = await axios.post(
-        `${this.geminiApiUrl}?key=${this.geminiApiKey}`,
-        {
-          system_instruction: { parts: { text: systemPrompt } },
-          contents: messages,
-          generation_config: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 1024,
-          },
-        },
-        { timeout: 30000 },
-      );
-
-      const content = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!content) {
-        return {
-          response: this.generateFallbackResponse(userMessage, systemPrompt, fallbackCtx),
-          mode: 'scripted',
-        };
-      }
-      return { response: content, mode: 'live' };
-    } catch {
-      return {
-        response: this.generateFallbackResponse(userMessage, systemPrompt, fallbackCtx),
-        mode: 'scripted',
-      };
-    }
+    return {
+      response: this.generateFallbackResponse(userMessage, systemPrompt, fallbackCtx),
+      mode: 'scripted',
+    };
   }
 
   async analyzeStudentPerformance(
@@ -467,7 +432,7 @@ export class AIService {
       'Eres un evaluador pedagógico riguroso y justo. Devuelve SOLO JSON válido, sin explicaciones adicionales.';
 
     try {
-      const aiResult = await this.sendMessageToGemini(analysisPrompt, systemPrompt);
+      const aiResult = await this.sendMessage(analysisPrompt, systemPrompt);
 
       if (aiResult.mode === 'scripted') {
         return this.buildHeuristicEvaluation(logs, evalCriteria);

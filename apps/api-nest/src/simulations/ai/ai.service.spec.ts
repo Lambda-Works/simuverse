@@ -185,13 +185,12 @@ describe('AIService', () => {
     });
   });
 
-  describe('sendMessageToGemini provider fallback', () => {
+  describe('sendMessage provider fallback', () => {
     const originalEnv = process.env;
 
     beforeEach(() => {
       process.env = { ...originalEnv };
       delete process.env.DEEPSEEK_API_KEY;
-      delete process.env.GEMINI_API_KEY;
       jest.clearAllMocks();
     });
 
@@ -208,7 +207,7 @@ describe('AIService', () => {
         openai as unknown as OpenAiService,
       );
 
-      const result = await svc.sendMessageToGemini('Hola', 'System prompt', []);
+      const result = await svc.sendMessage('Hola', 'System prompt', []);
 
       expect(openai.chat).toHaveBeenCalledWith('Hola', 'System prompt', []);
       expect(deepseek.chat).not.toHaveBeenCalled();
@@ -226,7 +225,7 @@ describe('AIService', () => {
         openai as unknown as OpenAiService,
       );
 
-      const result = await svc.sendMessageToGemini('Hola', 'System prompt', []);
+      const result = await svc.sendMessage('Hola', 'System prompt', []);
 
       expect(openai.chat).toHaveBeenCalled();
       expect(deepseek.chat).toHaveBeenCalled();
@@ -241,12 +240,45 @@ describe('AIService', () => {
         openai as unknown as OpenAiService,
       );
 
-      const result = await svc.sendMessageToGemini('Hola', 'System prompt', []);
+      const result = await svc.sendMessage('Hola', 'System prompt', []);
 
       expect(openai.chat).not.toHaveBeenCalled();
       expect(deepseek.chat).not.toHaveBeenCalled();
       expect(result.mode).toBe('scripted');
       expect(result.response.length).toBeGreaterThan(0);
+    });
+
+    it('uses DeepSeek first when preferDeepSeek=true', async () => {
+      process.env.DEEPSEEK_API_KEY = 'deepseek-test-key';
+      deepseek.chat.mockResolvedValue('DeepSeek response');
+
+      const svc = new AIService(
+        deepseek as unknown as DeepSeekService,
+        openai as unknown as OpenAiService,
+      );
+
+      const result = await svc.sendMessage('Hola', 'System prompt', [], undefined, true);
+
+      expect(deepseek.chat).toHaveBeenCalled();
+      expect(openai.chat).not.toHaveBeenCalled();
+      expect(result).toEqual({ response: 'DeepSeek response', mode: 'live' });
+    });
+
+    it('uses scripted fallback when preferDeepSeek=true and DeepSeek fails', async () => {
+      openai.isConfigured.mockReturnValue(true);
+      process.env.DEEPSEEK_API_KEY = 'deepseek-test-key';
+      deepseek.chat.mockRejectedValue(new Error('DeepSeek unavailable'));
+
+      const svc = new AIService(
+        deepseek as unknown as DeepSeekService,
+        openai as unknown as OpenAiService,
+      );
+
+      const result = await svc.sendMessage('Hola', 'System prompt', [], undefined, true);
+
+      expect(deepseek.chat).toHaveBeenCalled();
+      expect(openai.chat).not.toHaveBeenCalled();
+      expect(result.mode).toBe('scripted');
     });
   });
 });

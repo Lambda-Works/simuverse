@@ -39,11 +39,6 @@ describe('.env.local', () => {
     expect(content).toContain('NEXT_PUBLIC_APP_NAME=MSM - Motor de Simulación Modular')
   })
 
-  it('should map VITE_GEMINI_API_KEY to NEXT_PUBLIC_GEMINI_API_KEY', () => {
-    const content = readFileSync(envLocalPath, 'utf-8')
-    expect(content).toContain('NEXT_PUBLIC_GEMINI_API_KEY')
-  })
-
   it('should preserve the same number of key-value entries as .env', () => {
     const envContent = readFileSync(envPath, 'utf-8')
     const localContent = readFileSync(envLocalPath, 'utf-8')

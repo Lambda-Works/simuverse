@@ -45,7 +45,6 @@ Editá el `.env` con los valores reales. Las variables que **sí o sí** hay que
 |----------|-------------|---------|
 | `POSTGRES_PASSWORD` | Password de PostgreSQL | `MiPasswordSeguro123` |
 | `JWT_SECRET` | Secreto para firmar JWTs | `random-string-seguro` |
-| `GEMINI_API_KEY` | API key de Gemini para IA | `AIzaSy...` |
 | `ASSESSMENT_HMAC_SECRET` | Secreto para firmar evaluaciones | `random-string-seguro` |
 
 El `.env.example` tiene placeholders seguros para desarrollo. Copialo y editá lo necesario.
@@ -257,7 +256,7 @@ Ver `.env.example` para la lista completa. Las esenciales:
 | `DATABASE_URL` | Connection string de Prisma | — |
 | `JWT_SECRET` | Secreto para firmar JWT | — |
 | `NEXT_PUBLIC_API_URL` | URL del API (vía proxy) | `http://localhost:5000/api` |
-| `GEMINI_API_KEY` | API key de Gemini | — |
+| `DEEPSEEK_API_KEY` | API key de DeepSeek | — |
 | `ASSESSMENT_HMAC_SECRET` | Secreto para firmar evaluaciones | — |
 
 ## Licencia

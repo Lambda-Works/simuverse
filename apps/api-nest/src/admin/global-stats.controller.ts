@@ -17,7 +17,6 @@ export class GlobalStatsController {
       approval_rate: 0,
       completed_this_week: 0,
       top_courses: [],
-      pending_access_requests: 0,
       top_students: [],
     };
   }

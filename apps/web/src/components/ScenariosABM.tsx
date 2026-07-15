@@ -44,6 +44,7 @@ interface ScenarioContent {
   context: string;
   constraints: string[];
   initial_emails: SimEmail[];
+  emails?: SimEmail[];
   documents: SimDocument[];
   estimated_time_minutes: number;
   spreadsheet?: { name: string; rows: string[] };
@@ -170,10 +171,20 @@ export function ScenariosABM() {
     }
     setSaving(true);
     try {
+      // Persist under both keys so runtime (emails) and ABM (initial_emails) stay in sync
+      const emails = form.content.initial_emails || [];
+      const payload = {
+        ...form,
+        content: {
+          ...form.content,
+          initial_emails: emails,
+          emails,
+        },
+      };
       if (editingId) {
-        await apiClient.put(`/scenarios/${editingId}`, form);
+        await apiClient.put(`/scenarios/${editingId}`, payload);
       } else {
-        await apiClient.post('/scenarios', form);
+        await apiClient.post('/scenarios', payload);
       }
       setDialogOpen(false);
       setEditingId(null);
@@ -197,7 +208,7 @@ export function ScenariosABM() {
       content: {
         context: s.content?.context || '',
         constraints: s.content?.constraints || [],
-        initial_emails: s.content?.initial_emails || [],
+        initial_emails: s.content?.initial_emails || s.content?.emails || [],
         documents: s.content?.documents || [],
         estimated_time_minutes: s.content?.estimated_time_minutes || 30,
         spreadsheet: s.content?.spreadsheet,
@@ -416,8 +427,8 @@ export function ScenariosABM() {
                   <h3 className="font-semibold text-gray-900">{s.title}</h3>
                   {s.description && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{s.description}</p>}
                   <div className="flex gap-3 mt-2 text-xs text-gray-500">
-                    {s.content?.initial_emails?.length > 0 && (
-                      <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {s.content.initial_emails.length} email(s)</span>
+                    {(s.content?.initial_emails?.length > 0 || s.content?.emails?.length > 0) && (
+                      <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {(s.content.initial_emails || s.content.emails || []).length} email(s)</span>
                     )}
                     {s.content?.documents?.length > 0 && (
                       <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> {s.content.documents.length} doc(s)</span>

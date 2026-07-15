@@ -11,11 +11,14 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
-import { ArrowLeft, BarChart3, CheckCircle2, FileText, Loader, Lock, Mail, MessageSquare, Send } from 'lucide-react';
+import { ArrowLeft, BarChart3, Bot, CheckCircle2, ChevronDown, ChevronUp, ExternalLink, FileText, Loader, Lock, Mail, MessageSquare, Paperclip, Send, User } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import { API_BASE, authFetch } from '@/lib/api';
+
+const MAX_PRACTICE_UPLOAD_BYTES = 5 * 1024 * 1024;
 
 interface Email {
   id: string;
@@ -66,8 +69,12 @@ const SimulationPage: React.FC = () => {
   const [currentPractice, setCurrentPractice] = useState<PracticeProgress | null>(null);
   const [completingPractice, setCompletingPractice] = useState(false);
   const [pageState, setPageState] = useState<'loading' | 'ready' | 'no_practices'>('loading');
+  const [sessionFiles, setSessionFiles] = useState<Array<{ id: string; file_name: string; file_size_bytes: string | number; created_at?: string }>>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [practicesExpanded, setPracticesExpanded] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDownloadExcel = () => {
     if (!spreadsheet?.data) {
@@ -223,6 +230,13 @@ const SimulationPage: React.FC = () => {
           /* keep intro message */
         }
 
+        try {
+          const filesRes = await apiClient.get(`/files?simulation_instance_id=${sessionId}`);
+          setSessionFiles(Array.isArray(filesRes.data) ? filesRes.data : []);
+        } catch {
+          setSessionFiles([]);
+        }
+
         // Load modules
         loadModules(sessionId);
         setPageState('ready');
@@ -234,6 +248,59 @@ const SimulationPage: React.FC = () => {
 
     if (user) init();
   }, [courseId, user, loading, isAuthenticated, router]);
+
+  const handlePracticeFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !simId) return;
+
+    if (file.size > MAX_PRACTICE_UPLOAD_BYTES) {
+      const driveUrl = course?.drive_folder_url;
+      if (driveUrl) {
+        toast.error(
+          `El archivo supera 5 MB. Subilo al Drive del curso y avisale al asesor.`,
+          {
+            action: {
+              label: 'Abrir Drive',
+              onClick: () => window.open(driveUrl, '_blank', 'noopener,noreferrer'),
+            },
+            duration: 8000,
+          },
+        );
+      } else {
+        toast.error(
+          'El archivo supera 5 MB. Pedile a tu docente el link de Drive del curso para archivos grandes.',
+        );
+      }
+      return;
+    }
+
+    setUploadingFile(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('upload_type', 'student_submission');
+      form.append('simulation_instance_id', simId);
+      if (course?.id) form.append('course_id', course.id);
+      form.append('description', `Entrega de práctica ${currentPractice?.agent_key || ''}`.trim());
+
+      const uploadResponse = await authFetch(`${API_BASE}/files/upload`, {
+        method: 'POST',
+        body: form,
+      });
+      if (!uploadResponse.ok) {
+        const err = await uploadResponse.json().catch(() => ({}));
+        throw new Error(err.message || 'Error al subir el archivo');
+      }
+      const uploaded = await uploadResponse.json();
+                      setSessionFiles((prev) => [uploaded, ...prev]);
+      toast.success(`Archivo subido: ${file.name}`);
+    } catch (err: any) {
+      toast.error(err?.message || 'No se pudo subir el archivo');
+    } finally {
+      setUploadingFile(false);
+    }
+  };
 
   // Checkpoint every 2 minutes + on unload / unmount
   useEffect(() => {
@@ -295,28 +362,11 @@ const SimulationPage: React.FC = () => {
     if (!simId) return;
     setCompletingPractice(true);
     try {
-      const res = await apiClient.put(`/simulations/${simId}/complete`);
-      const summary = res.data?.summary;
-      toast.success('Práctica completada. La siguiente práctica ya está disponible.');
-      if (summary) {
-        setChatMessages((prev) => [
-          ...prev,
-          {
-            role: 'ai',
-            message: `✅ Práctica completada.\n\nResumen:\n${summary}`,
-            timestamp: new Date(),
-          },
-        ]);
-      }
-      const progressRes = await apiClient.get(`/practices/course/${courseId}/progress`);
-      const progressList = progressRes.data?.practices || [];
-      setPracticeProgress(progressList);
-      if (currentPractice) {
-        setCurrentPractice({ ...currentPractice, status: 'completed' });
-      }
+      await apiClient.put(`/simulations/${simId}/complete`);
+      toast.success('Práctica completada. Cargando la siguiente...');
+      window.location.reload();
     } catch {
       toast.error('No se pudo completar la práctica');
-    } finally {
       setCompletingPractice(false);
     }
   };
@@ -454,48 +504,72 @@ const SimulationPage: React.FC = () => {
         {practiceProgress.length > 0 && (
           <Card className="mb-6">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Prácticas del curso</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Completá cada práctica en orden para desbloquear la siguiente.
-              </p>
+              <button
+                type="button"
+                className="flex w-full items-start justify-between gap-3 text-left"
+                onClick={() => setPracticesExpanded((v) => !v)}
+                aria-expanded={practicesExpanded}
+              >
+                <div className="min-w-0">
+                  <CardTitle className="text-lg">Prácticas del curso</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {currentPractice
+                      ? `Actual: ${currentPractice.agent_key} — ${currentPractice.title}`
+                      : 'Completá cada práctica en orden para desbloquear la siguiente.'}
+                    {' · '}
+                    {practiceProgress.filter((p) => p.status === 'completed').length}/{practiceProgress.length} completadas
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-md border p-1.5 text-muted-foreground">
+                  {practicesExpanded ? (
+                    <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
+                </span>
+              </button>
             </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {practiceProgress.map((p) => {
-                  const isCurrent = currentPractice?.id === p.id;
-                  const locked = p.status === 'locked';
-                  const completed = p.status === 'completed';
-                  return (
-                    <div
-                      key={p.id}
-                      className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
-                        isCurrent
-                          ? 'border-primary bg-primary/5'
-                          : locked
-                            ? 'opacity-50 bg-muted/40'
-                            : completed
-                              ? 'border-green-300 bg-green-50/50'
-                              : ''
-                      }`}
-                    >
-                      {locked ? (
-                        <Lock className="w-4 h-4 text-muted-foreground" />
-                      ) : completed ? (
-                        <CheckCircle2 className="w-4 h-4 text-green-600" />
-                      ) : null}
-                      <span className="font-medium">{p.agent_key}</span>
-                      <span className="text-muted-foreground hidden sm:inline">
-                        {p.title}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        ({p.difficulty_label})
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-              {currentPractice && currentPractice.status !== 'completed' && (
-                <div className="mt-4 flex justify-end">
+            {practicesExpanded && (
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {practiceProgress.map((p) => {
+                    const isCurrent = currentPractice?.id === p.id;
+                    const locked = p.status === 'locked';
+                    const completed = p.status === 'completed';
+                    return (
+                      <div
+                        key={p.id}
+                        className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
+                          isCurrent
+                            ? 'border-primary bg-primary/5'
+                            : locked
+                              ? 'opacity-50 bg-muted/40'
+                              : completed
+                                ? 'border-green-300 bg-green-50/50'
+                                : ''
+                        }`}
+                      >
+                        {locked ? (
+                          <Lock className="w-4 h-4 text-muted-foreground" />
+                        ) : completed ? (
+                          <CheckCircle2 className="w-4 h-4 text-green-600" />
+                        ) : null}
+                        <span className="font-medium">{p.agent_key}</span>
+                        <span className="text-muted-foreground hidden sm:inline">
+                          {p.title}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          ({p.difficulty_label})
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            )}
+            {currentPractice && currentPractice.status !== 'completed' && (
+              <CardContent className={practicesExpanded ? 'pt-0' : undefined}>
+                <div className="flex justify-end">
                   <Button
                     onClick={completePractice}
                     disabled={completingPractice || !simId}
@@ -509,8 +583,8 @@ const SimulationPage: React.FC = () => {
                     Completar práctica
                   </Button>
                 </div>
-              )}
-            </CardContent>
+              </CardContent>
+            )}
           </Card>
         )}
 
@@ -519,7 +593,7 @@ const SimulationPage: React.FC = () => {
           const mods: string[] = Array.isArray(course?.modules) ? course.modules.map((m: string) => m.toLowerCase()) : [];
           const hasChatIA    = mods.includes('chat_ia') || mods.includes('chat') || true; // Siempre mostrar chat por ahora
           const hasEmail     = mods.includes('email_simulado') || mods.includes('email');
-          const hasDocs      = mods.includes('documentos') || mods.includes('word');
+          const hasDocs = true; // siempre disponible para materiales y entregas de la práctica
           const hasCalc      = mods.includes('hoja_calculo') || mods.includes('calculator') || mods.includes('excel');
           const defaultTab   = hasChatIA ? 'chat' : hasEmail ? 'email' : hasDocs ? 'docs' : 'sheet';
           const colCount     = [hasChatIA, hasEmail, hasDocs, hasCalc].filter(Boolean).length || 1;
@@ -565,35 +639,56 @@ const SimulationPage: React.FC = () => {
                       {course?.title || 'Chat con Asesor IA'}
                     </CardTitle>
                     <p className="text-xs text-muted-foreground">
-                      Interactuá con tu asesor para resolver el escenario. El sistema guarda tu actividad para la evaluación final.
+                      Interactuá con tu asesor para resolver la práctica. Si te pide un archivo, subilo en la pestaña Documentos.
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/80 mt-1">
+                      La IA puede cometer errores. Verificá la información importante.
                     </p>
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-col gap-4">
                       {/* Chat Messages */}
-                      <div ref={chatContainerRef} className="bg-muted rounded-lg p-4 h-[calc(100vh-22rem)] min-h-[400px] overflow-y-auto space-y-4 mb-2 scroll-smooth">
-                        {chatMessages.map((msg, idx) => (
+                      <div ref={chatContainerRef} className="rounded-lg border bg-background p-4 h-[calc(100vh-22rem)] min-h-[400px] overflow-y-auto space-y-3 mb-2 scroll-smooth">
+                        {chatMessages.map((msg, idx) => {
+                          const isAi = msg.role === 'ai';
+                          return (
                             <div
                               key={idx}
-                              className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                              className={`flex gap-2 ${isAi ? '' : 'flex-row-reverse'}`}
                             >
                               <div
-                                className={`max-w-sm lg:max-w-md px-4 py-2 rounded-2xl text-sm ${
-                                  msg.role === 'user'
-                                    ? 'bg-primary text-primary-foreground rounded-br-sm'
-                                    : 'bg-white border border-border text-foreground rounded-bl-sm shadow-sm'
+                                className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                                  isAi ? 'bg-violet-100' : 'bg-sky-100'
+                                }`}
+                              >
+                                {isAi ? (
+                                  <Bot className="w-3.5 h-3.5 text-violet-700" />
+                                ) : (
+                                  <User className="w-3.5 h-3.5 text-sky-700" />
+                                )}
+                              </div>
+                              <div
+                                className={`max-w-[80%] text-sm rounded-lg px-3 py-2 ${
+                                  isAi ? 'bg-muted' : 'bg-sky-50'
                                 }`}
                               >
                                 <p className="whitespace-pre-wrap">{msg.message}</p>
-                                <span className="text-xs opacity-50 mt-1 block">
-                                  {new Date(msg.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
-                                </span>
+                                <div className="text-[10px] text-muted-foreground mt-1">
+                                  {new Date(msg.timestamp).toLocaleTimeString('es-AR', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </div>
                               </div>
                             </div>
-                          ))}
+                          );
+                        })}
                         {loadingChat && (
                           <div className="flex gap-2 items-center">
-                            <div className="bg-white border border-border rounded-2xl rounded-bl-sm px-4 py-2 flex items-center gap-2 shadow-sm">
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center bg-violet-100 shrink-0">
+                              <Bot className="w-3.5 h-3.5 text-violet-700" />
+                            </div>
+                            <div className="bg-muted rounded-lg px-3 py-2 flex items-center gap-2">
                               <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:0ms]" />
                               <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:150ms]" />
                               <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:300ms]" />
@@ -604,7 +699,7 @@ const SimulationPage: React.FC = () => {
                       </div>
 
                       {/* Input */}
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 items-center">
                         <input
                           type="text"
                           value={chatInput}
@@ -622,6 +717,9 @@ const SimulationPage: React.FC = () => {
                           Enviar
                         </Button>
                       </div>
+                      <p className="text-[11px] text-center text-muted-foreground">
+                        La IA puede cometer errores. Verificá la información importante.
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
@@ -698,41 +796,131 @@ const SimulationPage: React.FC = () => {
               {/* Documents Tab */}
               {hasDocs && (
               <TabsContent value="docs">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {documents.length === 0 && <p className="text-muted-foreground">No hay documentos disponibles.</p>}
-                  {documents.map(doc => (
-                    <Card key={doc.id} className="cursor-pointer hover:shadow-lg transition">
-                      <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <FileText className="w-5 h-5" />
-                          {doc.name}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        {doc.url ? (
+                <div className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Paperclip className="w-5 h-5" />
+                        Tus entregas
+                      </CardTitle>
+                      <p className="text-xs text-muted-foreground">
+                        Subí acá los archivos que te pida el asesor (máx. 5 MB por archivo). El docente los verá en tu sesión.
+                      </p>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        className="hidden"
+                        onChange={handlePracticeFileSelect}
+                      />
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Button
+                          type="button"
+                          disabled={!simId || uploadingFile}
+                          onClick={() => fileInputRef.current?.click()}
+                          className="gap-2"
+                        >
+                          {uploadingFile ? (
+                            <Loader className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Paperclip className="w-4 h-4" />
+                          )}
+                          {uploadingFile ? 'Subiendo...' : 'Subir archivo'}
+                        </Button>
+                        {course?.drive_folder_url && (
                           <a
-                            href={doc.url}
+                            href={course.drive_folder_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm text-primary hover:underline break-all"
+                            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                           >
-                            {doc.url}
+                            <ExternalLink className="w-4 h-4" />
+                            Archivos &gt; 5 MB: Drive del curso
                           </a>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">Sin enlace disponible</p>
                         )}
-                        {doc.url && (
-                          <Button
-                            className="w-full mt-4"
-                            variant="outline"
-                            onClick={() => setSelectedDoc(doc)}
-                          >
-                            Abrir Documento
-                          </Button>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
+                      </div>
+
+                      {sessionFiles.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Todavía no subiste archivos en esta práctica.</p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {sessionFiles.map((f) => (
+                            <li key={f.id}>
+                              <button
+                                type="button"
+                                className="flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm hover:bg-muted"
+                                onClick={async () => {
+                                  try {
+                                    const res = await authFetch(`${API_BASE}/files/${f.id}/download`);
+                                    if (!res.ok) throw new Error('Download failed');
+                                    const blob = await res.blob();
+                                    const url = URL.createObjectURL(blob);
+                                    const a = Object.assign(document.createElement('a'), {
+                                      href: url,
+                                      download: f.file_name,
+                                    });
+                                    a.click();
+                                    URL.revokeObjectURL(url);
+                                  } catch {
+                                    toast.error('No se pudo descargar el archivo');
+                                  }
+                                }}
+                              >
+                                <FileText className="w-4 h-4 shrink-0 text-primary" />
+                                <span className="flex-1 truncate">{f.file_name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {Math.round(Number(f.file_size_bytes) / 1024)} KB
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">Material del curso</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {documents.length === 0 && (
+                        <p className="text-muted-foreground text-sm">No hay documentos de material disponibles.</p>
+                      )}
+                      {documents.map(doc => (
+                        <Card key={doc.id} className="cursor-pointer hover:shadow-lg transition">
+                          <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                              <FileText className="w-5 h-5" />
+                              {doc.name}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            {doc.url ? (
+                              <a
+                                href={doc.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-primary hover:underline break-all"
+                              >
+                                {doc.url}
+                              </a>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">Sin enlace disponible</p>
+                            )}
+                            {doc.url && (
+                              <Button
+                                className="w-full mt-4"
+                                variant="outline"
+                                onClick={() => setSelectedDoc(doc)}
+                              >
+                                Abrir Documento
+                              </Button>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </TabsContent>
               )}

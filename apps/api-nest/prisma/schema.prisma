@@ -167,7 +167,8 @@ enum AssignmentStatus {
 model User {
   id            String   @id @default(uuid()) @db.VarChar(36)
   email         String   @unique @db.VarChar(255)
-  password_hash String   @db.VarChar(255)
+  password_hash String?  @db.VarChar(255)
+  firebase_uid  String?  @unique @db.VarChar(128)
   name          String   @db.VarChar(255)
   role          String   @default("student") @db.VarChar(100)
   is_active     Boolean  @default(true)
@@ -183,6 +184,9 @@ model User {
   notifications_received         Notification[]        @relation("Recipient")
   notifications_actor            Notification[]        @relation("Actor")
   file_uploads                   FileUpload[]
+  terms_acceptances              UserTermsAcceptance[]
+  course_teachers                CourseTeacher[]
+  enrollment_attempts            EnrollmentAttempt[]
 
   @@index([email])
   @@index([created_at])
@@ -199,21 +203,6 @@ model TeacherGroup {
   @@map("teacher_groups")
 }
 
-model AccessRequest {
-  id            Int      @id @default(autoincrement())
-  student_id    String   @db.VarChar(36)
-  course_id     String   @db.VarChar(36)
-  student_name  String   @db.VarChar(255)
-  student_email String   @db.VarChar(255)
-  course_name   String   @db.VarChar(255)
-  reason        String?  @db.Text
-  status        String   @default("pending") @db.VarChar(50)
-  created_at    DateTime @default(now())
-  updated_at    DateTime @default(now())
-
-  @@map("access_requests")
-}
-
 model Course {
   id                   String   @id @default(uuid()) @db.VarChar(36)
   course_id            String   @unique @db.VarChar(36)
@@ -227,6 +216,8 @@ model Course {
   crisis_events        Json?
   simulated_company_id Int?
   tech_sheet_id        Int?
+  password_hash        String?  @db.VarChar(255)
+  drive_folder_url     String?  @db.Text
   is_active            Boolean  @default(true)
   created_by           String?  @db.VarChar(36)
   created_at           DateTime @default(now())
@@ -244,9 +235,68 @@ model Course {
   tasks                 Task[]
   practice_logs         PracticeLogs[]
   file_uploads          FileUpload[]
+  teachers              CourseTeacher[]
+  enrollment_attempts   EnrollmentAttempt[]
 
   @@index([category])
   @@map("courses")
+}
+
+model CourseTeacher {
+  id         Int      @id @default(autoincrement())
+  course_id  String   @db.VarChar(36)
+  teacher_id String   @db.VarChar(36)
+  created_at DateTime @default(now())
+
+  course  Course @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  teacher User   @relation(fields: [teacher_id], references: [id], onDelete: Cascade)
+
+  @@unique([course_id, teacher_id])
+  @@index([teacher_id])
+  @@map("course_teachers")
+}
+
+model EnrollmentAttempt {
+  id          Int      @id @default(autoincrement())
+  student_id  String   @db.VarChar(36)
+  course_id   String   @db.VarChar(36)
+  success     Boolean  @default(false)
+  created_at  DateTime @default(now())
+
+  student User   @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  course  Course @relation(fields: [course_id], references: [id], onDelete: Cascade)
+
+  @@index([student_id, course_id, created_at])
+  @@map("enrollment_attempts")
+}
+
+model TermsVersion {
+  id           Int      @id @default(autoincrement())
+  version      String   @unique @db.VarChar(50)
+  title        String   @db.VarChar(255)
+  content      String   @db.Text
+  is_current   Boolean  @default(false)
+  published_at DateTime?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  acceptances UserTermsAcceptance[]
+
+  @@map("terms_versions")
+}
+
+model UserTermsAcceptance {
+  id               Int      @id @default(autoincrement())
+  user_id          String   @db.VarChar(36)
+  terms_version_id Int
+  accepted_at      DateTime @default(now())
+
+  user          User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  terms_version TermsVersion @relation(fields: [terms_version_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, terms_version_id])
+  @@index([user_id])
+  @@map("user_terms_acceptances")
 }
 
 model Simulation {
@@ -321,6 +371,7 @@ model SimulationInstance {
   scenario      Scenario       @relation(fields: [scenario_id], references: [id])
   logs          PracticeLogs[]
   notifications Notification[]
+  file_uploads  FileUpload[]
 
   @@index([course_id, student_id])
   @@map("simulation_instances")
@@ -655,6 +706,7 @@ model FileUpload {
   uploaded_by_id          String         @db.VarChar(36)
   course_id               String?        @db.VarChar(36)
   ministry_requirement_id String?        @db.VarChar(36)
+  simulation_instance_id  String?        @db.VarChar(36)
   file_name               String         @db.VarChar(255)
   file_type               String         @db.VarChar(50)
   upload_type             FileUploadType
@@ -668,10 +720,12 @@ model FileUpload {
   uploaded_by          User                 @relation(fields: [uploaded_by_id], references: [id], onDelete: Cascade)
   course               Course?              @relation(fields: [course_id], references: [id], onDelete: SetNull)
   ministry_requirement MinistryRequirement? @relation(fields: [ministry_requirement_id], references: [id], onDelete: Cascade)
+  simulation_instance  SimulationInstance?  @relation(fields: [simulation_instance_id], references: [id], onDelete: SetNull)
 
   @@index([uploaded_by_id])
   @@index([course_id])
   @@index([ministry_requirement_id])
+  @@index([simulation_instance_id])
   @@index([created_at])
   @@map("file_uploads")
 }

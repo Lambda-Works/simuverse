@@ -33,10 +33,10 @@ interface KPIConfig {
 interface TaskConfig {
   id: string;
   kpi_id: string;
-  type: 'practice' | 'evaluation';
+  type: 'practice';
   title: string;
   description: string;
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: 'very_low' | 'low' | 'medium';
   sequence: number;
   expected_duration_minutes: number;
 }
@@ -49,9 +49,22 @@ interface AnalyzedKPIsConfig {
   tasks: TaskConfig[];
   prompts: {
     system_prompt: string;
-    evaluation_prompt: string;
     coaching_prompt: string;
   };
+}
+
+const DIFFICULTY_LABELS: Record<TaskConfig['difficulty'], string> = {
+  very_low: 'Muy baja',
+  low: 'Baja',
+  medium: 'Media',
+};
+
+function normalizeDifficulty(raw: string | undefined): TaskConfig['difficulty'] {
+  const key = String(raw || '').toLowerCase();
+  if (key === 'very_low' || key === 'easy' || key === 'basica') return 'very_low';
+  if (key === 'low' || key === 'intermedia') return 'low';
+  if (key === 'medium' || key === 'hard' || key === 'avanzada') return 'medium';
+  return 'medium';
 }
 
 interface ConfigureTechSheetModalProps {
@@ -122,16 +135,15 @@ export function ConfigureTechSheetModal({
           tasks: (data.tasks || []).map((t: any) => ({
             id: t.id || crypto.randomUUID(),
             kpi_id: t.kpi_id || '',
-            type: t.type || 'practice',
+            type: 'practice' as const,
             title: t.title || '',
             description: t.description || '',
-            difficulty: t.difficulty || 'medium',
+            difficulty: normalizeDifficulty(t.difficulty),
             sequence: t.sequence ?? 0,
             expected_duration_minutes: t.expected_duration_minutes ?? 0,
           })),
           prompts: {
             system_prompt: data.prompts?.system_prompt || data.prompts?.system || '',
-            evaluation_prompt: data.prompts?.evaluation_prompt || '',
             coaching_prompt: data.prompts?.coaching_prompt || '',
           },
         });
@@ -472,32 +484,48 @@ export function ConfigureTechSheetModal({
           <TabsContent value="tasks" className="space-y-4 mt-4">
             <h3 className="font-semibold text-lg">Tareas de Simulación</h3>
             <p className="text-sm text-gray-600">
-              Total: {config.tasks.length} tareas ({config.tasks.filter((t) => t.type === 'practice').length} práctica, {config.tasks.filter((t) => t.type === 'evaluation').length} evaluación)
+              Total: {config.tasks.length} tareas
             </p>
             <div className="space-y-3 max-h-96 overflow-auto">
               {config.tasks.map((task) => (
                 <Card
                   key={task.id}
-                  className={`p-4 ${
-                    task.type === 'practice'
-                      ? 'border-blue-200 bg-blue-50'
-                      : 'border-red-200 bg-red-50'
-                  }`}
+                  className="p-4 border-blue-200 bg-blue-50"
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="flex gap-2 items-center mb-1">
                         <span className="text-xs font-semibold px-2 py-1 bg-white rounded">
-                          {task.type === 'practice' ? '📚 Práctica' : '🎯 Evaluación'}
+                          Práctica
                         </span>
-                        <span className="text-xs text-gray-600">
-                          Dificultad: {task.difficulty}
-                        </span>
+                        {editing ? (
+                          <select
+                            className="text-xs border rounded px-2 py-1 bg-white"
+                            value={task.difficulty}
+                            onChange={(e) => {
+                              const difficulty = e.target.value as TaskConfig['difficulty'];
+                              setConfig({
+                                ...config,
+                                tasks: config.tasks.map((t) =>
+                                  t.id === task.id ? { ...t, difficulty } : t,
+                                ),
+                              });
+                            }}
+                          >
+                            <option value="very_low">Muy baja</option>
+                            <option value="low">Baja</option>
+                            <option value="medium">Media</option>
+                          </select>
+                        ) : (
+                          <span className="text-xs text-gray-600">
+                            Dificultad: {DIFFICULTY_LABELS[task.difficulty] || task.difficulty}
+                          </span>
+                        )}
                       </div>
                       <p className="font-semibold">{task.title}</p>
                       <p className="text-sm text-gray-600">{task.description}</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        ⏱️ {task.expected_duration_minutes} min | Secuencia: {task.sequence}
+                        {task.expected_duration_minutes} min | Secuencia: {task.sequence}
                       </p>
                     </div>
                     {editing && (
@@ -527,7 +555,7 @@ export function ConfigureTechSheetModal({
                     type: 'practice',
                     title: 'Nueva Tarea',
                     description: '',
-                    difficulty: 'easy',
+                    difficulty: 'very_low',
                     sequence: config.tasks.length + 1,
                     expected_duration_minutes: 15,
                   };
@@ -550,7 +578,7 @@ export function ConfigureTechSheetModal({
 
             <div className="space-y-4">
               <div>
-                <label className="font-semibold block mb-2">📋 System Prompt</label>
+                <label className="font-semibold block mb-2">System Prompt</label>
                 {editing ? (
                   <Textarea
                     value={config.prompts.system_prompt}
@@ -573,30 +601,7 @@ export function ConfigureTechSheetModal({
               </div>
 
               <div>
-                <label className="font-semibold block mb-2">🎯 Evaluation Prompt</label>
-                {editing ? (
-                  <Textarea
-                    value={config.prompts.evaluation_prompt}
-                    onChange={(e) => {
-                      setConfig({
-                        ...config,
-                        prompts: {
-                          ...config.prompts,
-                          evaluation_prompt: e.target.value,
-                        },
-                      });
-                    }}
-                    rows={4}
-                  />
-                ) : (
-                  <Card className="p-4 bg-gray-50 text-sm max-h-32 overflow-auto">
-                    {config.prompts.evaluation_prompt}
-                  </Card>
-                )}
-              </div>
-
-              <div>
-                <label className="font-semibold block mb-2">💡 Coaching Prompt</label>
+                <label className="font-semibold block mb-2">Coaching Prompt</label>
                 {editing ? (
                   <Textarea
                     value={config.prompts.coaching_prompt}
@@ -641,7 +646,6 @@ export function ConfigureTechSheetModal({
                 <p className="text-2xl font-bold">
                   {[
                     config.prompts.system_prompt,
-                    config.prompts.evaluation_prompt,
                     config.prompts.coaching_prompt,
                   ].filter(Boolean).length}
                 </p>

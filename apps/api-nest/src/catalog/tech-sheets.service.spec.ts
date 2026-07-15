@@ -90,12 +90,14 @@ describe.skip('TechSheetsService', () => {
         {
           id: 'k1', name: 'KPI 1', description: 'KPI desc', category: 'evaluacion',
           weight: 30, target_value: 80, minimum_pass_value: 60,
-          tasks: [{ id: 't1', type: 'evaluation', title: 'Question 1', description: '', difficulty: 'medium', sequence: 1, expected_duration_minutes: 0 }],
+          tasks: [{ id: 't1', type: 'practice', title: 'Question 1', description: '', difficulty: 'medium', sequence: 1, expected_duration_minutes: 0 }],
         },
+      ]);
+      prismaService.techSheetTask.findMany.mockResolvedValue([
+        { id: 't1', kpi_id: 'k1', type: 'practice', title: 'Question 1', description: '', difficulty: 'medium', sequence: 1, expected_duration_minutes: 0 },
       ]);
       prismaService.techSheetPrompt.findMany.mockResolvedValue([
         { type: 'system', content: 'System prompt' },
-        { type: 'evaluation', content: 'Eval prompt' },
         { type: 'coaching', content: 'Coach prompt' },
       ]);
 
@@ -107,9 +109,11 @@ describe.skip('TechSheetsService', () => {
       expect(result.kpis[0].evaluation_questions).toEqual(['Question 1']);
       expect(result.tasks).toHaveLength(1);
       expect(result.tasks[0].kpi_id).toBe('k1');
+      expect(result.tasks[0].type).toBe('practice');
+      expect(result.tasks[0].difficulty).toBe('medium');
       const prompts: any = result.prompts;
       expect(prompts.system_prompt).toBe('System prompt');
-      expect(prompts.evaluation_prompt).toBe('Eval prompt');
+      expect(prompts.evaluation_prompt).toBeUndefined();
       expect(prompts.coaching_prompt).toBe('Coach prompt');
       expect(result.pipeline_status).toBe('completed');
     });
@@ -171,8 +175,8 @@ describe.skip('TechSheetsService', () => {
       await service.updateConfig(1, {
         competencies: [{ name: 'New Comp', level: 'basic' }],
         kpis: [{ name: 'New KPI', weight: 100 }],
-        tasks: [{ title: 'New Task', type: 'evaluation' }],
-        prompts: { system_prompt: 'New system', evaluation_prompt: 'New eval' },
+        tasks: [{ title: 'New Task', type: 'practice' }],
+        prompts: { system_prompt: 'New system', coaching_prompt: 'New coach' },
       });
 
       // Verify deleteMany called for all tables

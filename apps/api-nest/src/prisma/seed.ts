@@ -59,6 +59,7 @@ async function main() {
 
   // Contraseña por defecto para todos los usuarios
   const defaultPassword = await bcrypt.hash('Admin123!', 10);
+  const coursePassword = await bcrypt.hash('Curso2026!', 10);
 
   // Admin
   const admin = await prisma.user.upsert({
@@ -177,7 +178,8 @@ async function main() {
     where: { course_id: 'OFI-BAS-001' },
     update: {
       modules: ["chat_ia", "email_simulado", "documentos", "hoja_calculo", "crisis_engine"],
-      simulated_company_id: company.id
+      simulated_company_id: company.id,
+      password_hash: coursePassword,
     },
     create: {
       id: 'course-ofimatica-001',
@@ -188,6 +190,7 @@ async function main() {
       modules: ["chat_ia", "email_simulado", "documentos", "hoja_calculo", "crisis_engine"],
       is_active: true,
       simulated_company_id: company.id,
+      password_hash: coursePassword,
     },
   });
 
@@ -343,6 +346,69 @@ async function main() {
     });
   }
 
+  // Docentes asociados al curso
+  await prisma.courseTeacher.upsert({
+    where: { course_id_teacher_id: { course_id: course.id, teacher_id: teacher1.id } },
+    update: {},
+    create: { course_id: course.id, teacher_id: teacher1.id },
+  });
+
+  // Términos y condiciones iniciales
+  const existingTerms = await prisma.termsVersion.findFirst({ where: { is_current: true } });
+  if (!existingTerms) {
+    await prisma.termsVersion.create({
+      data: {
+        version: '1.0',
+        title: 'Términos y Condiciones de SimuVerse',
+        content:
+          'Al usar SimuVerse aceptás el uso de la plataforma con fines educativos, el registro de sesiones de práctica y el tratamiento de datos conforme a la política institucional.',
+        is_current: true,
+        published_at: new Date(),
+      },
+    });
+    console.log('✅ Términos y condiciones v1.0 publicados');
+  }
+
+  // Sync seed users to Firebase when Admin credentials are present
+  const firebaseCredentials = (await import('../auth/firebase-credentials')).resolveFirebaseCredentials();
+  if (firebaseCredentials) {
+    try {
+      const { cert, getApps, initializeApp } = await import('firebase-admin/app');
+      const { getAuth } = await import('firebase-admin/auth');
+      if (!getApps().length) {
+        initializeApp({
+          credential: cert(firebaseCredentials),
+        });
+      }
+      const seedUsers = [admin, teacher1, teacher2, student1, student2, student3, ministerio];
+      for (const u of seedUsers) {
+        try {
+          let fb;
+          try {
+            fb = await getAuth().getUserByEmail(u.email);
+          } catch {
+            fb = await getAuth().createUser({
+              uid: u.id,
+              email: u.email,
+              password: 'Admin123!',
+              displayName: u.name,
+              emailVerified: true,
+            });
+          }
+          await prisma.user.update({
+            where: { id: u.id },
+            data: { firebase_uid: fb.uid },
+          });
+        } catch (err: any) {
+          console.warn(`⚠️ Firebase sync skipped for ${u.email}:`, err?.message || err);
+        }
+      }
+      console.log('✅ Usuarios seed sincronizados con Firebase');
+    } catch (err: any) {
+      console.warn('⚠️ Firebase Admin no disponible en seed:', err?.message || err);
+    }
+  }
+
   console.log('\n🎉 Seed completado exitosamente!');
   console.log('\n📋 Credenciales de acceso:');
   console.log('   Email: admin@simuverse.edu | Password: Admin123!');
@@ -352,6 +418,7 @@ async function main() {
   console.log('   Email: maria.lopez@student.edu | Password: Admin123!');
   console.log('   Email: carlos.soto@student.edu | Password: Admin123!');
   console.log('   Email: control@ministerio.gob | Password: Admin123!');
+  console.log('   Curso OFI-BAS-001 password: Curso2026!');
 }
 
 main()
