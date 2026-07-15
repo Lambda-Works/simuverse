@@ -147,7 +147,12 @@ jobs:
           echo "✓ Web production build successful"
 
       - name: Build and start Docker Compose services
-        run: docker compose -f docker-compose.prod.yml up -d --build
+        run: |
+          docker compose -f docker-compose.prod.yml up -d --build || {
+            echo "========== docker compose up failed — seed/api logs =========="
+            docker compose -f docker-compose.prod.yml logs --tail 200 seed api-nest || true
+            exit 1
+          }
 
       - name: Wait for PostgreSQL to be healthy
         run: |

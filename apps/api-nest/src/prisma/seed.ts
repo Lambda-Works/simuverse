@@ -369,10 +369,11 @@ async function main() {
     console.log('✅ Términos y condiciones v1.0 publicados');
   }
 
-  // Sync seed users to Firebase when Admin credentials are present
-  const firebaseCredentials = (await import('../auth/firebase-credentials')).resolveFirebaseCredentials();
-  if (firebaseCredentials) {
-    try {
+  // Sync seed users to Firebase when Admin credentials are present (optional; skip on failure)
+  try {
+    const { resolveFirebaseCredentials } = await import('../auth/firebase-credentials');
+    const firebaseCredentials = resolveFirebaseCredentials();
+    if (firebaseCredentials) {
       const { cert, getApps, initializeApp } = await import('firebase-admin/app');
       const { getAuth } = await import('firebase-admin/auth');
       if (!getApps().length) {
@@ -404,9 +405,11 @@ async function main() {
         }
       }
       console.log('✅ Usuarios seed sincronizados con Firebase');
-    } catch (err: any) {
-      console.warn('⚠️ Firebase Admin no disponible en seed:', err?.message || err);
+    } else {
+      console.log('ℹ️ Firebase Admin no configurado — seed sin sync de usuarios');
     }
+  } catch (err: any) {
+    console.warn('⚠️ Firebase sync skipped in seed:', err?.message || err);
   }
 
   console.log('\n🎉 Seed completado exitosamente!');
