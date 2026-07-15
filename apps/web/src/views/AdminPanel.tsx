@@ -147,6 +147,7 @@ interface CourseForm {
   simulated_company_id: number | null;
   password: string;
   clear_password: boolean;
+  drive_folder_url: string;
   teacher_ids: string[];
 }
 
@@ -165,6 +166,7 @@ const emptyForm: CourseForm = {
   simulated_company_id: null,
   password: '',
   clear_password: false,
+  drive_folder_url: '',
   teacher_ids: [],
 };
 
@@ -180,6 +182,8 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
   const [form, setForm] = useState<CourseForm>({ ...emptyForm });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [editingRequiresPassword, setEditingRequiresPassword] = useState(false);
+  const [revealedPassword, setRevealedPassword] = useState<string | null>(null);
   const [newCriterion, setNewCriterion] = useState('');
   const [newTrait, setNewTrait] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
@@ -263,20 +267,27 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
       simulated_company_id: form.simulated_company_id || null,
       created_by: user!.id,
       teacher_ids: form.teacher_ids,
+      drive_folder_url: form.drive_folder_url.trim() || null,
       ...(form.password ? { password: form.password } : {}),
       ...(form.clear_password ? { clear_password: true } : {}),
     };
 
     try {
+      let res;
       if (editingId) {
-        await apiClient.put(`/courses/${editingId}`, payload);
+        res = await apiClient.put(`/courses/${editingId}`, payload);
       } else {
-        await apiClient.post('/courses', payload);
+        res = await apiClient.post('/courses', payload);
       }
+      const plain = res?.data?.password_plain;
       toast.success(editingId ? 'Curso actualizado' : 'Curso creado');
+      if (plain) {
+        setRevealedPassword(plain);
+      }
       setDialogOpen(false);
       setForm({ ...emptyForm });
       setEditingId(null);
+      setEditingRequiresPassword(false);
       fetchCourses();
     } catch (error: any) {
       toast.error(error.message || 'Error al guardar el curso');
@@ -300,12 +311,35 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
       simulated_company_id: course.simulated_company_id || null,
       password: '',
       clear_password: false,
+      drive_folder_url: course.drive_folder_url || '',
       teacher_ids: Array.isArray(course.teachers)
         ? course.teachers.map((t: any) => t.teacher?.id || t.teacher_id || t.id).filter(Boolean)
         : [],
     });
+    setEditingRequiresPassword(!!course.requires_password);
     setEditingId(course.id);
     setDialogOpen(true);
+  };
+
+  const handleRegeneratePassword = async () => {
+    if (!editingId) return;
+    setSaving(true);
+    try {
+      const res = await apiClient.post(`/courses/${editingId}/regenerate-password`);
+      const plain = res?.data?.password_plain;
+      if (plain) {
+        setRevealedPassword(plain);
+        setEditingRequiresPassword(true);
+        setForm((p) => ({ ...p, password: '', clear_password: false }));
+        toast.success('Contraseña regenerada');
+        fetchCourses();
+      } else {
+        toast.error('No se recibió la nueva contraseña');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Error al regenerar contraseña');
+    }
+    setSaving(false);
   };
 
   const handleDelete = (id: string) => {
@@ -408,10 +442,10 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
                 <h2 className="text-2xl font-bold">Gestión de Cursos</h2>
                 <p className="text-gray-600 mt-1">Crea, edita y configura los cursos disponibles</p>
               </div>
-              <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setForm({ ...emptyForm }); setEditingId(null); } }}>
+              <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setForm({ ...emptyForm }); setEditingId(null); setEditingRequiresPassword(false); } }}>
                 {!hasRole('ministerio') && (
                 <DialogTrigger asChild>
-                  <Button><Plus className="w-4 h-4 mr-2" /> Nuevo Curso</Button>
+                  <Button onClick={() => { setEditingRequiresPassword(false); setForm({ ...emptyForm }); }}><Plus className="w-4 h-4 mr-2" /> Nuevo Curso</Button>
                 </DialogTrigger>
                 )}
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -858,30 +892,64 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
                       </div>
                     )}
 
+                    <div className="space-y-2">
+                      <Label>Link de Drive (archivos &gt; 5 MB)</Label>
+                      <Input
+                        type="url"
+                        placeholder="https://drive.google.com/drive/folders/..."
+                        value={form.drive_folder_url}
+                        onChange={(e) => setForm((p) => ({ ...p, drive_folder_url: e.target.value }))}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Si el alumno intenta subir un archivo mayor a 5 MB, se le mostrará este link.
+                      </p>
+                    </div>
+
                     {/* Active toggle */}
                     <div className="space-y-2">
                       <Label>Contraseña del curso (opcional)</Label>
+                      {editingId && (
+                        <p className="text-xs text-muted-foreground">
+                          Estado:{' '}
+                          {editingRequiresPassword && !form.clear_password
+                            ? 'Con contraseña (no se puede ver la actual; regenerá o cambiá para obtener una nueva)'
+                            : 'Acceso libre'}
+                        </p>
+                      )}
                       <Input
                         type="password"
+                        name="course-enrollment-password"
+                        autoComplete="new-password"
                         placeholder={editingId ? 'Dejar vacío para no cambiar' : 'Vacío = acceso libre'}
                         value={form.password}
                         onChange={(e) => setForm((p) => ({ ...p, password: e.target.value, clear_password: false }))}
                       />
                       {editingId && (
-                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <input
-                            type="checkbox"
-                            checked={form.clear_password}
-                            onChange={(e) =>
-                              setForm((p) => ({
-                                ...p,
-                                clear_password: e.target.checked,
-                                password: e.target.checked ? '' : p.password,
-                              }))
-                            }
-                          />
-                          Quitar contraseña (acceso libre)
-                        </label>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <input
+                              type="checkbox"
+                              checked={form.clear_password}
+                              onChange={(e) =>
+                                setForm((p) => ({
+                                  ...p,
+                                  clear_password: e.target.checked,
+                                  password: e.target.checked ? '' : p.password,
+                                }))
+                              }
+                            />
+                            Quitar contraseña (acceso libre)
+                          </label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={saving || form.clear_password}
+                            onClick={handleRegeneratePassword}
+                          >
+                            Regenerar contraseña
+                          </Button>
+                        </div>
                       )}
                     </div>
 
@@ -928,9 +996,36 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
                   </div>
                 </DialogContent>
               </Dialog>
-            </div>
 
-            {/* Filtro de Cursos */}
+              <Dialog open={!!revealedPassword} onOpenChange={(o) => { if (!o) setRevealedPassword(null); }}>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Contraseña del curso</DialogTitle>
+                    <DialogDescription>
+                      Copiá y guardá esta contraseña ahora. No se podrá volver a ver; solo regenerarla.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex items-center gap-2">
+                    <Input readOnly value={revealedPassword || ''} className="font-mono" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={async () => {
+                        if (!revealedPassword) return;
+                        try {
+                          await navigator.clipboard.writeText(revealedPassword);
+                          toast.success('Contraseña copiada');
+                        } catch {
+                          toast.error('No se pudo copiar');
+                        }
+                      }}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
             <div className="flex gap-2 mb-4">
               <Button 
                 variant={courseFilter === 'all' ? 'default' : 'outline'} 
@@ -981,6 +1076,10 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
                         {course.is_active 
                           ? <Badge variant="default" className="text-xs bg-green-600">✓ Activo</Badge>
                           : <Badge variant="secondary" className="text-xs bg-gray-400">✕ Inactivo</Badge>
+                        }
+                        {course.requires_password
+                          ? <Badge variant="outline" className="text-xs">Con contraseña</Badge>
+                          : <Badge variant="outline" className="text-xs text-muted-foreground">Acceso libre</Badge>
                         }
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">{course.course_id} — {(course.modules as string[])?.join(', ')}</p>

@@ -76,6 +76,10 @@ class CreateCourseDto {
   password?: string;
 
   @IsOptional()
+  @IsString()
+  drive_folder_url?: string;
+
+  @IsOptional()
   @IsArray()
   teacher_ids?: string[];
 }
@@ -142,6 +146,10 @@ class UpdateCourseDto {
   clear_password?: boolean;
 
   @IsOptional()
+  @IsString()
+  drive_folder_url?: string;
+
+  @IsOptional()
   @IsArray()
   teacher_ids?: string[];
 }
@@ -187,6 +195,15 @@ export class CoursesController {
     @CurrentUser() user: { id: string; role: string },
   ) {
     return this.coursesService.update(id, dto, user);
+  }
+
+  @Post(':id/regenerate-password')
+  @Roles('admin', 'teacher')
+  async regeneratePassword(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; role: string },
+  ) {
+    return this.coursesService.regeneratePassword(id, user);
   }
 
   @Post(':courseId/enroll')

@@ -217,6 +217,7 @@ model Course {
   simulated_company_id Int?
   tech_sheet_id        Int?
   password_hash        String?  @db.VarChar(255)
+  drive_folder_url     String?  @db.Text
   is_active            Boolean  @default(true)
   created_by           String?  @db.VarChar(36)
   created_at           DateTime @default(now())
@@ -370,6 +371,7 @@ model SimulationInstance {
   scenario      Scenario       @relation(fields: [scenario_id], references: [id])
   logs          PracticeLogs[]
   notifications Notification[]
+  file_uploads  FileUpload[]
 
   @@index([course_id, student_id])
   @@map("simulation_instances")
@@ -704,6 +706,7 @@ model FileUpload {
   uploaded_by_id          String         @db.VarChar(36)
   course_id               String?        @db.VarChar(36)
   ministry_requirement_id String?        @db.VarChar(36)
+  simulation_instance_id  String?        @db.VarChar(36)
   file_name               String         @db.VarChar(255)
   file_type               String         @db.VarChar(50)
   upload_type             FileUploadType
@@ -717,10 +720,12 @@ model FileUpload {
   uploaded_by          User                 @relation(fields: [uploaded_by_id], references: [id], onDelete: Cascade)
   course               Course?              @relation(fields: [course_id], references: [id], onDelete: SetNull)
   ministry_requirement MinistryRequirement? @relation(fields: [ministry_requirement_id], references: [id], onDelete: Cascade)
+  simulation_instance  SimulationInstance?  @relation(fields: [simulation_instance_id], references: [id], onDelete: SetNull)
 
   @@index([uploaded_by_id])
   @@index([course_id])
   @@index([ministry_requirement_id])
+  @@index([simulation_instance_id])
   @@index([created_at])
   @@map("file_uploads")
 }

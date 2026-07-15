@@ -128,6 +128,15 @@ export class AnalysisPipelineService {
         );
       }
 
+      // Materialize TechSheetTask → Scenario practices on the linked course
+      try {
+        await this.syncPracticesToCourse(techSheetId);
+      } catch (syncError) {
+        this.logger.warn(
+          `Practice sync failed (non-blocking): ${syncError}`,
+        );
+      }
+
       this.logger.log(`Pipeline completed for tech sheet ${techSheetId}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -288,10 +297,10 @@ Genera entre 8 y 12 tareas de práctica con la siguiente distribución aproximad
 - 30-40% tipo abierta (sin opciones, array vacío — situaciones o desafíos a resolver)
 - 20-30% tipo verdadero_falso (opciones: ["Verdadero", "Falso"])
 
-Dificultad variada:
-- ~30% basica (conceptos fundamentales)
+Dificultad variada (solo estos tres niveles; NUNCA uses hard/difícil):
+- ~30% basica (muy fácil / conceptos fundamentales)
 - ~40% intermedia (aplicación práctica)
-- ~30% avanzada (análisis y síntesis)
+- ~30% avanzada (análisis y síntesis — equivale a dificultad media, NO hard)
 
 Cada tarea debe estar asociada a una competencia de la lista (campo competencia_asociada).
 Las tareas deben ser específicas al contenido del documento, no genéricas.
@@ -329,14 +338,18 @@ ${markdown}
 
 Crea un escenario de simulación donde el estudiante deba aplicar las competencias profesionales en un contexto empresarial real mediante prácticas, tareas y situaciones.
 
-IMPORTANTE: El simulador es SOLO de práctica. NO incluyas evaluación, calificación, puntuación ni criterios de aprobación/reprobación.
+IMPORTANTE:
+- El simulador es SOLO de práctica. NO incluyas evaluación, calificación, puntuación ni criterios de aprobación/reprobación.
+- El tono debe ser amigable y sin presión: dejá claro que es un espacio para practicar y aprender, no un examen.
+- Cuando la tarea requiera evidencia o un archivo (documento, imagen, planilla, etc.), el prompt debe indicar que el estudiante debe subir el archivo en la pestaña Documentos (máximo 5 MB) o usar el link de Drive del curso si es más grande.
 
 El prompt debe incluir:
 1. Contexto de la empresa y situación
 2. Rol del estudiante
 3. Objetivos del escenario (aprendizaje práctico)
 4. Situaciones, tareas o desafíos a enfrentar
-5. Indicadores de progreso basados en los KPIs (sin notas ni scores)
+5. Momentos en que se pide subir un archivo o evidencia para continuar
+6. Indicadores de progreso basados en los KPIs (sin notas ni scores)
 
 Retorna el prompt como texto estructurado en español.`;
   }
@@ -362,14 +375,16 @@ Prompt de simulación (para referencia):
 ${simulationPrompt}
 
 IMPORTANTE: El simulador es SOLO de práctica. NO evalúes, califiques ni asignes puntuaciones al estudiante.
+Transmití calma y acompañamiento: el estudiante está practicando, no rindiendo un examen.
 
 El prompt de coaching debe:
-1. Definir el tono pedagógico: alentador, constructivo, paciente
+1. Definir el tono pedagógico: alentador, constructivo, paciente y sin presión evaluativa
 2. Especificar cuándo intervenir: si el estudiante se desvía, pide ayuda, o comete errores
 3. Dar pautas para guiar sin dar respuestas directas (método socrático)
 4. Incluir frases de ejemplo para corrección constructiva
 5. Adaptar el nivel de ayuda según la dificultad de cada competencia (básico/intermedio/avanzado)
 6. Enfocarse en práctica, tareas y situaciones — nunca en evaluación o scoring
+7. Pedir explícitamente la subida de archivos en la pestaña Documentos cuando la práctica lo requiera (adjunto ≤5 MB o link de Drive del curso si es más grande), y no dar por hecha la entrega hasta que el estudiante confirme
 
 Retorna SOLO el texto del prompt de coaching, sin markdown ni explicaciones adicionales.`;
   }
@@ -516,30 +531,31 @@ Retorna SOLO el texto del prompt de coaching, sin markdown ni explicaciones adic
     return map[String(raw).toLowerCase()] || 'basic';
   }
 
-  private mapTaskType(raw: string): 'practice' | 'evaluation' {
-    const map: Record<string, 'practice' | 'evaluation'> = {
-      multiple_choice: 'practice',
-      verdadero_falso: 'practice',
-      abierta: 'practice',
-      practice: 'practice',
-      evaluation: 'practice',
-    };
-    return map[String(raw).toLowerCase()] || 'practice';
+  private mapTaskType(_raw: string): 'practice' {
+    return 'practice';
   }
 
-  private mapDifficulty(raw: string): 'easy' | 'medium' | 'hard' {
-    const map: Record<string, 'easy' | 'medium' | 'hard'> = {
-      basica: 'easy',
-      basico: 'easy',
-      easy: 'easy',
-      intermedia: 'medium',
-      intermedio: 'medium',
+  /** Align with course practices: very_low | low | medium (never hard). */
+  private mapDifficulty(raw: string): 'very_low' | 'low' | 'medium' {
+    const key = String(raw || '').toLowerCase().trim();
+    const map: Record<string, 'very_low' | 'low' | 'medium'> = {
+      basica: 'very_low',
+      basico: 'very_low',
+      easy: 'very_low',
+      very_low: 'very_low',
+      very_easy: 'very_low',
+      'muy baja': 'very_low',
+      intermedia: 'low',
+      intermedio: 'low',
+      low: 'low',
+      baja: 'low',
+      avanzada: 'medium',
+      avanzado: 'medium',
       medium: 'medium',
-      avanzada: 'hard',
-      avanzado: 'hard',
-      hard: 'hard',
+      media: 'medium',
+      hard: 'medium',
     };
-    return map[String(raw).toLowerCase()] || 'easy';
+    return map[key] || 'very_low';
   }
 
   private toNumber(val: any): number {
@@ -667,5 +683,96 @@ Usa TODA la información disponible en el prompt. No inventes nada que no esté 
       target: k.target_value || 0,
       minimum: k.minimum_pass_value || 0,
     }));
+  }
+
+  /**
+   * Replace course practica-* scenarios with TechSheetTask rows from this analysis.
+   * Manual scenarios without agent_key practica-* are left untouched.
+   */
+  private async syncPracticesToCourse(sheetId: number): Promise<void> {
+    const sheet = await this.prisma.techSheet.findUnique({
+      where: { id: sheetId },
+    });
+    if (!sheet?.course_id) {
+      this.logger.warn(
+        `Cannot sync practices: sheet ${sheetId} has no course_id`,
+      );
+      return;
+    }
+
+    const course = await this.prisma.course.findFirst({
+      where: {
+        OR: [{ id: sheet.course_id }, { course_id: sheet.course_id }],
+      },
+    });
+    if (!course) {
+      this.logger.warn(
+        `Cannot sync practices: course ${sheet.course_id} not found`,
+      );
+      return;
+    }
+
+    if (course.tech_sheet_id !== sheetId) {
+      await this.prisma.course.update({
+        where: { id: course.id },
+        data: { tech_sheet_id: sheetId },
+      });
+    }
+
+    const tasks = await (this.prisma as any).techSheetTask.findMany({
+      where: { tech_sheet_id: sheetId },
+      orderBy: { sequence: 'asc' },
+    });
+
+    if (!tasks.length) {
+      this.logger.warn(`No TechSheetTasks to sync for sheet ${sheetId}`);
+      return;
+    }
+
+    const systemPrompt = await (this.prisma as any).techSheetPrompt.findFirst({
+      where: { tech_sheet_id: sheetId, type: 'system' },
+    });
+
+    // Deactivate previous pipeline-generated practices (agent_key practica-*)
+    const deactivated = await this.prisma.scenario.updateMany({
+      where: {
+        course_id: course.id,
+        agent_key: { startsWith: 'practica-' },
+      },
+      data: { is_active: false },
+    });
+
+    for (let i = 0; i < tasks.length; i++) {
+      const task = tasks[i];
+      const sequence = i + 1;
+      const agentKey = `practica-${sequence}`;
+      const difficulty = this.mapDifficulty(task.difficulty);
+
+      await this.prisma.scenario.create({
+        data: {
+          course_id: course.id,
+          title: task.title || `Práctica ${sequence}`,
+          description: task.description || null,
+          scenario_type: 'practice',
+          difficulty,
+          sequence_index: sequence,
+          agent_key: agentKey,
+          is_active: true,
+          content: {
+            source: 'tech_sheet_pipeline',
+            tech_sheet_id: sheetId,
+            tech_sheet_task_id: task.id,
+            expected_duration_minutes: task.expected_duration_minutes || 0,
+            system_prompt_excerpt: systemPrompt?.content
+              ? String(systemPrompt.content).slice(0, 500)
+              : undefined,
+          },
+        },
+      });
+    }
+
+    this.logger.log(
+      `Synced ${tasks.length} practices to course ${course.id} (deactivated ${deactivated.count} prior practica-*)`,
+    );
   }
 }

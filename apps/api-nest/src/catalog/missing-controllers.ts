@@ -367,6 +367,11 @@ export class SimulationSessionsController {
       orderBy: { turn_number: 'asc' },
     });
 
+    const submissions = await (this.prisma as any).fileUpload.findMany({
+      where: { simulation_instance_id: id, is_active: true },
+      orderBy: { created_at: 'desc' },
+    });
+
     const evalData = await this.prisma.simulationEvaluation.findFirst({
       where: { simulation_id: id },
     });
@@ -395,6 +400,14 @@ export class SimulationSessionsController {
         correct_turns: chatLogs.filter((l: any) => l.is_correct === true).length,
         incorrect_turns: chatLogs.filter((l: any) => l.is_correct === false).length,
       },
+      submissions: submissions.map((f: any) => ({
+        id: f.id,
+        file_name: f.file_name,
+        file_type: f.file_type,
+        file_size_bytes: f.file_size_bytes?.toString?.() ?? String(f.file_size_bytes),
+        created_at: f.created_at,
+        download_url: `/files/${f.id}/download`,
+      })),
       logs: chatLogs.map((l: any) => ({
         id: l.id,
         turn_number: l.turn_number,

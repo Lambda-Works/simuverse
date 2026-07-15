@@ -156,11 +156,6 @@ export class TechSheetsService {
       const prompts = {
         system_prompt:
           savedPrompts.system_prompt || config.simulation_prompt || '',
-        evaluation_prompt:
-          savedPrompts.evaluation_prompt ||
-          config.evaluation_prompt ||
-          this.buildEvaluationPrompt(kpis, competencies) ||
-          '',
         coaching_prompt:
           savedPrompts.coaching_prompt ||
           config.coaching_prompt ||
@@ -247,10 +242,11 @@ export class TechSheetsService {
       where: { tech_sheet_id: id },
     });
 
-    // Flatten tasks from KPIs
-    const tasks = kpis.flatMap((kpi: any) =>
-      kpi.tasks.map((t: any) => ({ ...t, kpi_id: kpi.id })),
-    );
+    // All tasks for the sheet (including orphans without kpi_id)
+    const allTasks = await (this.prisma as any).techSheetTask.findMany({
+      where: { tech_sheet_id: id },
+      orderBy: { sequence: 'asc' },
+    });
 
     return {
       competencies: competencies.map((c: any) => ({
@@ -268,21 +264,20 @@ export class TechSheetsService {
         target_value: k.target_value,
         minimum_pass_value: k.minimum_pass_value,
         competencies_required: [],
-        evaluation_questions: k.tasks.map((t: any) => t.title),
+        evaluation_questions: (k.tasks || []).map((t: any) => t.title),
       })),
-      tasks: tasks.map((t: any) => ({
+      tasks: allTasks.map((t: any) => ({
         id: t.id,
-        kpi_id: t.kpi_id,
-        type: t.type,
+        kpi_id: t.kpi_id || '',
+        type: 'practice',
         title: t.title,
         description: t.description,
-        difficulty: t.difficulty,
+        difficulty: this.mapDifficulty(t.difficulty),
         sequence: t.sequence,
         expected_duration_minutes: t.expected_duration_minutes,
       })),
       prompts: {
         system_prompt: prompts.find((p: any) => p.type === 'system')?.content || '',
-        evaluation_prompt: prompts.find((p: any) => p.type === 'evaluation')?.content || '',
         coaching_prompt: prompts.find((p: any) => p.type === 'coaching')?.content || '',
       },
       pipeline_status,
@@ -403,69 +398,31 @@ export class TechSheetsService {
     }));
   }
 
-  private mapTaskType(raw: string): 'practice' | 'evaluation' {
-    const map: Record<string, 'practice' | 'evaluation'> = {
-      multiple_choice: 'evaluation',
-      verdadero_falso: 'evaluation',
-      abierta: 'practice',
-      practice: 'practice',
-      evaluation: 'evaluation',
-    };
-    return map[String(raw).toLowerCase()] || 'evaluation';
+  private mapTaskType(_raw: string): 'practice' {
+    return 'practice';
   }
 
-  private mapDifficulty(raw: string): 'easy' | 'medium' | 'hard' {
-    const map: Record<string, 'easy' | 'medium' | 'hard'> = {
-      basica: 'easy',
-      basico: 'easy',
-      easy: 'easy',
-      intermedia: 'medium',
-      intermedio: 'medium',
+  /** Align with course practices: very_low | low | medium (never hard). */
+  private mapDifficulty(raw: string): 'very_low' | 'low' | 'medium' {
+    const key = String(raw || '').toLowerCase().trim();
+    const map: Record<string, 'very_low' | 'low' | 'medium'> = {
+      basica: 'very_low',
+      basico: 'very_low',
+      easy: 'very_low',
+      very_low: 'very_low',
+      very_easy: 'very_low',
+      'muy baja': 'very_low',
+      intermedia: 'low',
+      intermedio: 'low',
+      low: 'low',
+      baja: 'low',
+      avanzada: 'medium',
+      avanzado: 'medium',
       medium: 'medium',
-      avanzada: 'hard',
-      avanzado: 'hard',
-      hard: 'hard',
+      media: 'medium',
+      hard: 'medium',
     };
-    return map[String(raw).toLowerCase()] || 'easy';
-  }
-
-  /**
-   * Build a default evaluation prompt from parsed KPIs and competencies.
-   * Used as fallback when the user hasn't saved their own evaluation prompt yet.
-   */
-  private buildEvaluationPrompt(kpis: any[], competencies: any[]): string {
-    if (!kpis.length && !competencies.length) return '';
-
-    const criteria = kpis
-      .map(
-        (k) =>
-          `- ${k.name}: objetivo ${k.target_value}%, mínimo ${k.minimum_pass_value}%`,
-      )
-      .filter(Boolean)
-      .join('\n');
-
-    const compNames = competencies
-      .map((c) => `- ${c.name} (${c.level})`)
-      .filter(Boolean)
-      .join('\n');
-
-    return [
-      'Evalúa el desempeño del estudiante según los siguientes criterios:',
-      '',
-      compNames ? 'Competencias a evaluar:' : '',
-      compNames || '',
-      '',
-      criteria ? 'Indicadores de rendimiento (KPIs):' : '',
-      criteria,
-      '',
-      'Para cada interacción del estudiante, determina:',
-      '- ¿Aplicó correctamente la competencia? (Sí/No/parcialmente)',
-      '- ¿Cumple con el valor mínimo del KPI? (Sí/No)',
-      '- Justificación breve de la evaluación.',
-      'Responde en español, en formato estructurado.',
-    ]
-      .filter((line) => line !== '')
-      .join('\n');
+    return map[key] || 'very_low';
   }
 
   /**
@@ -574,21 +531,21 @@ export class TechSheetsService {
           data: dto.tasks.map((t: any, i: number) => ({
             tech_sheet_id: id,
             kpi_id: firstKpiId,
-            type: t.type || 'evaluation',
+            type: 'practice',
             title: t.title || '',
             description: t.description || '',
-            difficulty: t.difficulty || 'medium',
+            difficulty: this.mapDifficulty(t.difficulty || 'medium'),
             sequence: t.sequence || i + 1,
             expected_duration_minutes: t.expected_duration_minutes ?? 0,
           })),
         });
       }
 
-      // Insert prompts
+      // Insert prompts (system + coaching only; evaluation removed from product)
       if (dto.prompts) {
-        const promptTypes = ['system', 'evaluation', 'coaching'] as const;
+        const promptTypes = ['system', 'coaching'] as const;
         for (const type of promptTypes) {
-          const key = type === 'system' ? 'system_prompt' : type === 'evaluation' ? 'evaluation_prompt' : 'coaching_prompt';
+          const key = type === 'system' ? 'system_prompt' : 'coaching_prompt';
           const content = dto.prompts[key];
           if (content) {
             await tx.techSheetPrompt.create({

@@ -156,7 +156,9 @@ export class SimulationsController {
   @Get(':id/emails')
   async getEmails(@Param('id') id: string) {
     const scenario = await this.simulationsService.getSimulationScenario(id);
-    return (scenario?.content as any)?.emails || [];
+    const content = (scenario?.content as any) || {};
+    // ScenariosABM historically saved as initial_emails; runtime/seeds use emails
+    return content.emails || content.initial_emails || [];
   }
 
   @Get(':id/documents')

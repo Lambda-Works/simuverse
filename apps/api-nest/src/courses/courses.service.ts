@@ -8,6 +8,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 
 const ENROLL_MAX_ATTEMPTS = 5;
@@ -17,12 +18,27 @@ const ENROLL_WINDOW_MS = 15 * 60 * 1000;
 export class CoursesService {
   constructor(private prisma: PrismaService) {}
 
-  private stripPassword<T extends { password_hash?: string | null }>(course: T) {
+  private stripPassword<T extends { password_hash?: string | null }>(
+    course: T,
+    extras?: { password_plain?: string },
+  ) {
     const { password_hash, ...rest } = course as any;
     return {
       ...rest,
       requires_password: !!password_hash,
+      ...(extras?.password_plain ? { password_plain: extras.password_plain } : {}),
     };
+  }
+
+  /** Generate a readable enrollment password (no ambiguous chars). */
+  generateEnrollmentPassword(length = 10): string {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+    const bytes = crypto.randomBytes(length);
+    let out = '';
+    for (let i = 0; i < length; i++) {
+      out += alphabet[bytes[i] % alphabet.length];
+    }
+    return out;
   }
 
   async findAll(isActive?: boolean) {
@@ -143,6 +159,7 @@ export class CoursesService {
     tech_sheet_id?: number;
     created_by?: string;
     password?: string;
+    drive_folder_url?: string | null;
     teacher_ids?: string[];
   }) {
     const existing = await this.prisma.course.findUnique({
@@ -172,15 +189,22 @@ export class CoursesService {
         tech_sheet_id: data.tech_sheet_id ?? undefined,
         created_by: data.created_by || undefined,
         password_hash,
+        drive_folder_url: data.drive_folder_url || null,
       },
     });
 
     if (data.teacher_ids?.length) {
       await this.setTeachers(course.id, data.teacher_ids);
-      return this.findById(course.id);
+      const full = await this.findById(course.id);
+      return data.password
+        ? { ...full, password_plain: data.password }
+        : full;
     }
 
-    return this.stripPassword({ ...course, teachers: [] });
+    return this.stripPassword(
+      { ...course, teachers: [] },
+      data.password ? { password_plain: data.password } : undefined,
+    );
   }
 
   async update(
@@ -200,6 +224,7 @@ export class CoursesService {
       created_by?: string;
       password?: string | null;
       clear_password?: boolean;
+      drive_folder_url?: string | null;
       teacher_ids?: string[];
     },
     actor?: { id: string; role: string },
@@ -235,21 +260,61 @@ export class CoursesService {
           categories: updateData.categories || undefined,
           simulated_company_id: updateData.simulated_company_id ?? undefined,
           tech_sheet_id: updateData.tech_sheet_id ?? undefined,
+          drive_folder_url:
+            updateData.drive_folder_url === undefined
+              ? undefined
+              : updateData.drive_folder_url || null,
         },
       });
 
       if (teacher_ids) {
         await this.setTeachers(id, teacher_ids);
-        return this.findById(id);
+        const full = await this.findById(id);
+        return typeof password === 'string' && password.length > 0
+          ? { ...full, password_plain: password }
+          : full;
       }
 
-      return this.stripPassword({ ...updated, teachers: [] });
+      return this.stripPassword(
+        { ...updated, teachers: [] },
+        typeof password === 'string' && password.length > 0
+          ? { password_plain: password }
+          : undefined,
+      );
     } catch (error: any) {
       if (error.code === 'P2025') {
         throw new NotFoundException('Course not found');
       }
       throw error;
     }
+  }
+
+  async regeneratePassword(id: string, actor?: { id: string; role: string }) {
+    const course = await this.prisma.course.findUnique({ where: { id } });
+    if (!course) {
+      throw new NotFoundException('Course not found');
+    }
+
+    if (actor && actor.role === 'teacher') {
+      const isTeacher = await this.prisma.courseTeacher.findFirst({
+        where: { course_id: id, teacher_id: actor.id },
+      });
+      if (!isTeacher) {
+        throw new ForbiddenException('Not a teacher of this course');
+      }
+    }
+
+    const password_plain = this.generateEnrollmentPassword();
+    const password_hash = await bcrypt.hash(password_plain, 10);
+    const updated = await this.prisma.course.update({
+      where: { id },
+      data: { password_hash },
+    });
+
+    return this.stripPassword(
+      { ...updated, teachers: [] },
+      { password_plain },
+    );
   }
 
   async setTeachers(courseId: string, teacherIds: string[]) {

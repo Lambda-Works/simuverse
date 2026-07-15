@@ -182,9 +182,13 @@ export class AIService {
     }
 
     // Practice identity / difficulty / prior context
-    if (agent_key || difficulty || prior_context) {
+    {
       const parts: string[] = [
         'MODO: solo prácticas y tareas. NO evalúes, califiques ni asignes notas.',
+        'Transmití un tono amigable y sin presión: el estudiante está practicando, no rindiendo un examen.',
+        'Cuando la práctica requiera entregar un archivo o evidencia, pedile explícitamente que lo suba en la pestaña Documentos (máx. 5 MB).',
+        'Si el archivo es más grande, indicá que use el link de Drive del curso (si está configurado) desde Documentos.',
+        'No avances como si la entrega estuviera hecha hasta que el estudiante confirme que subió el archivo o el link.',
       ];
       if (agent_key) parts.push(`Identidad del agente: ${agent_key}`);
       if (difficulty) parts.push(`Dificultad de la práctica: ${difficulty}`);

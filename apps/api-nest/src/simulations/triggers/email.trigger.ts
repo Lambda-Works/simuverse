@@ -44,6 +44,8 @@ export class EmailTrigger implements Trigger {
   }
 
   private getEmails(ctx: TriggerContext): ScenarioEmail[] {
-    return (ctx.scenario?.content as any)?.emails ?? [];
+    return (ctx.scenario?.content as any)?.emails
+      ?? (ctx.scenario?.content as any)?.initial_emails
+      ?? [];
   }
 }
