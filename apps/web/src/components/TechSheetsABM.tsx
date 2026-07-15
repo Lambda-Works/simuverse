@@ -104,6 +104,32 @@ export function TechSheetsABM() {
     }
   };
 
+  const downloadAttachedFile = async (fileUrl: string, fileName?: string) => {
+    try {
+      if (/^https?:\/\//i.test(fileUrl)) {
+        window.open(fileUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      const match = fileUrl.match(/\/files\/([^/]+)\/download/);
+      if (!match?.[1]) {
+        toast.error('URL de archivo inválida');
+        return;
+      }
+      const res = await authFetch(`${API_BASE}/files/${match[1]}/download`);
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = Object.assign(document.createElement('a'), {
+        href: url,
+        download: fileName || 'archivo-adjunto',
+      });
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('No se pudo descargar el archivo adjunto');
+    }
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -550,15 +576,16 @@ export function TechSheetsABM() {
                       )}
                       {!sheet.course_id && <span className="text-gray-400 italic">Sin curso asociado</span>}
                       {sheet.file_url && (
-                        <a
-                          href={sheet.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
                           className="text-green-700 underline flex items-center gap-1"
-                          onClick={e => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void downloadAttachedFile(sheet.file_url!);
+                          }}
                         >
                           <Paperclip className="w-3 h-3" /> Ver archivo adjunto
-                        </a>
+                        </button>
                       )}
                     </div>
                   </div>

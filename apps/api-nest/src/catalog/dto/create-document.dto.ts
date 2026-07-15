@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, MinLength, IsUrl } from 'class-validator';
+import { IsString, IsOptional, IsEnum, MinLength } from 'class-validator';
 
 export enum DocumentTypeEnum {
   case = 'case',
@@ -22,7 +22,9 @@ export class CreateDocumentDto {
   @IsEnum(DocumentTypeEnum)
   document_type?: DocumentTypeEnum;
 
-  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  /** HTTPS link or relative `/api/files/:id/download` from upload */
+  @IsString()
+  @MinLength(1)
   file_url: string;
 
   @IsOptional()

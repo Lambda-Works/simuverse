@@ -173,20 +173,23 @@ export class CoursesService {
       ? await bcrypt.hash(data.password, 10)
       : null;
 
+    const modules = Array.isArray(data.modules)
+      ? data.modules.filter((m: string) => m !== 'evaluacion_auto')
+      : data.modules;
+
     const course = await this.prisma.course.create({
       data: {
         course_id: data.course_id,
         title: data.title,
         description: data.description,
         category: data.category,
-        modules: data.modules || undefined,
-        ai_config: data.ai_config || undefined,
+        modules: modules || undefined,
+        // IA / ficha técnica se configuran desde la ficha ministerial, no en create de curso
         eval_criteria: data.eval_criteria || undefined,
         crisis_events: data.crisis_events || undefined,
         categories: data.categories || undefined,
         is_active: data.is_active ?? true,
         simulated_company_id: data.simulated_company_id ?? undefined,
-        tech_sheet_id: data.tech_sheet_id ?? undefined,
         created_by: data.created_by || undefined,
         password_hash,
         drive_folder_url: data.drive_folder_url || null,
@@ -229,7 +232,19 @@ export class CoursesService {
     },
     actor?: { id: string; role: string },
   ) {
-    const { created_by, password, clear_password, teacher_ids, ...updateData } = data;
+    const { created_by, password, clear_password, teacher_ids, ...rawUpdate } = data;
+    // IA / ficha / evaluación auto no se editan desde el formulario de curso
+    const {
+      ai_config: _aiConfig,
+      tech_sheet_id: _techSheetId,
+      ...restUpdate
+    } = rawUpdate as typeof rawUpdate & { ai_config?: unknown; tech_sheet_id?: unknown };
+    const updateData = {
+      ...restUpdate,
+      modules: Array.isArray(restUpdate.modules)
+        ? restUpdate.modules.filter((m: string) => m !== 'evaluacion_auto')
+        : restUpdate.modules,
+    };
 
     if (actor && actor.role === 'teacher') {
       const isTeacher = await this.prisma.courseTeacher.findFirst({
@@ -254,12 +269,10 @@ export class CoursesService {
           ...updateData,
           ...passwordUpdate,
           modules: updateData.modules || undefined,
-          ai_config: updateData.ai_config || undefined,
           eval_criteria: updateData.eval_criteria || undefined,
           crisis_events: updateData.crisis_events || undefined,
           categories: updateData.categories || undefined,
           simulated_company_id: updateData.simulated_company_id ?? undefined,
-          tech_sheet_id: updateData.tech_sheet_id ?? undefined,
           drive_folder_url:
             updateData.drive_folder_url === undefined
               ? undefined

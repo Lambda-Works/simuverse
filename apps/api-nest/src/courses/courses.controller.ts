@@ -11,7 +11,7 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { IsString, IsOptional, IsBoolean, IsObject, IsArray, IsInt, MinLength } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsArray, IsInt, MinLength } from 'class-validator';
 import { CoursesService } from './courses.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -40,10 +40,6 @@ class CreateCourseDto {
   modules?: any;
 
   @IsOptional()
-  @IsObject()
-  ai_config?: any;
-
-  @IsOptional()
   @IsArray()
   eval_criteria?: any;
 
@@ -62,10 +58,6 @@ class CreateCourseDto {
   @IsOptional()
   @IsInt()
   simulated_company_id?: number;
-
-  @IsOptional()
-  @IsInt()
-  tech_sheet_id?: number;
 
   @IsOptional()
   @IsString()
@@ -106,10 +98,6 @@ class UpdateCourseDto {
   modules?: any;
 
   @IsOptional()
-  @IsObject()
-  ai_config?: any;
-
-  @IsOptional()
   @IsArray()
   eval_criteria?: any;
 
@@ -128,10 +116,6 @@ class UpdateCourseDto {
   @IsOptional()
   @IsInt()
   simulated_company_id?: number;
-
-  @IsOptional()
-  @IsInt()
-  tech_sheet_id?: number;
 
   @IsOptional()
   @IsString()
