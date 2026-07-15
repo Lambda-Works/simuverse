@@ -689,7 +689,7 @@ Usa TODA la información disponible en el prompt. No inventes nada que no esté 
    * Replace course practica-* scenarios with TechSheetTask rows from this analysis.
    * Manual scenarios without agent_key practica-* are left untouched.
    */
-  private async syncPracticesToCourse(sheetId: number): Promise<void> {
+  async syncPracticesToCourse(sheetId: number): Promise<void> {
     const sheet = await this.prisma.techSheet.findUnique({
       where: { id: sheetId },
     });
@@ -742,16 +742,26 @@ Usa TODA la información disponible en el prompt. No inventes nada que no esté 
       data: { is_active: false },
     });
 
+    let created = 0;
     for (let i = 0; i < tasks.length; i++) {
       const task = tasks[i];
       const sequence = i + 1;
       const agentKey = `practica-${sequence}`;
       const difficulty = this.mapDifficulty(task.difficulty);
+      // Scenario.title is VARCHAR(255); TechSheetTask.title is Text
+      const rawTitle = String(task.title || `Práctica ${sequence}`).trim();
+      const title =
+        rawTitle.length > 255 ? `${rawTitle.slice(0, 252)}...` : rawTitle;
+      if (rawTitle.length > 255) {
+        this.logger.warn(
+          `Truncated practice title for ${agentKey} (${rawTitle.length} → 255 chars)`,
+        );
+      }
 
       await this.prisma.scenario.create({
         data: {
           course_id: course.id,
-          title: task.title || `Práctica ${sequence}`,
+          title,
           description: task.description || null,
           scenario_type: 'practice',
           difficulty,
@@ -769,10 +779,11 @@ Usa TODA la información disponible en el prompt. No inventes nada que no esté 
           },
         },
       });
+      created += 1;
     }
 
     this.logger.log(
-      `Synced ${tasks.length} practices to course ${course.id} (deactivated ${deactivated.count} prior practica-*)`,
+      `Synced ${created}/${tasks.length} practices to course ${course.id} (deactivated ${deactivated.count} prior practica-*)`,
     );
   }
 }

@@ -562,10 +562,22 @@ export class TechSheetsService {
     });
 
     // Also update JSONB for backward compat (read-only fallback)
-    return (this.prisma as any).techSheet.update({
+    const updated = await (this.prisma as any).techSheet.update({
       where: { id },
       data: { extracted_data: updatedExtractedData },
     });
+
+    // Keep course practices in sync when tasks were part of the save
+    if (dto.tasks !== undefined) {
+      try {
+        await this.analysisPipeline.syncPracticesToCourse(id);
+      } catch (err) {
+        // Non-blocking: config save succeeded even if practice materialization fails
+        console.warn(`Practice sync after config update failed for sheet ${id}:`, err);
+      }
+    }
+
+    return updated;
   }
 
   /**
