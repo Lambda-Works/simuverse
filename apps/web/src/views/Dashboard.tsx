@@ -5,10 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
-import { Award, BookOpen, CalendarDays, CheckCircle2, Clock, CreditCard, Eye, GraduationCap, HelpCircle, Mail, MessageSquare, Phone, Play, Settings, Shield, User } from 'lucide-react';
+import { Award, BookOpen, CalendarDays, CheckCircle2, Clock, Eye, GraduationCap, HelpCircle, Lock, MessageSquare, Play, Settings, Shield } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -28,6 +27,17 @@ interface Assignment {
   status: string;
 }
 
+interface CoursePracticeProgress {
+  total: number;
+  completed_count: number;
+  practices: Array<{
+    id: string;
+    agent_key: string;
+    title: string;
+    status: 'locked' | 'available' | 'in_progress' | 'completed';
+  }>;
+}
+
 const Dashboard = () => {
   const { user, signOut, loading, isAuthenticated, hasRole } = useAuth();
   const router = useRouter();
@@ -36,17 +46,64 @@ const Dashboard = () => {
   const [enrichedAssignments, setEnrichedAssignments] = useState<any[]>([]);
   const [assignmentsLoaded, setAssignmentsLoaded] = useState(false);
   const [reviewModal, setReviewModal] = useState<{ instanceId: string; courseTitle: string } | null>(null);
+  const [coursePractices, setCoursePractices] = useState<Record<string, CoursePracticeProgress>>({});
 
-  // Estado del formulario de solicitud de acceso
-  const [form, setForm] = useState({ nombre: '', apellido: '', dni: '', celular: '', email: '' });
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [sendError, setSendError] = useState('');
+  // Catálogo de inscripción (alumno sin cursos)
+  const [catalogQ, setCatalogQ] = useState('');
+  const [catalog, setCatalog] = useState<Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    requires_password: boolean;
+    teachers: Array<{ id: string; name: string; email: string }>;
+  }>>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [enrollPassword, setEnrollPassword] = useState('');
+  const [enrollingId, setEnrollingId] = useState<string | null>(null);
+  const [enrollError, setEnrollError] = useState('');
 
   useEffect(() => {
     if (!loading && !isAuthenticated) router.push('/auth');
   }, [isAuthenticated, loading, router]);
+
+  const loadCatalog = async (q = '') => {
+    setCatalogLoading(true);
+    try {
+      const res = await apiClient.get('/courses/catalog', { params: { q } });
+      setCatalog(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setCatalog([]);
+    } finally {
+      setCatalogLoading(false);
+    }
+  };
+
+  const handleEnroll = async (courseId: string, requiresPassword: boolean) => {
+    setEnrollError('');
+    setEnrollingId(courseId);
+    try {
+      await apiClient.post(`/courses/${courseId}/enroll`, {
+        password: requiresPassword ? enrollPassword : undefined,
+      });
+      setEnrollPassword('');
+      // refresh assignments
+      if (user) {
+        const assignRes = await apiClient.get(`/assignments?student_id=${user.id}`);
+        const assignList: Assignment[] = assignRes.data || [];
+        setAssignments(assignList);
+        const coursesRes = await apiClient.get('/courses');
+        const allCourses: Course[] = coursesRes.data || [];
+        const assignedCourseIds = new Set(assignList.map((a: Assignment) => a.course_id));
+        setCourses(allCourses.filter((c) => assignedCourseIds.has(c.id)));
+      }
+    } catch (err: any) {
+      setEnrollError(
+        err.response?.data?.message || err.message || 'No se pudo inscribir al curso',
+      );
+    } finally {
+      setEnrollingId(null);
+    }
+  };
 
   useEffect(() => {
     if (!user || !isAuthenticated) return;
@@ -78,10 +135,8 @@ const Dashboard = () => {
           setCourses(allCourses.filter(c => assignedCourseIds.has(c.id)));
         } else {
           setCourses([]);
+          void loadCatalog('');
         }
-
-        // Pre-llenar email del formulario
-        setForm(prev => ({ ...prev, email: user.email || '' }));
 
         // Fetch enriched assignments (con intentos, fechas, score, instance_id)
         try {
@@ -89,6 +144,26 @@ const Dashboard = () => {
           const enriched = enrichedRes.data;
           if (Array.isArray(enriched)) setEnrichedAssignments(enriched);
         } catch { /* silent */ }
+
+        const visibleCourses =
+          assignList.length > 0
+            ? allCourses.filter((c) => assignList.some((a) => a.course_id === c.id))
+            : [];
+        if (visibleCourses.length > 0) {
+          const entries = await Promise.all(
+            visibleCourses.map(async (c) => {
+              try {
+                const res = await apiClient.get(`/practices/course/${c.id}/progress`);
+                return [c.id, res.data as CoursePracticeProgress] as const;
+              } catch {
+                return [c.id, null] as const;
+              }
+            }),
+          );
+          setCoursePractices(
+            Object.fromEntries(entries.filter(([, v]) => v != null) as [string, CoursePracticeProgress][]),
+          );
+        }
 
         setAssignmentsLoaded(true);
       } catch (error) {
@@ -115,42 +190,6 @@ const Dashboard = () => {
     ministerio: { label: 'Ministerio', icon: <Shield className="w-3 h-3" />, color: 'bg-warning/10 text-warning' },
   };
 
-  // ── Validación del formulario de solicitud ───────────────────────────────────
-  const validateForm = () => {
-    const errors: Record<string, string> = {};
-    if (!form.nombre.trim()) errors.nombre = 'El nombre es obligatorio';
-    if (!form.apellido.trim()) errors.apellido = 'El apellido es obligatorio';
-    if (!form.dni.trim()) errors.dni = 'El DNI es obligatorio';
-    if (!/^\d{6,10}$/.test(form.dni.replace(/\./g, '').replace(/-/g, '')))
-      errors.dni = 'DNI inválido (solo números, 6-10 dígitos)';
-    if (!form.celular.trim()) errors.celular = 'El celular es obligatorio';
-    if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
-      errors.email = 'Email inválido';
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleSendRequest = async () => {
-    if (!validateForm()) return;
-    setSending(true);
-    setSendError('');
-    try {
-      const res = await apiClient.post('/request-access', {
-        student_id: user?.id,
-        student_name: `${form.nombre} ${form.apellido}`,
-        student_email: form.email,
-        course_id: '',
-        course_name: '',
-        reason: JSON.stringify({ dni: form.dni, celular: form.celular }),
-      });
-      setSent(true);
-    } catch (err: any) {
-      setSendError(err.response?.data?.error || err.message || 'No se pudo enviar la solicitud. Intente nuevamente.');
-    } finally {
-      setSending(false);
-    }
-  };
-
   const isStudentOnly = hasRole('student') && !hasRole('teacher') && !hasRole('admin');
   const hasNoAssignments = isStudentOnly && assignments.length === 0;
 
@@ -159,10 +198,9 @@ const Dashboard = () => {
       {/* Main content */}
       <main className="container mx-auto px-4 py-8">
 
-        {/* ── CASO: alumno sin asignaciones → pantalla de bienvenida + formulario ── */}
+        {/* ── CASO: alumno sin cursos → buscar e inscribirse ── */}
         {hasNoAssignments ? (
           <div className="max-w-2xl mx-auto">
-            {/* Banner de bienvenida */}
             <div className="text-center mb-8">
               <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <GraduationCap className="w-10 h-10 text-primary" />
@@ -171,164 +209,80 @@ const Dashboard = () => {
                 ¡Bienvenido/a, {user?.name}!
               </h1>
               <p className="text-muted-foreground mt-2 text-lg">
-                Tu cuenta ha sido creada exitosamente en el simulador MSM.
+                Buscá un curso por nombre o docente e inscribite para comenzar.
               </p>
             </div>
 
-            {/* Aviso sin asignaciones */}
-            <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-900 mb-6">
-              <CardContent className="pt-6 flex gap-4">
-                <div className="shrink-0">
-                  <Clock className="w-6 h-6 text-amber-600 mt-0.5" />
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="text-lg">Inscribirse a un curso</CardTitle>
+                <CardDescription>
+                  Si el curso tiene contraseña, el docente o admin te la compartirá.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Buscar por nombre de curso o docente..."
+                    value={catalogQ}
+                    onChange={(e) => setCatalogQ(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') void loadCatalog(catalogQ);
+                    }}
+                  />
+                  <Button type="button" onClick={() => loadCatalog(catalogQ)} disabled={catalogLoading}>
+                    Buscar
+                  </Button>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-amber-800 dark:text-amber-300">
-                    Aún no tienes escenarios asignados
-                  </h3>
-                  <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
-                    Para acceder a las simulaciones, un docente o administrador debe asignarte
-                    un espacio de trabajo. Completa el formulario a continuación para solicitar
-                    tu acceso y te contactaremos a la brevedad.
-                  </p>
-                </div>
+
+                {enrollError && (
+                  <div className="bg-destructive/10 border border-destructive/30 rounded-md px-3 py-2 text-sm text-destructive">
+                    {enrollError}
+                  </div>
+                )}
+
+                {catalogLoading ? (
+                  <p className="text-sm text-muted-foreground">Cargando cursos...</p>
+                ) : catalog.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No se encontraron cursos activos.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {catalog.map((c) => (
+                      <div key={c.id} className="rounded-lg border p-4 space-y-3">
+                        <div>
+                          <h3 className="font-semibold">{c.title}</h3>
+                          {c.description && (
+                            <p className="text-sm text-muted-foreground mt-1">{c.description}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Docentes:{' '}
+                            {c.teachers.length
+                              ? c.teachers.map((t) => t.name).join(', ')
+                              : 'Sin docente asignado'}
+                            {c.requires_password ? ' · Requiere contraseña' : ' · Acceso libre'}
+                          </p>
+                        </div>
+                        {c.requires_password && (
+                          <Input
+                            type="password"
+                            placeholder="Contraseña del curso"
+                            value={enrollingId === c.id || !enrollingId ? enrollPassword : ''}
+                            onChange={(e) => setEnrollPassword(e.target.value)}
+                          />
+                        )}
+                        <Button
+                          className="w-full"
+                          disabled={enrollingId === c.id}
+                          onClick={() => handleEnroll(c.id, c.requires_password)}
+                        >
+                          {enrollingId === c.id ? 'Inscribiendo...' : 'Inscribirme'}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
-
-            {/* Formulario de solicitud */}
-            {sent ? (
-              <Card className="border-green-200 bg-green-50/50 dark:bg-green-950/20">
-                <CardContent className="pt-8 pb-8 flex flex-col items-center text-center gap-3">
-                  <CheckCircle2 className="w-14 h-14 text-green-500" />
-                  <h3 className="text-xl font-semibold text-green-800 dark:text-green-300">
-                    ¡Solicitud enviada correctamente!
-                  </h3>
-                  <p className="text-sm text-green-700 dark:text-green-400 max-w-sm">
-                    Recibimos tu pedido. El equipo de <strong>CentroSadosky</strong> revisará
-                    tu solicitud y te asignará los escenarios de simulación disponibles.
-                    Te avisaremos por email cuando esté listo.
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Correo de contacto: <strong>centrosadoskyregistracion@gmail.com</strong>
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Mail className="w-5 h-5 text-primary" />
-                    Solicitar acceso al simulador
-                  </CardTitle>
-                  <CardDescription>
-                    Completa todos los campos. Tu solicitud será enviada a{' '}
-                    <strong>centrosadoskyregistracion@gmail.com</strong>.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Nombre */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="nombre" className="flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5" /> Nombre *
-                      </Label>
-                      <Input
-                        id="nombre"
-                        placeholder="Ej: María"
-                        value={form.nombre}
-                        onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))}
-                        className={formErrors.nombre ? 'border-destructive' : ''}
-                      />
-                      {formErrors.nombre && <p className="text-xs text-destructive">{formErrors.nombre}</p>}
-                    </div>
-
-                    {/* Apellido */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="apellido" className="flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5" /> Apellido *
-                      </Label>
-                      <Input
-                        id="apellido"
-                        placeholder="Ej: González"
-                        value={form.apellido}
-                        onChange={e => setForm(p => ({ ...p, apellido: e.target.value }))}
-                        className={formErrors.apellido ? 'border-destructive' : ''}
-                      />
-                      {formErrors.apellido && <p className="text-xs text-destructive">{formErrors.apellido}</p>}
-                    </div>
-
-                    {/* DNI */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="dni" className="flex items-center gap-1.5">
-                        <CreditCard className="w-3.5 h-3.5" /> DNI *
-                      </Label>
-                      <Input
-                        id="dni"
-                        placeholder="Ej: 35123456"
-                        value={form.dni}
-                        onChange={e => setForm(p => ({ ...p, dni: e.target.value }))}
-                        className={formErrors.dni ? 'border-destructive' : ''}
-                      />
-                      {formErrors.dni && <p className="text-xs text-destructive">{formErrors.dni}</p>}
-                    </div>
-
-                    {/* Celular */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="celular" className="flex items-center gap-1.5">
-                        <Phone className="w-3.5 h-3.5" /> Celular *
-                      </Label>
-                      <Input
-                        id="celular"
-                        placeholder="Ej: 11 6123-4567"
-                        value={form.celular}
-                        onChange={e => setForm(p => ({ ...p, celular: e.target.value }))}
-                        className={formErrors.celular ? 'border-destructive' : ''}
-                      />
-                      {formErrors.celular && <p className="text-xs text-destructive">{formErrors.celular}</p>}
-                    </div>
-                  </div>
-
-                  {/* Email */}
-                  <div className="space-y-1.5">
-                    <Label htmlFor="email" className="flex items-center gap-1.5">
-                      <Mail className="w-3.5 h-3.5" /> Correo electrónico *
-                    </Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="tu@email.com"
-                      value={form.email}
-                      onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                      className={formErrors.email ? 'border-destructive' : ''}
-                    />
-                    {formErrors.email && <p className="text-xs text-destructive">{formErrors.email}</p>}
-                  </div>
-
-                  {sendError && (
-                    <div className="bg-destructive/10 border border-destructive/30 rounded-md px-3 py-2 text-sm text-destructive">
-                      {sendError}
-                    </div>
-                  )}
-
-                  <Button className="w-full" onClick={handleSendRequest} disabled={sending}>
-                    {sending ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                        Enviando solicitud...
-                      </>
-                    ) : (
-                      <>
-                        <Mail className="w-4 h-4 mr-2" />
-                        Enviar solicitud de acceso
-                      </>
-                    )}
-                  </Button>
-
-                  <p className="text-xs text-muted-foreground text-center">
-                    Al enviar, un administrador o docente asignará los escenarios correspondientes a tu perfil.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
         ) : (
@@ -401,6 +355,7 @@ const Dashboard = () => {
                   const hasScore = enriched && enriched.overall_score !== null && enriched.overall_score !== undefined;
                   const passed = hasScore && Number(enriched.overall_score) >= 70;
                   const calStatus = enriched?.calendar_status;
+                  const practiceSummary = coursePractices[course.id];
 
                   return (
                     <Card
@@ -427,6 +382,43 @@ const Dashboard = () => {
                             <Badge key={mod} variant="outline" className="text-xs">{mod}</Badge>
                           ))}
                         </div>
+                        {/* Prácticas del curso (progreso secuencial) */}
+                        {isStudentOnly && practiceSummary && (
+                          <div className="mb-3 space-y-1.5">
+                            {practiceSummary.total > 0 ? (
+                              <>
+                                <p className="text-xs font-medium text-muted-foreground">
+                                  Prácticas: {practiceSummary.completed_count}/{practiceSummary.total} completadas
+                                </p>
+                                <div className="flex flex-wrap gap-1">
+                                  {practiceSummary.practices.map((p) => (
+                                    <Badge
+                                      key={p.id}
+                                      variant="outline"
+                                      className={`text-xs gap-1 ${
+                                        p.status === 'completed'
+                                          ? 'border-green-300 bg-green-50/50 text-green-700'
+                                          : p.status === 'locked'
+                                            ? 'opacity-60'
+                                            : p.status === 'in_progress'
+                                              ? 'border-primary bg-primary/5'
+                                              : ''
+                                      }`}
+                                    >
+                                      {p.status === 'locked' && <Lock className="w-3 h-3" />}
+                                      {p.status === 'completed' && <CheckCircle2 className="w-3 h-3 text-green-600" />}
+                                      {p.agent_key}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">
+                                Este curso aún no tiene prácticas configuradas.
+                              </p>
+                            )}
+                          </div>
+                        )}
                         {/* Info de intentos / score */}
                         {enriched && (
                           <div className="flex items-center justify-between text-xs text-muted-foreground mb-3 bg-muted/40 rounded-md px-2 py-1.5">

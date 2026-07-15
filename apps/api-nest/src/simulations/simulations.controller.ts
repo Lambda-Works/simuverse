@@ -22,9 +22,10 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AIService } from './ai/ai.service';
 import { CrisisEngine } from './engines/crisis-engine.service';
 import { SessionMemoryService } from './session-memory.service';
-import { AsyncPersistenceService } from './async-persistence.service';
+import { SessionCheckpointService } from './session-checkpoint.service';
 import { TriggerService } from './triggers/trigger.service';
 import { ConversationStateService } from './conversation-state.service';
+import { PracticesService } from './practices.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @UseGuards(JwtAuthGuard)
@@ -36,21 +37,27 @@ export class SimulationsController {
     private aiService: AIService,
     private crisisEngine: CrisisEngine,
     private sessionMemory: SessionMemoryService,
-    private asyncPersistence: AsyncPersistenceService,
+    private checkpoint: SessionCheckpointService,
     private triggerService: TriggerService,
     private conversationState: ConversationStateService,
+    private practices: PracticesService,
     private prisma: PrismaService,
   ) {}
 
   // ─── Lifecycle endpoints ───────────────────────────────────────────────
 
-  @UseGuards(JwtAuthGuard)
   @Post('start')
   async start(
     @CurrentUser('id') userId: string,
     @Body() dto: CreateSimulationDto,
   ) {
-    return this.simulationsService.create(userId, dto.course_id, dto.scenario_id);
+    const result = await this.simulationsService.create(
+      userId,
+      dto.course_id,
+      dto.scenario_id,
+    );
+    await this.checkpoint.hydrateSession(result.session_id || result.id);
+    return result;
   }
 
   @Get()
@@ -74,81 +81,123 @@ export class SimulationsController {
     return this.simulationsService.findByCourseId(courseId);
   }
 
+  @Post(':id/checkpoint')
+  @HttpCode(HttpStatus.OK)
+  async checkpointSession(@Param('id') id: string) {
+    return this.checkpoint.checkpoint(id);
+  }
+
   @Get(':id')
   async findById(@Param('id') id: string) {
+    const instance = await this.prisma.simulationInstance.findUnique({
+      where: { id },
+    });
+    if (instance) return instance;
     return this.simulationsService.findById(id);
   }
 
   @Put(':id/pause')
   @HttpCode(HttpStatus.OK)
   async pause(@Param('id') id: string) {
+    await this.checkpoint.checkpointAndClose(id);
+    const instance = await this.prisma.simulationInstance.findUnique({ where: { id } });
+    if (instance) return this.instanceService.pause(id);
     return this.simulationsService.pause(id);
   }
 
   @Put(':id/resume')
   @HttpCode(HttpStatus.OK)
   async resume(@Param('id') id: string) {
+    await this.checkpoint.hydrateSession(id);
+    const instance = await this.prisma.simulationInstance.findUnique({ where: { id } });
+    if (instance) return this.instanceService.resume(id);
     return this.simulationsService.resume(id);
   }
 
   @Put(':id/complete')
   @HttpCode(HttpStatus.OK)
-  async complete(@Param('id') id: string) {
+  async complete(@Param('id') id: string, @CurrentUser('id') userId: string) {
+    const instance = await this.prisma.simulationInstance.findUnique({ where: { id } });
+    if (instance) {
+      return this.practices.completePractice(userId, id);
+    }
+    await this.checkpoint.checkpointAndClose(id);
     return this.simulationsService.complete(id);
   }
 
   @Put(':id/abandon')
   @HttpCode(HttpStatus.OK)
   async abandon(@Param('id') id: string) {
+    await this.checkpoint.checkpointAndClose(id);
+    const instance = await this.prisma.simulationInstance.findUnique({ where: { id } });
+    if (instance) {
+      return this.prisma.simulationInstance.update({
+        where: { id },
+        data: { status: 'failed', feedback: 'abandoned' },
+      });
+    }
     return this.simulationsService.abandon(id);
   }
-
-  // ─── Instance endpoints ────────────────────────────────────────────────
 
   @Post('instances/start')
   async startInstance(
     @CurrentUser('id') userId: string,
     @Body() body: { course_id: string; scenario_id: string },
   ) {
-    return this.instanceService.start(userId, body.course_id, body.scenario_id);
+    const result = await this.practices.startNextPractice(
+      userId,
+      body.course_id,
+      body.scenario_id,
+    );
+    await this.checkpoint.hydrateSession(result.instance.id);
+    return result.instance;
   }
 
-  // ─── Simulation detail endpoints (Express compat) ──────────────────────
-
   @Get(':id/emails')
-  async getEmails(@Param('id') id: string) { 
+  async getEmails(@Param('id') id: string) {
     const scenario = await this.simulationsService.getSimulationScenario(id);
-    return (scenario?.content as any)?.emails || [];
+    const content = (scenario?.content as any) || {};
+    // ScenariosABM historically saved as initial_emails; runtime/seeds use emails
+    return content.emails || content.initial_emails || [];
   }
 
   @Get(':id/documents')
-  async getDocuments(@Param('id') id: string) { 
+  async getDocuments(@Param('id') id: string) {
     return this.simulationsService.getSimulationDocuments(id);
   }
 
   @Get(':id/spreadsheet')
-  async getSpreadsheet(@Param('id') id: string) { 
+  async getSpreadsheet(@Param('id') id: string) {
     const scenario = await this.simulationsService.getSimulationScenario(id);
     return (scenario?.content as any)?.spreadsheet || {};
   }
 
   @Get(':id/logs')
-  async getLogs(@Param('id') id: string) { return []; }
+  async getLogs(@Param('id') id: string) {
+    const rows = await this.prisma.simulationChatLog.findMany({
+      where: { simulation_instance_id: id },
+      orderBy: { turn_number: 'asc' },
+    });
+    return rows;
+  }
 
   @Post(':id/message')
   async sendMessage(@Param('id') id: string, @Body() dto: SendMessageDto) {
     const config = await this.simulationsService.getSimulationConfig(id);
     const scenario = await this.simulationsService.getSimulationScenario(id);
+    const practiceExtras = await this.practices.getPracticePromptExtras(id);
 
-    // ─── Feature flag gate ──────────────────────────────────────────────
+    // Ensure session is warm + periodic checkpoint running
+    this.checkpoint.startPeriodicCheckpoint(id);
+
     if (!config?.chatbot_humano_enabled) {
-      // Legacy flow — unchanged
       const systemPrompt = this.aiService.buildSystemPrompt({
         base_role: config?.base_role || 'Eres un asistente.',
         course_context: config?.course_context || '',
         knowledge_base: config?.knowledge_base_prompt || '',
         personality_traits: (config?.personality_traits as string[]) || [],
         student_history: [],
+        ...practiceExtras,
       });
 
       const fallbackCtx = {
@@ -157,45 +206,35 @@ export class SimulationsController {
         course_context: config?.course_context || '',
       };
 
-      const aiResponse = await this.aiService.sendMessageToGemini(
+      const aiResponse = await this.aiService.sendMessage(
         dto.message,
         systemPrompt,
         [],
         fallbackCtx,
       );
 
+      this.sessionMemory.append(id, { speaker: 'student', message: dto.message });
+      this.sessionMemory.append(id, { speaker: 'ai', message: aiResponse.response });
+
       return { id, message: dto.message, response: aiResponse.response };
     }
 
-    // ─── New chatbot humano flow ────────────────────────────────────────
-
-    // 1. Get session memory (RAM → DB hydrate if needed)
     await this.sessionMemory.getHistory(id);
 
-    // 2. Check triggers → prepend proactive messages if any fire
     const triggerCtx = {
       scenario: scenario?.content || {},
       config,
       state: this.conversationState.getState(id).state,
     };
     const triggerResults = this.triggerService.check(id, triggerCtx);
-
-    // 3. Get conversation state
     const convState = this.conversationState.autoTransition(id);
 
-    // 4. Build history array for AI
-    const history = this.sessionMemory
-      .getHistory(id)
-      .then((turns) =>
-        turns.map((t) => ({
-          role: t.speaker === 'student' ? 'user' : 'assistant',
-          content: t.message,
-        })),
-      );
+    const turns = await this.sessionMemory.getHistory(id);
+    const resolvedHistory = turns.map((t) => ({
+      role: t.speaker === 'student' ? 'user' : 'assistant',
+      content: t.message,
+    }));
 
-    const resolvedHistory = await history;
-
-    // 5. Build system prompt with extended data
     const systemPrompt = this.aiService.buildSystemPrompt({
       base_role: config?.base_role || 'Eres un asistente.',
       course_context: config?.course_context || '',
@@ -207,6 +246,7 @@ export class SimulationsController {
       role_behavior: config?.role_behavior || undefined,
       chatbot_humano_enabled: true,
       current_state: this.conversationState.getStatePrompt(convState.state),
+      ...practiceExtras,
     });
 
     const fallbackCtx = {
@@ -215,35 +255,23 @@ export class SimulationsController {
       course_context: config?.course_context || '',
     };
 
-    // 6. Prepend trigger messages to response
     const proactiveMessages: string[] = triggerResults.map((r) => r.message);
 
-    // 7. Send to DeepSeek via sendMessageToGemini
-    const aiResponse = await this.aiService.sendMessageToGemini(
+    const aiResponse = await this.aiService.sendMessage(
       dto.message,
       systemPrompt,
       resolvedHistory,
       fallbackCtx,
     );
 
-    // 8. Append user + AI turns to session memory
-    const userTurn = this.sessionMemory.append(id, {
-      speaker: 'student',
-      message: dto.message,
-    });
-    const aiTurn = this.sessionMemory.append(id, {
-      speaker: 'ai',
-      message: aiResponse.response,
-    });
+    // Buffer in memory only — DB flush via 2-min checkpoint / close
+    this.sessionMemory.append(id, { speaker: 'student', message: dto.message });
+    this.sessionMemory.append(id, { speaker: 'ai', message: aiResponse.response });
 
-    // 9. Async persist to SimulationChatLog
-    this.asyncPersistence.saveTurn(id, userTurn);
-    this.asyncPersistence.saveTurn(id, aiTurn);
-
-    // 10. Return response (with proactive messages if any)
-    const combinedResponse = proactiveMessages.length > 0
-      ? proactiveMessages.join('\n\n') + '\n\n' + aiResponse.response
-      : aiResponse.response;
+    const combinedResponse =
+      proactiveMessages.length > 0
+        ? proactiveMessages.join('\n\n') + '\n\n' + aiResponse.response
+        : aiResponse.response;
 
     return {
       id,
@@ -253,7 +281,7 @@ export class SimulationsController {
       triggers: triggerResults.map((r) => r.triggerName),
     };
   }
-  
+
   @Post(':id/crisis/get')
   async getCrisis(@Param('id') id: string) {
     const config = await this.simulationsService.getSimulationConfig(id);
@@ -268,10 +296,13 @@ export class SimulationsController {
 
   @Post(':id/evaluate')
   async evaluate(@Param('id') id: string) {
-    return { score: 0, passed: false };
+    return {
+      disabled: true,
+      message:
+        'Las evaluaciones están deshabilitadas. El simulador solo realiza prácticas y tareas.',
+      simulationId: id,
+    };
   }
-
-  // ─── Task 4.3: Admin history endpoint (MUST be before :id routes) ──
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin', 'teacher')
@@ -284,9 +315,6 @@ export class SimulationsController {
     return { simulationId: instanceId, turns: rows };
   }
 
-  // ─── Task 4.2: Message history endpoint ─────────────────────────────
-
-  @UseGuards(JwtAuthGuard)
   @Get(':id/messages')
   async getMessages(@Param('id') id: string) {
     const history = await this.sessionMemory.getHistory(id);

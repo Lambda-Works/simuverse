@@ -16,6 +16,8 @@ RUN npm ci
 
 COPY apps/api-nest/prisma ./apps/api-nest/prisma/
 COPY apps/api-nest/src/prisma/seed*.ts ./apps/api-nest/src/prisma/
+# seed.ts optionally syncs users to Firebase Admin
+COPY apps/api-nest/src/auth/firebase-credentials.ts ./apps/api-nest/src/auth/
 COPY apps/api-nest/tsconfig.json ./apps/api-nest/
 
 RUN npx prisma generate --schema=apps/api-nest/prisma/schema.prisma

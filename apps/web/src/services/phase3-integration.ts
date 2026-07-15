@@ -53,39 +53,8 @@ export const initializeServiceWorker = async () => {
  * Call this in your app initialization
  */
 export const initializeLLMService = async () => {
-  const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-
-  if (!apiKey) {
-    console.warn('[LLM] No API key found. Using fallback mode.');
-    return false;
-  }
-
-  try {
-    // Test API key validity
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: 'test' }]
-        }]
-      })
-    });
-
-    if (response.ok) {
-      console.log('[LLM] API key validated');
-      return true;
-    } else {
-      console.warn('[LLM] API key invalid or rate limited');
-      return false;
-    }
-  } catch (error) {
-    console.warn('[LLM] API validation failed:', error);
-    return false;
-  }
+  console.log('[LLM] Using backend AI service (OpenAI/DeepSeek)');
+  return true;
 };
 
 /**
@@ -98,7 +67,7 @@ export const phase3IntegrationChecklist = {
     checks: [
       '✓ ChatService created',
       '? ChatIAModule updated to use ChatService',
-      '? NEXT_PUBLIC_GEMINI_API_KEY configured',
+      '? Backend AI configured (OpenAI/DeepSeek)',
       '? Fallback responses tested',
       '? Token tracking working'
     ]
@@ -162,8 +131,8 @@ export const validateEnvironment = (): {
   const warnings: string[] = [];
 
   // Required for LLM
-  if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY && !process.env.NEXT_PUBLIC_OPENAI_API_KEY) {
-    warnings.push('No LLM API key configured - using fallback mode');
+  if (!process.env.NEXT_PUBLIC_API_URL) {
+    warnings.push('No backend API URL configured - using fallback mode');
   }
 
   // Required for Certificates

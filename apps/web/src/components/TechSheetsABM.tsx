@@ -104,6 +104,32 @@ export function TechSheetsABM() {
     }
   };
 
+  const downloadAttachedFile = async (fileUrl: string, fileName?: string) => {
+    try {
+      if (/^https?:\/\//i.test(fileUrl)) {
+        window.open(fileUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      const match = fileUrl.match(/\/files\/([^/]+)\/download/);
+      if (!match?.[1]) {
+        toast.error('URL de archivo inválida');
+        return;
+      }
+      const res = await authFetch(`${API_BASE}/files/${match[1]}/download`);
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = Object.assign(document.createElement('a'), {
+        href: url,
+        download: fileName || 'archivo-adjunto',
+      });
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('No se pudo descargar el archivo adjunto');
+    }
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -550,15 +576,16 @@ export function TechSheetsABM() {
                       )}
                       {!sheet.course_id && <span className="text-gray-400 italic">Sin curso asociado</span>}
                       {sheet.file_url && (
-                        <a
-                          href={sheet.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
                           className="text-green-700 underline flex items-center gap-1"
-                          onClick={e => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void downloadAttachedFile(sheet.file_url!);
+                          }}
                         >
                           <Paperclip className="w-3 h-3" /> Ver archivo adjunto
-                        </a>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -908,8 +935,7 @@ const PIPELINE_STEPS = [
   { key: 'step_4', label: 'KPIs', field: 'step_4_kpis' as const },
   { key: 'step_5', label: 'Preguntas', field: 'step_5_questions' as const },
   { key: 'step_6', label: 'Simulacion', field: 'step_6_simulation_prompt' as const },
-  { key: 'step_7', label: 'Prompt de Evaluación', field: 'step_7_evaluation_prompt' as const },
-  { key: 'step_8', label: 'Prompt de Coaching', field: 'step_8_coaching_prompt' as const },
+  { key: 'step_7', label: 'Coaching', field: 'step_7_coaching_prompt' as const },
 ];
 
 function getStepStatus(
@@ -935,7 +961,7 @@ function getStepStatus(
 
   if (pipelineStatus === 'completed') return 'completed';
 
-  // Running states: 'running', 'step_1' .. 'step_8'
+  // Running states: 'running', 'step_1' .. 'step_7'
   if (pipelineStatus === 'running') return stepIndex === 0 ? 'running' : 'pending';
 
   // Extract step number from 'step_N'

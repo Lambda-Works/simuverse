@@ -13,13 +13,15 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        firebase_uid: true,
+        is_active: true,
         created_at: true,
         updated_at: true,
       },
     });
   }
 
-  /** Internal use only — returns password_hash for auth verification. */
+  /** Internal use only — returns password_hash for auth verification / migration. */
   async findByEmailForAuth(email: string) {
     return this.prisma.user.findUnique({
       where: { email },
@@ -28,6 +30,24 @@ export class UsersService {
         email: true,
         role: true,
         password_hash: true,
+        firebase_uid: true,
+        is_active: true,
+      },
+    });
+  }
+
+  async findByFirebaseUid(firebaseUid: string) {
+    return this.prisma.user.findUnique({
+      where: { firebase_uid: firebaseUid },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        firebase_uid: true,
+        is_active: true,
+        created_at: true,
+        updated_at: true,
       },
     });
   }
@@ -40,20 +60,85 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        firebase_uid: true,
+        is_active: true,
         created_at: true,
         updated_at: true,
       },
     });
   }
 
-  async create(data: { email: string; password_hash: string; name: string; role?: string }) {
+  async findOrCreateFromFirebase(data: {
+    firebaseUid: string;
+    email: string;
+    name: string;
+    role?: string;
+  }) {
+    const byUid = await this.findByFirebaseUid(data.firebaseUid);
+    if (byUid) return byUid;
+
+    if (data.email) {
+      const byEmail = await this.findByEmail(data.email);
+      if (byEmail) {
+        return this.prisma.user.update({
+          where: { id: byEmail.id },
+          data: { firebase_uid: data.firebaseUid },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            firebase_uid: true,
+            is_active: true,
+            created_at: true,
+            updated_at: true,
+          },
+        });
+      }
+    }
+
     return this.prisma.user.create({
-      data: data as any,
+      data: {
+        email: data.email,
+        name: data.name,
+        firebase_uid: data.firebaseUid,
+        role: data.role || 'student',
+        password_hash: null,
+      },
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
+        firebase_uid: true,
+        is_active: true,
+        created_at: true,
+        updated_at: true,
+      },
+    });
+  }
+
+  async create(data: {
+    email: string;
+    password_hash?: string | null;
+    name: string;
+    role?: string;
+    firebase_uid?: string | null;
+  }) {
+    return this.prisma.user.create({
+      data: {
+        email: data.email,
+        password_hash: data.password_hash ?? null,
+        name: data.name,
+        role: data.role || 'student',
+        firebase_uid: data.firebase_uid ?? null,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        firebase_uid: true,
         is_active: true,
         created_at: true,
       },
@@ -94,7 +179,16 @@ export class UsersService {
     return user;
   }
 
-  async update(id: string, data: { name?: string; email?: string; role?: string; password_hash?: string }) {
+  async update(
+    id: string,
+    data: {
+      name?: string;
+      email?: string;
+      role?: string;
+      password_hash?: string | null;
+      firebase_uid?: string | null;
+    },
+  ) {
     try {
       return await this.prisma.user.update({
         where: { id },

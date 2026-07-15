@@ -82,18 +82,11 @@ export class AnalysisPipelineService {
       pipelineOutput.step_6_simulation_prompt = simulationResponse;
       await this.updateOutput(techSheetId, pipelineOutput);
 
-      // Step 7: Generate evaluation prompt
+      // Step 7: Generate coaching prompt
       await this.updateStatus(techSheetId, 'step_7');
-      const evalPrompt = this.getEvaluationAIPrompt(markdown, competencyResponse, kpiResponse);
-      const evalResponse = await this.deepseek.chat(evalPrompt);
-      pipelineOutput.step_7_evaluation_prompt = evalResponse;
-      await this.updateOutput(techSheetId, pipelineOutput);
-
-      // Step 8: Generate coaching prompt
-      await this.updateStatus(techSheetId, 'step_8');
-      const coachPrompt = this.getCoachingAIPrompt(markdown, competencyResponse, kpiResponse, evalResponse);
+      const coachPrompt = this.getCoachingAIPrompt(markdown, competencyResponse, kpiResponse, simulationResponse);
       const coachResponse = await this.deepseek.chat(coachPrompt);
-      pipelineOutput.step_8_coaching_prompt = coachResponse;
+      pipelineOutput.step_7_coaching_prompt = coachResponse;
       await this.updateOutput(techSheetId, pipelineOutput);
 
       // Mark as completed and populate extracted_data
@@ -109,7 +102,6 @@ export class AnalysisPipelineService {
               kpis: kpiResponse,
               questions: questionResponse,
               simulation_prompt: simulationResponse,
-              evaluation_prompt: evalResponse,
               coaching_prompt: coachResponse,
             },
           },
@@ -123,7 +115,6 @@ export class AnalysisPipelineService {
         tasks: questionResponse,
         prompts: {
           system_prompt: simulationResponse,
-          evaluation_prompt: evalResponse,
           coaching_prompt: coachResponse,
         },
       });
@@ -134,6 +125,15 @@ export class AnalysisPipelineService {
       } catch (configError) {
         this.logger.warn(
           `CourseConfig generation failed (non-blocking): ${configError}`,
+        );
+      }
+
+      // Materialize TechSheetTask → Scenario practices on the linked course
+      try {
+        await this.syncPracticesToCourse(techSheetId);
+      } catch (syncError) {
+        this.logger.warn(
+          `Practice sync failed (non-blocking): ${syncError}`,
         );
       }
 
@@ -209,8 +209,7 @@ export class AnalysisPipelineService {
     if (!output.step_4_kpis) return 4;
     if (!output.step_5_questions) return 5;
     if (!output.step_6_simulation_prompt) return 6;
-    if (!output.step_7_evaluation_prompt) return 7;
-    if (!output.step_8_coaching_prompt) return 8;
+    if (!output.step_7_coaching_prompt) return 7;
     return 0;
   }
 
@@ -285,7 +284,7 @@ IMPORTANTE: Extrae TODOS los criterios, no solo los más obvios. Si el documento
   }
 
   private getQuestionPrompt(markdown: string, competencies: string): string {
-    return `Genera preguntas de evaluación variadas basadas en las competencias y el documento.
+    return `Genera tareas de práctica variadas basadas en las competencias y el documento.
 
 Competencias extraídas:
 ${competencies}
@@ -293,26 +292,27 @@ ${competencies}
 Documento original:
 ${markdown}
 
-Genera entre 8 y 12 preguntas con la siguiente distribución aproximada:
-- 30-40% tipo multiple_choice (con 4 opciones)
-- 30-40% tipo abierta (sin opciones, array vacío)
+Genera entre 8 y 12 tareas de práctica con la siguiente distribución aproximada:
+- 30-40% tipo multiple_choice (con 4 opciones, para practicar conceptos)
+- 30-40% tipo abierta (sin opciones, array vacío — situaciones o desafíos a resolver)
 - 20-30% tipo verdadero_falso (opciones: ["Verdadero", "Falso"])
 
-Dificultad variada:
-- ~30% basica (conceptos fundamentales)
+Dificultad variada (solo estos tres niveles; NUNCA uses hard/difícil):
+- ~30% basica (muy fácil / conceptos fundamentales)
 - ~40% intermedia (aplicación práctica)
-- ~30% avanzada (análisis y síntesis)
+- ~30% avanzada (análisis y síntesis — equivale a dificultad media, NO hard)
 
-Cada pregunta debe estar asociada a una competencia de la lista (campo competencia_asociada).
-Las preguntas deben ser específicas al contenido del documento, no genéricas.
+Cada tarea debe estar asociada a una competencia de la lista (campo competencia_asociada).
+Las tareas deben ser específicas al contenido del documento, no genéricas.
+NO generes tareas de evaluación ni calificación: solo práctica y situaciones aplicadas.
 
 Retorna un JSON con el formato:
 {
   "preguntas": [
     {
-      "texto": "Texto de la pregunta",
+      "texto": "Texto de la tarea de práctica",
       "tipo": "multiple_choice|abierta|verdadero_falso",
-      "competencia_asociada": "Nombre de la competencia que evalúa",
+      "competencia_asociada": "Nombre de la competencia que practica",
       "dificultad": "basica|intermedia|avanzada",
       "opciones": ["Opción A", "Opción B", "Opción C", "Opción D"]
     }
@@ -336,41 +336,30 @@ ${kpis}
 Documento original:
 ${markdown}
 
-Crea un escenario de simulación donde el estudiante deba aplicar las competencias profesionales en un contexto empresarial real.
+Crea un escenario de simulación donde el estudiante deba aplicar las competencias profesionales en un contexto empresarial real mediante prácticas, tareas y situaciones.
+
+IMPORTANTE:
+- El simulador es SOLO de práctica. NO incluyas evaluación, calificación, puntuación ni criterios de aprobación/reprobación.
+- El tono debe ser amigable y sin presión: dejá claro que es un espacio para practicar y aprender, no un examen.
+- Cuando la tarea requiera evidencia o un archivo (documento, imagen, planilla, etc.), el prompt debe indicar que el estudiante debe subir el archivo en la pestaña Documentos (máximo 5 MB) o usar el link de Drive del curso si es más grande.
 
 El prompt debe incluir:
 1. Contexto de la empresa y situación
 2. Rol del estudiante
-3. Objetivos del escenario
-4. Situaciones o desafíos a enfrentar
-5. Criterios de éxito basados en los KPIs
+3. Objetivos del escenario (aprendizaje práctico)
+4. Situaciones, tareas o desafíos a enfrentar
+5. Momentos en que se pide subir un archivo o evidencia para continuar
+6. Indicadores de progreso basados en los KPIs (sin notas ni scores)
 
-    Retorna el prompt como texto estructurado en español.`;
+Retorna el prompt como texto estructurado en español.`;
   }
 
-  private getEvaluationAIPrompt(markdown: string, competencies: string, kpis: string): string {
-    return `Crea un prompt de evaluación para un simulador educativo basado en el siguiente documento, competencias y KPIs.
-
-Documento original:
-${markdown}
-
-Competencias extraídas:
-${competencies}
-
-KPIs extraídos:
-${kpis}
-
-El prompt de evaluación debe:
-1. Explicar cómo evaluar cada competencia durante la simulación
-2. Describir qué buscar en las respuestas del estudiante para cada KPI
-3. Definir criterios de puntuación (1-10) alineados con las metas y mínimos de cada KPI
-4. Especificar cuándo una respuesta es "correcta", "parcial" o "incorrecta"
-5. Incluir instrucciones para calcular la nota final ponderada por los pesos de cada KPI
-
-Retorna SOLO el texto del prompt de evaluación, sin markdown ni explicaciones adicionales.`;
-  }
-
-  private getCoachingAIPrompt(markdown: string, competencies: string, kpis: string, evaluationPrompt: string): string {
+  private getCoachingAIPrompt(
+    markdown: string,
+    competencies: string,
+    kpis: string,
+    simulationPrompt: string,
+  ): string {
     return `Crea un prompt de coaching/tutoría para un simulador educativo basado en el siguiente contexto.
 
 Documento original:
@@ -382,17 +371,22 @@ ${competencies}
 KPIs extraídos:
 ${kpis}
 
-Prompt de evaluación (para referencia):
-${evaluationPrompt}
+Prompt de simulación (para referencia):
+${simulationPrompt}
+
+IMPORTANTE: El simulador es SOLO de práctica. NO evalúes, califiques ni asignes puntuaciones al estudiante.
+Transmití calma y acompañamiento: el estudiante está practicando, no rindiendo un examen.
 
 El prompt de coaching debe:
-1. Definir el tono pedagógico: alentador, constructivo, paciente
+1. Definir el tono pedagógico: alentador, constructivo, paciente y sin presión evaluativa
 2. Especificar cuándo intervenir: si el estudiante se desvía, pide ayuda, o comete errores
 3. Dar pautas para guiar sin dar respuestas directas (método socrático)
 4. Incluir frases de ejemplo para corrección constructiva
 5. Adaptar el nivel de ayuda según la dificultad de cada competencia (básico/intermedio/avanzado)
+6. Enfocarse en práctica, tareas y situaciones — nunca en evaluación o scoring
+7. Pedir explícitamente la subida de archivos en la pestaña Documentos cuando la práctica lo requiera (adjunto ≤5 MB o link de Drive del curso si es más grande), y no dar por hecha la entrega hasta que el estudiante confirme
 
-      Retorna SOLO el texto del prompt de coaching, sin markdown ni explicaciones adicionales.`;
+Retorna SOLO el texto del prompt de coaching, sin markdown ni explicaciones adicionales.`;
   }
 
   /**
@@ -405,7 +399,7 @@ El prompt de coaching debe:
       competencies: string;
       kpis: string;
       tasks: string;
-      prompts: { system_prompt: string; evaluation_prompt: string; coaching_prompt: string };
+      prompts: { system_prompt: string; coaching_prompt: string };
     },
   ): Promise<void> {
     try {
@@ -486,7 +480,6 @@ El prompt de coaching debe:
       // Insert prompts
       const promptEntries: Array<{ type: string; content: string }> = [
         { type: 'system', content: rawConfig.prompts.system_prompt },
-        { type: 'evaluation', content: rawConfig.prompts.evaluation_prompt },
         { type: 'coaching', content: rawConfig.prompts.coaching_prompt },
       ];
 
@@ -538,30 +531,31 @@ El prompt de coaching debe:
     return map[String(raw).toLowerCase()] || 'basic';
   }
 
-  private mapTaskType(raw: string): 'practice' | 'evaluation' {
-    const map: Record<string, 'practice' | 'evaluation'> = {
-      multiple_choice: 'evaluation',
-      verdadero_falso: 'evaluation',
-      abierta: 'practice',
-      practice: 'practice',
-      evaluation: 'evaluation',
-    };
-    return map[String(raw).toLowerCase()] || 'evaluation';
+  private mapTaskType(_raw: string): 'practice' {
+    return 'practice';
   }
 
-  private mapDifficulty(raw: string): 'easy' | 'medium' | 'hard' {
-    const map: Record<string, 'easy' | 'medium' | 'hard'> = {
-      basica: 'easy',
-      basico: 'easy',
-      easy: 'easy',
-      intermedia: 'medium',
-      intermedio: 'medium',
+  /** Align with course practices: very_low | low | medium (never hard). */
+  private mapDifficulty(raw: string): 'very_low' | 'low' | 'medium' {
+    const key = String(raw || '').toLowerCase().trim();
+    const map: Record<string, 'very_low' | 'low' | 'medium'> = {
+      basica: 'very_low',
+      basico: 'very_low',
+      easy: 'very_low',
+      very_low: 'very_low',
+      very_easy: 'very_low',
+      'muy baja': 'very_low',
+      intermedia: 'low',
+      intermedio: 'low',
+      low: 'low',
+      baja: 'low',
+      avanzada: 'medium',
+      avanzado: 'medium',
       medium: 'medium',
-      avanzada: 'hard',
-      avanzado: 'hard',
-      hard: 'hard',
+      media: 'medium',
+      hard: 'medium',
     };
-    return map[String(raw).toLowerCase()] || 'easy';
+    return map[key] || 'very_low';
   }
 
   private toNumber(val: any): number {
@@ -607,10 +601,6 @@ El prompt de coaching debe:
       return;
     }
 
-    // Get eval and coaching prompts
-    const evalPrompt = await (this.prisma as any).techSheetPrompt.findFirst({
-      where: { tech_sheet_id: sheetId, type: 'evaluation' },
-    });
     const coachPrompt = await (this.prisma as any).techSheetPrompt.findFirst({
       where: { tech_sheet_id: sheetId, type: 'coaching' },
     });
@@ -621,7 +611,6 @@ El prompt de coaching debe:
     // Build ia_config JSON
     const iaConfig = {
       systemPrompt: systemPrompt.content,
-      evaluationPrompt: evalPrompt?.content || '',
       coachingPrompt: coachPrompt?.content || '',
       temperature: 0.7,
       maxTokens: 4000,
@@ -637,7 +626,7 @@ Retorna SOLO un JSON con esta estructura exacta:
 {
   "base_role": "rol del estudiante en primera persona, incluyendo nombre ficticio, cargo y empresa. Basado EXCLUSIVAMENTE en el prompt de simulación provisto.",
   "course_context": "contexto completo del curso y la empresa simulada (2-3 párrafos describiendo la empresa, situación, objetivos del curso). Solo usar información presente en el prompt.",
-  "knowledge_base_prompt": "instrucciones para la IA sobre cómo debe comportarse como evaluador/mentor durante la simulación. Solo usar información presente en el prompt."
+  "knowledge_base_prompt": "instrucciones para la IA sobre cómo debe comportarse como mentor/tutor durante la simulación de práctica (sin evaluación ni calificación). Solo usar información presente en el prompt."
 }
 
 Usa TODA la información disponible en el prompt. No inventes nada que no esté en el prompt.`;
@@ -694,5 +683,107 @@ Usa TODA la información disponible en el prompt. No inventes nada que no esté 
       target: k.target_value || 0,
       minimum: k.minimum_pass_value || 0,
     }));
+  }
+
+  /**
+   * Replace course practica-* scenarios with TechSheetTask rows from this analysis.
+   * Manual scenarios without agent_key practica-* are left untouched.
+   */
+  async syncPracticesToCourse(sheetId: number): Promise<void> {
+    const sheet = await this.prisma.techSheet.findUnique({
+      where: { id: sheetId },
+    });
+    if (!sheet?.course_id) {
+      this.logger.warn(
+        `Cannot sync practices: sheet ${sheetId} has no course_id`,
+      );
+      return;
+    }
+
+    const course = await this.prisma.course.findFirst({
+      where: {
+        OR: [{ id: sheet.course_id }, { course_id: sheet.course_id }],
+      },
+    });
+    if (!course) {
+      this.logger.warn(
+        `Cannot sync practices: course ${sheet.course_id} not found`,
+      );
+      return;
+    }
+
+    if (course.tech_sheet_id !== sheetId) {
+      await this.prisma.course.update({
+        where: { id: course.id },
+        data: { tech_sheet_id: sheetId },
+      });
+    }
+
+    const tasks = await (this.prisma as any).techSheetTask.findMany({
+      where: { tech_sheet_id: sheetId },
+      orderBy: { sequence: 'asc' },
+    });
+
+    if (!tasks.length) {
+      this.logger.warn(`No TechSheetTasks to sync for sheet ${sheetId}`);
+      return;
+    }
+
+    const systemPrompt = await (this.prisma as any).techSheetPrompt.findFirst({
+      where: { tech_sheet_id: sheetId, type: 'system' },
+    });
+
+    // Deactivate previous pipeline-generated practices (agent_key practica-*)
+    const deactivated = await this.prisma.scenario.updateMany({
+      where: {
+        course_id: course.id,
+        agent_key: { startsWith: 'practica-' },
+      },
+      data: { is_active: false },
+    });
+
+    let created = 0;
+    for (let i = 0; i < tasks.length; i++) {
+      const task = tasks[i];
+      const sequence = i + 1;
+      const agentKey = `practica-${sequence}`;
+      const difficulty = this.mapDifficulty(task.difficulty);
+      // Scenario.title is VARCHAR(255); TechSheetTask.title is Text
+      const rawTitle = String(task.title || `Práctica ${sequence}`).trim();
+      const title =
+        rawTitle.length > 255 ? `${rawTitle.slice(0, 252)}...` : rawTitle;
+      if (rawTitle.length > 255) {
+        this.logger.warn(
+          `Truncated practice title for ${agentKey} (${rawTitle.length} → 255 chars)`,
+        );
+      }
+
+      await this.prisma.scenario.create({
+        data: {
+          course_id: course.id,
+          title,
+          description: task.description || null,
+          scenario_type: 'practice',
+          difficulty,
+          sequence_index: sequence,
+          agent_key: agentKey,
+          is_active: true,
+          content: {
+            source: 'tech_sheet_pipeline',
+            tech_sheet_id: sheetId,
+            tech_sheet_task_id: task.id,
+            expected_duration_minutes: task.expected_duration_minutes || 0,
+            system_prompt_excerpt: systemPrompt?.content
+              ? String(systemPrompt.content).slice(0, 500)
+              : undefined,
+          },
+        },
+      });
+      created += 1;
+    }
+
+    this.logger.log(
+      `Synced ${created}/${tasks.length} practices to course ${course.id} (deactivated ${deactivated.count} prior practica-*)`,
+    );
   }
 }

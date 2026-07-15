@@ -425,13 +425,19 @@ async function main() {
     console.log(`🎬 Creando escenario "${def.scenario.title}"...`);
     await prisma.scenario.upsert({
       where: { id: def.scenario.id },
-      update: {},
+      update: {
+        scenario_type: 'practice',
+        sequence_index: 1,
+        agent_key: 'practica-1',
+      },
       create: {
         id: def.scenario.id,
         course_id: course.id,
         title: def.scenario.title,
         description: def.scenario.description,
-        scenario_type: def.scenario.scenario_type,
+        scenario_type: 'practice',
+        sequence_index: 1,
+        agent_key: 'practica-1',
         difficulty: def.scenario.difficulty,
         content: def.scenario.content,
         expected_outcomes: def.scenario.expected_outcomes,

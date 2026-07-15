@@ -1,9 +1,17 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  PayloadTooLargeException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { UpdateFileDto } from './dto/file.dto';
+
+export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5 MB
 
 @Injectable()
 export class FilesService {
@@ -30,29 +38,51 @@ export class FilesService {
     upload_type: string;
     course_id?: string;
     ministry_requirement_id?: string;
+    simulation_instance_id?: string;
     description?: string;
   }) {
     if (!file) throw new BadRequestException('No file provided');
+
+    if (file.size > MAX_UPLOAD_BYTES) {
+      throw new PayloadTooLargeException(
+        `El archivo supera el máximo de 5 MB. Usá el link de Drive del curso para archivos más grandes.`,
+      );
+    }
+
+    let courseId = metadata.course_id || null;
+
+    if (metadata.simulation_instance_id) {
+      const instance = await this.prisma.simulationInstance.findUnique({
+        where: { id: metadata.simulation_instance_id },
+        select: { id: true, student_id: true, course_id: true },
+      });
+      if (!instance) {
+        throw new BadRequestException('Simulation session not found');
+      }
+      if (instance.student_id !== metadata.uploaded_by_id) {
+        throw new ForbiddenException('You can only upload files to your own session');
+      }
+      courseId = courseId || instance.course_id;
+    }
 
     const uuid = require('crypto').randomUUID();
     const ext = FilesService.getFileExtension(file.originalname);
     const filename = `${uuid}.${ext}`;
     const filePath = path.join(this.uploadsDir, filename);
 
-    // Write file to disk
     fs.writeFileSync(filePath, file.buffer);
 
-    // Compute SHA-256 hash
     const fileHash = FilesService.computeSha256(file.buffer);
 
     const created = await this.prisma.fileUpload.create({
       data: {
         uploaded_by_id: metadata.uploaded_by_id,
-        course_id: metadata.course_id || null,
+        course_id: courseId,
         ministry_requirement_id: metadata.ministry_requirement_id || null,
+        simulation_instance_id: metadata.simulation_instance_id || null,
         file_name: file.originalname,
         file_type: ext,
-        upload_type: metadata.upload_type as any,
+        upload_type: (metadata.upload_type || 'student_submission') as any,
         file_size_bytes: BigInt(file.size),
         file_path: filePath,
         file_hash: fileHash,
@@ -63,22 +93,29 @@ export class FilesService {
 
     const serialized = this.serialize(created);
 
-    // Include file_url so callers (two-step upload) can reference the file
     return {
       ...serialized,
       file_url: `/api/files/${serialized.id}/download`,
     };
   }
 
-  async findAll(params: { uploaded_by_id?: string; course_id?: string }) {
-    const where: any = {};
+  async findAll(params: {
+    uploaded_by_id?: string;
+    course_id?: string;
+    simulation_instance_id?: string;
+  }) {
+    const where: any = { is_active: true };
     if (params.uploaded_by_id) where.uploaded_by_id = params.uploaded_by_id;
     if (params.course_id) where.course_id = params.course_id;
+    if (params.simulation_instance_id) {
+      where.simulation_instance_id = params.simulation_instance_id;
+    }
 
-    return this.prisma.fileUpload.findMany({
+    const files = await this.prisma.fileUpload.findMany({
       where,
       orderBy: { created_at: 'desc' },
     });
+    return files.map((f) => this.serialize(f));
   }
 
   async findOne(id: string) {

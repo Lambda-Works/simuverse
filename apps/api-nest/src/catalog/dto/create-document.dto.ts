@@ -22,13 +22,10 @@ export class CreateDocumentDto {
   @IsEnum(DocumentTypeEnum)
   document_type?: DocumentTypeEnum;
 
-  @IsOptional()
+  /** HTTPS link or relative `/api/files/:id/download` from upload */
   @IsString()
-  document_content?: string;
-
-  @IsOptional()
-  @IsString()
-  file_url?: string;
+  @MinLength(1)
+  file_url: string;
 
   @IsOptional()
   @IsString()

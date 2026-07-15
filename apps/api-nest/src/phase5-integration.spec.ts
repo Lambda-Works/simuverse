@@ -74,7 +74,7 @@ describe('Phase 5 Integration (e2e)', () => {
     };
 
     aiServiceMock = {
-      sendMessageToGemini: jest.fn(),
+      sendMessage: jest.fn(),
     };
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -248,7 +248,7 @@ describe('Phase 5 Integration (e2e)', () => {
         status: 'uploaded',
       });
       prismaMock.ministryRequirement.update.mockResolvedValue({});
-      aiServiceMock.sendMessageToGemini.mockResolvedValue({
+      aiServiceMock.sendMessage.mockResolvedValue({
         response: JSON.stringify([
           {
             name: 'Aprobación Ciencias',
@@ -272,7 +272,7 @@ describe('Phase 5 Integration (e2e)', () => {
       expect(res.body.kpis).toHaveLength(1);
       expect(res.body.kpis[0].name).toBe('Aprobación Ciencias');
       expect(res.body.mode).toBe('live');
-      expect(aiServiceMock.sendMessageToGemini).toHaveBeenCalledTimes(1);
+      expect(aiServiceMock.sendMessage).toHaveBeenCalledTimes(1);
     });
   });
 });

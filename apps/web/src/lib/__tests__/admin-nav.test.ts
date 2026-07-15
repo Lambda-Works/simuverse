@@ -26,9 +26,9 @@ describe('admin-nav', () => {
   });
 
   describe('total item count', () => {
-    it('has exactly 19 admin sub-tab items across all groups', () => {
+    it('has exactly 20 admin sub-tab items across all groups', () => {
       const totalItems = ADMIN_NAV_GROUPS.reduce((sum, g) => sum + g.items.length, 0);
-      expect(totalItems).toBe(19);
+      expect(totalItems).toBe(20);
     });
   });
 
@@ -55,7 +55,7 @@ describe('admin-nav', () => {
     it('has Content & Config group with 6 items', () => {
       const group = ADMIN_NAV_GROUPS.find((g) => g.id === 'contenido');
       expect(group).toBeDefined();
-      expect(group!.items).toHaveLength(6);
+      expect(group!.items).toHaveLength(7);
     });
 
     it('has AI & Simulation group with 2 items', () => {

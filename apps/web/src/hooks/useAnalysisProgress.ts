@@ -10,6 +10,7 @@ export type PipelineStatus =
   | 'step_4'
   | 'step_5'
   | 'step_6'
+  | 'step_7'
   | 'completed'
   | 'failed'
   | 'validation_rejected'
@@ -22,6 +23,7 @@ export interface PipelineOutput {
   step_4_kpis?: string;
   step_5_questions?: string;
   step_6_simulation_prompt?: string;
+  step_7_coaching_prompt?: string;
   error_step?: number;
   error_message?: string;
 }

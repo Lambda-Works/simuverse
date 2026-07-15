@@ -228,8 +228,39 @@ export class LegajoController {
       orderBy: { evaluated_at: 'desc' },
     });
 
+    const simIds = simulations.map(s => s.id);
+    const telemetryCounts = simIds.length
+      ? await this.prisma.telemetryLog.groupBy({
+          by: ['simulation_id'],
+          where: { simulation_id: { in: simIds } },
+          _count: { _all: true },
+        })
+      : [];
+    const eventosBySim = new Map(
+      telemetryCounts.map(t => [t.simulation_id, t._count._all]),
+    );
+
+    const normalizeKpis = (kpiResults: unknown): Record<string, number> => {
+      if (!kpiResults || typeof kpiResults !== 'object') return {};
+      const out: Record<string, number> = {};
+      for (const [key, val] of Object.entries(kpiResults as Record<string, unknown>)) {
+        if (typeof val === 'number') {
+          out[key] = val;
+        } else if (val && typeof val === 'object' && 'score' in val) {
+          out[key] = Number((val as { score: unknown }).score) || 0;
+        } else {
+          out[key] = Number(val) || 0;
+        }
+      }
+      return out;
+    };
+
     const enriched = simulations.map(sim => {
       const evalData = evaluations.find(e => e.simulation_id === sim.id);
+      const kpis = evalData?.kpi_results
+        ? normalizeKpis(evalData.kpi_results)
+        : null;
+      const totalEventos = eventosBySim.get(sim.id) ?? 0;
       return {
         simulation_id: sim.id,
         status: sim.status,
@@ -241,20 +272,27 @@ export class LegajoController {
         assessment_id: evalData ? String(evalData.id) : null,
         score: evalData ? Number(evalData.overall_score) : sim.score,
         passed: evalData ? Number(evalData.overall_score) >= 70 : sim.score ? sim.score >= 70 : null,
-        criteria_met: evalData?.kpi_results ? {
-          kpis: evalData.kpi_results as Record<string, number>,
+        criteria_met: kpis ? {
+          kpis,
           scoring_methodology: {
             formula: 'IA + Motor de Reglas',
             components: {},
-            puntaje_base_ia: Number(evalData.overall_score),
+            puntaje_base_ia: Number(evalData!.overall_score),
             puntaje_motor_reglas: null,
             puntaje_crisis: null,
             ajuste_crisis: 0,
-            puntaje_final: Number(evalData.overall_score),
-            aprobado: Number(evalData.overall_score) >= 70,
+            puntaje_final: Number(evalData!.overall_score),
+            aprobado: Number(evalData!.overall_score) >= 70,
+            umbral_aprobacion: 70,
+            criterios_evaluados: Object.keys(kpis),
+            ai_mode: totalEventos > 0 || Number(evalData!.overall_score) > 0 ? 'live' : 'scripted',
+            total_eventos: totalEventos,
+            evaluado_por: 'Sistema',
+            evaluado_en: evalData!.evaluated_at?.toISOString?.()
+              ?? String(evalData!.evaluated_at),
           },
           analysis_detail: {
-            strengths: evalData.overall_feedback ? [evalData.overall_feedback] : [],
+            strengths: evalData!.overall_feedback ? [evalData!.overall_feedback] : [],
             areas_to_improve: [],
             recommendations: [],
           },
@@ -262,7 +300,7 @@ export class LegajoController {
         assessment_comments: evalData?.overall_feedback || null,
         evaluated_at: evalData?.evaluated_at || null,
         evaluator_name: null,
-        total_logs: 0,
+        total_logs: totalEventos,
         messages_sent: 0,
       };
     });
@@ -367,6 +405,11 @@ export class SimulationSessionsController {
       orderBy: { turn_number: 'asc' },
     });
 
+    const submissions = await (this.prisma as any).fileUpload.findMany({
+      where: { simulation_instance_id: id, is_active: true },
+      orderBy: { created_at: 'desc' },
+    });
+
     const evalData = await this.prisma.simulationEvaluation.findFirst({
       where: { simulation_id: id },
     });
@@ -388,6 +431,21 @@ export class SimulationSessionsController {
         difficulty: inst.scenario ? inst.scenario.difficulty : '',
         course_title: inst.course ? inst.course.title : 'Unknown',
       },
+      summary: {
+        total_turns: chatLogs.length,
+        student_turns: chatLogs.filter((l: any) => l.speaker === 'student').length,
+        evaluated_turns: chatLogs.filter((l: any) => l.is_correct !== null && l.is_correct !== undefined).length,
+        correct_turns: chatLogs.filter((l: any) => l.is_correct === true).length,
+        incorrect_turns: chatLogs.filter((l: any) => l.is_correct === false).length,
+      },
+      submissions: submissions.map((f: any) => ({
+        id: f.id,
+        file_name: f.file_name,
+        file_type: f.file_type,
+        file_size_bytes: f.file_size_bytes?.toString?.() ?? String(f.file_size_bytes),
+        created_at: f.created_at,
+        download_url: `/files/${f.id}/download`,
+      })),
       logs: chatLogs.map((l: any) => ({
         id: l.id,
         turn_number: l.turn_number,

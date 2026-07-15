@@ -1,6 +1,6 @@
 import {
     ArrowRightLeft, BookOpen,
-    Bot, BotMessageSquare, Building, Building2, CalendarDays, ChartBar, ChartNoAxesCombined, Clapperboard, ClipboardList, FileChartColumnIncreasing, FilePlus, GraduationCap, HandHeart, LayoutTemplate, LucideIcon, Play, ShieldCheck, Tags, UserCheck, UserRound, UserRoundPlus, Users, Users2, Wrench
+    Bot, BotMessageSquare, Building, Building2, CalendarDays, ChartBar, ChartNoAxesCombined, Clapperboard, ClipboardList, FileChartColumnIncreasing, FilePlus, FileText, GraduationCap, HandHeart, LucideIcon, Play, ShieldCheck, Tags, UserCheck, UserRound, Users, Users2, Wrench
 } from 'lucide-react';
 
 export interface AdminNavItem {
@@ -27,7 +27,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { id: 'courses', label: 'Cursos', icon: GraduationCap },
       { id: 'categories', label: 'Categorías', icon: Tags },
       { id: 'scenarios', label: 'Escenarios', icon: Clapperboard },
-      { id: 'templates', label: 'Plantillas', icon: LayoutTemplate },
+      { id: 'practices', label: 'Prácticas', icon: Play },
       { id: 'documents', label: 'Documentos', icon: FilePlus },
       { id: 'techsheets', label: 'Fichas Técnicas', icon: ClipboardList },
     ],
@@ -37,7 +37,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     label: 'IA y Simulación',
     icon: Bot,
     items: [
-      { id: 'prompt-templates', label: 'Prompts IA', icon: BotMessageSquare },
+      { id: 'prompt-templates', label: 'Prompts por curso', icon: BotMessageSquare },
       { id: 'sessions', label: 'Sesiones', icon: Play },
     ],
   },
@@ -49,7 +49,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { id: 'users', label: 'Usuarios', icon: UserRound },
       { id: 'roles', label: 'Roles y Permisos', icon: ShieldCheck, excludeRoles: ['ministerio'] },
       { id: 'groups', label: 'Grupos', icon: Users2 },
-      { id: 'requests', label: 'Solicitudes', icon: UserRoundPlus, excludeRoles: ['ministerio'] },
+      { id: 'terms', label: 'Términos', icon: FileText, excludeRoles: ['ministerio'] },
     ],
   },
   {

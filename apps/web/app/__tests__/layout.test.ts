@@ -18,10 +18,10 @@ describe('app/layout.tsx', () => {
 
   it('should export metadata with correct title and description', () => {
     const content = readFileSync(layoutPath, 'utf-8')
-    expect(content).toContain('title: ')
-    expect(content).toContain('MSM - Motor de Simulación Modular')
-    expect(content).toContain('description: ')
-    expect(content).toContain('SimuVerse - Plataforma de simulación educativa')
+    expect(content).toContain('title:')
+    expect(content).toContain('SimuVerse')
+    expect(content).toContain('description:')
+    expect(content).toContain('simulaciones')
   })
 
   it('should export RootLayout as default export', () => {
@@ -31,7 +31,7 @@ describe('app/layout.tsx', () => {
 
   it('should set html lang to es', () => {
     const content = readFileSync(layoutPath, 'utf-8')
-    expect(content).toContain('<html lang="es">')
+    expect(content).toContain('lang="es"')
   })
 
   it('should wrap children in Providers component', () => {
@@ -44,5 +44,11 @@ describe('app/layout.tsx', () => {
   it('should import globals.css', () => {
     const content = readFileSync(layoutPath, 'utf-8')
     expect(content).toContain("import './globals.css'")
+  })
+
+  it('should use next/font for non-blocking font loading', () => {
+    const content = readFileSync(layoutPath, 'utf-8')
+    expect(content).toContain("from 'next/font/google'")
+    expect(content).toContain('display: \'swap\'')
   })
 })

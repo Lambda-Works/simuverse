@@ -291,11 +291,11 @@ export function generateDemoEmails(simId: string): Array<{ id: string; from: str
 }
 
 // ── Documents ────────────────────────────────────────────────
-export function generateDemoDocuments(simId: string): Array<{ id: string; name: string; type: string; content: string }> {
+export function generateDemoDocuments(simId: string): Array<{ id: string; name: string; type: string; url: string }> {
   return [
-    { id: `doc-${simId}-1`, name: 'Balance General 2025.xlsx', type: 'spreadsheet', content: 'Balance general simulado con activos y pasivos.' },
-    { id: `doc-${simId}-2`, name: 'Estado de Resultados.xlsx', type: 'spreadsheet', content: 'Estado de resultados del período actual.' },
-    { id: `doc-${simId}-3`, name: 'Contrato Propuesta.pdf', type: 'document', content: 'Borrador de contrato para revisión legal.' },
+    { id: `doc-${simId}-1`, name: 'Balance General 2025.xlsx', type: 'spreadsheet', url: 'https://drive.google.com/file/d/demo-balance/view' },
+    { id: `doc-${simId}-2`, name: 'Estado de Resultados.xlsx', type: 'spreadsheet', url: 'https://drive.google.com/file/d/demo-resultados/view' },
+    { id: `doc-${simId}-3`, name: 'Contrato Propuesta.pdf', type: 'document', url: 'https://www.dropbox.com/s/demo/contrato.pdf' },
   ]
 }
 
@@ -315,7 +315,7 @@ export function generateAdminData(): Array<Record<string, unknown>> {
     },
     iaConfig: {
       enabled: true,
-      provider: 'gemini',
+      provider: 'openai',
       systemPrompt: `Actúa como ${c.ai_role}`,
       temperature: 0.5,
     },
@@ -428,13 +428,50 @@ export function routeDemoRequest(method: string, url: string, data?: unknown): {
     return { status: 200, statusText: 'OK', data: DEMO_SIMULATIONS }
   }
 
+  // ── GET /practices/course/:id/progress ──────────────────
+  const practiceProgressMatch = normalisedUrl.match(/^\/practices\/course\/([^/]+)\/progress$/)
+  if (practiceProgressMatch && m === 'GET') {
+    return {
+      status: 200,
+      statusText: 'OK',
+      data: {
+        practices: [
+          {
+            id: 'demo-p1',
+            title: 'Práctica introductoria',
+            agent_key: 'practica-1',
+            sequence_index: 1,
+            difficulty_label: 'Muy baja',
+            status: 'in_progress',
+            unlocked: true,
+            instance_id: 'demo-inst-1',
+          },
+          {
+            id: 'demo-p2',
+            title: 'Práctica intermedia',
+            agent_key: 'practica-2',
+            sequence_index: 2,
+            difficulty_label: 'Baja',
+            status: 'locked',
+            unlocked: false,
+          },
+        ],
+        next_practice_id: 'demo-p1',
+        total: 2,
+        completed_count: 0,
+      },
+    }
+  }
+
   // ── POST /simulations/start ───────────────────────────────
   if (normalisedUrl === '/simulations/start' && m === 'POST') {
-    const { courseId } = (data as { courseId?: string }) || {}
-    const course = DEMO_COURSES.find(c => c.id === courseId || c.course_id === courseId)
+    const { courseId, course_id } = (data as { courseId?: string; course_id?: string }) || {}
+    const resolvedCourseId = course_id || courseId
+    const course = DEMO_COURSES.find(c => c.id === resolvedCourseId || c.course_id === resolvedCourseId)
+    const sessionId = `sim-${Date.now()}`
     const newSim: DemoSimulation = {
-      id: `sim-${Date.now()}`,
-      course_id: course?.course_id || courseId || 'unknown',
+      id: sessionId,
+      course_id: course?.course_id || resolvedCourseId || 'unknown',
       student_id: DEMO_USERS[2].id,
       status: 'in-progress',
       started_at: new Date().toISOString(),
@@ -442,7 +479,23 @@ export function routeDemoRequest(method: string, url: string, data?: unknown): {
       score: null,
       state: { currentStep: 'intro', messages: [] },
     }
-    return { status: 201, statusText: 'Created', data: newSim }
+    return {
+      status: 201,
+      statusText: 'Created',
+      data: {
+        ...newSim,
+        session_id: sessionId,
+        scenario_id: 'demo-p1',
+        agent_key: 'practica-1',
+        practice: {
+          id: 'demo-p1',
+          title: 'Práctica introductoria',
+          agent_key: 'practica-1',
+          sequence_index: 1,
+          difficulty: 'very_low',
+        },
+      },
+    }
   }
 
   // ── Simulation sub-routes: /simulations/:id/emails ────────
@@ -489,7 +542,16 @@ export function routeDemoRequest(method: string, url: string, data?: unknown): {
   // ── POST /simulations/:id/evaluate ────────────────────────
   const simEvalMatch = normalisedUrl.match(/^\/simulations\/([^/]+)\/evaluate$/)
   if (simEvalMatch && m === 'POST') {
-    return { status: 200, statusText: 'OK', data: generateDemoEvaluation(simEvalMatch[1]) }
+    return {
+      status: 200,
+      statusText: 'OK',
+      data: {
+        disabled: true,
+        message:
+          'Las evaluaciones están deshabilitadas. El simulador solo realiza prácticas y tareas.',
+        simulationId: simEvalMatch[1],
+      },
+    }
   }
 
   // ── GET /admin/courses ────────────────────────────────────

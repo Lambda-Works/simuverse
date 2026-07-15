@@ -1,3 +1,11 @@
 'use client'
-import EvaluationsPage from '@/views/EvaluationsPage';
-export default function ProfesorEvaluacionesPage() { return <EvaluationsPage />; }
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+
+export default function ProfesorEvaluacionesPage() {
+  const router = useRouter()
+  useEffect(() => {
+    router.replace('/profesor/cursos')
+  }, [router])
+  return null
+}

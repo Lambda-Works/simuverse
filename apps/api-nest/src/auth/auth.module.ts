@@ -3,20 +3,29 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { JwtStrategy } from './strategies/jwt.strategy';
+import { FirebaseStrategy } from './strategies/firebase.strategy';
+import { FirebaseAdminService } from './firebase-admin.service';
+import { RecaptchaService } from './recaptcha.service';
 import { UsersModule } from '../users/users.module';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [
     UsersModule,
+    PrismaModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({
-      secret: process.env.JWT_SECRET,
+      secret: process.env.JWT_SECRET || 'dev-secret',
       signOptions: { expiresIn: '1h' },
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService],
+  providers: [
+    AuthService,
+    FirebaseStrategy,
+    FirebaseAdminService,
+    RecaptchaService,
+  ],
+  exports: [AuthService, FirebaseAdminService, RecaptchaService],
 })
 export class AuthModule {}

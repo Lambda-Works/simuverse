@@ -18,6 +18,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { RbacModule } from './rbac/rbac.module';
 import { FilesModule } from './files/files.module';
 import { HealthModule } from './health/health.module';
+import { TermsModule } from './terms/terms.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
 @Module({
@@ -43,6 +44,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     RbacModule,
     FilesModule,
     HealthModule,
+    TermsModule,
   ],
   controllers: [],
   providers: [

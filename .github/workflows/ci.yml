@@ -19,11 +19,21 @@ jobs:
       - name: Setup environment variables
         run: |
           cp .env.example .env
+          # CI does not ship real Firebase Admin keys — force JWT fallback.
+          {
+            echo 'JWT_SECRET=ci-test-jwt-secret-32-chars-min'
+            echo 'AUTH_TEST_MODE=jwt'
+          } >> .env
           mkdir -p apps/web/.next && chmod 777 apps/web/.next
           mkdir -p apps/api-nest/uploads && chmod 777 apps/api-nest/uploads
 
       - name: Build and start Docker Compose services
-        run: docker compose up -d --build
+        run: |
+          docker compose up -d --build || {
+            echo "========== docker compose up failed — api-nest logs =========="
+            docker compose logs --tail 200 api-nest || true
+            exit 1
+          }
 
       - name: Wait for PostgreSQL to be healthy
         run: |
@@ -137,7 +147,12 @@ jobs:
           echo "✓ Web production build successful"
 
       - name: Build and start Docker Compose services
-        run: docker compose -f docker-compose.prod.yml up -d --build
+        run: |
+          docker compose -f docker-compose.prod.yml up -d --build || {
+            echo "========== docker compose up failed — seed/api logs =========="
+            docker compose -f docker-compose.prod.yml logs --tail 200 seed api-nest || true
+            exit 1
+          }
 
       - name: Wait for PostgreSQL to be healthy
         run: |

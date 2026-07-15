@@ -18,6 +18,7 @@ import { CreateTechSheetDto } from './dto/create-tech-sheet.dto';
 import { UpdateTechSheetDto } from './dto/update-tech-sheet.dto';
 import { UpdateTechSheetConfigDto } from './dto/update-tech-sheet-config.dto';
 import { TriggerAnalysisDto } from './dto/trigger-analysis.dto';
+import { UpdateTechSheetPromptsDto } from './dto/update-tech-sheet-prompts.dto';
 
 @Controller()
 export class CatalogController {
@@ -86,6 +87,14 @@ export class CatalogController {
     @Body() dto: UpdateTechSheetConfigDto,
   ) {
     return this.techSheetsService.updateConfig(id, dto);
+  }
+
+  @Put('tech-sheets/:id/prompts')
+  async updateTechSheetPrompts(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateTechSheetPromptsDto,
+  ) {
+    return this.techSheetsService.updatePrompts(id, dto);
   }
 
   @Get('tech-sheets/:id')

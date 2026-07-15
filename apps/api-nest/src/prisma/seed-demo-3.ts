@@ -180,26 +180,7 @@ async function main() {
     });
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // 8. ACCESS REQUEST — Juan Pérez
-  // ═══════════════════════════════════════════════════════════════
-  console.log('📩 Solicitud de acceso extra...');
-  const reqExists = await prisma.accessRequest.findFirst({
-    where: { student_id: student1!.id, course_id: courseM!.id },
-  });
-  if (!reqExists) {
-    await prisma.accessRequest.create({
-      data: {
-        student_id: student1!.id,
-        course_id: courseM!.id,
-        student_name: student1!.name,
-        student_email: student1!.email,
-        course_name: 'Gestión de Mantenimiento Industrial',
-        reason: 'Ya completé los otros 3 cursos. Me interesa sumar conocimientos de mantenimiento industrial para complementar mi perfil.',
-        status: 'pending',
-      },
-    });
-  }
+  // Access requests removed — students self-enroll with course password
 
   // ═══════════════════════════════════════════════════════════════
   // 9. EXTRA NOTIFICATIONS

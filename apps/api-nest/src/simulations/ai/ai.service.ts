@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
-import axios from 'axios';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { DeepSeekService } from '../../catalog/deepseek.service';
+import { OpenAiService } from './openai.service';
 
 export interface PromptData {
   base_role: string;
@@ -14,6 +14,12 @@ export interface PromptData {
   role_behavior?: string;
   chatbot_humano_enabled?: boolean;
   current_state?: string;
+  /** Practice agent identity e.g. practica-1 */
+  agent_key?: string;
+  /** Practice difficulty label */
+  difficulty?: string;
+  /** Summary of previous practice for continuity */
+  prior_context?: string;
 }
 
 /** Section identifiers for priority-based trimming (higher index = trimmed first). */
@@ -42,12 +48,11 @@ export interface FallbackContext {
 @Injectable()
 export class AIService {
   private readonly logger = new Logger(AIService.name);
-  private geminiApiKey: string;
-  private geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
-  constructor(private readonly deepseek: DeepSeekService) {
-    this.geminiApiKey = process.env.GEMINI_API_KEY || '';
-  }
+  constructor(
+    private readonly deepseek: DeepSeekService,
+    @Optional() private readonly openai?: OpenAiService,
+  ) {}
 
   // ─── Fallback offline engine ─────────────────────────────────────────
 
@@ -159,9 +164,44 @@ export class AIService {
       role_behavior,
       chatbot_humano_enabled,
       current_state,
+      agent_key,
+      difficulty,
+      prior_context,
     } = promptData;
 
     const sections: PromptSection[] = [];
+
+    const employmentAxis = this.deepseek?.getEmploymentAxis?.() ?? '';
+    if (employmentAxis) {
+      sections.push({
+        id: 'employment_axis',
+        header: 'EJE EMPLEABILIDAD',
+        body: employmentAxis.trim(),
+        priority: 0,
+      });
+    }
+
+    // Practice identity / difficulty / prior context
+    {
+      const parts: string[] = [
+        'MODO: solo prácticas y tareas. NO evalúes, califiques ni asignes notas.',
+        'Transmití un tono amigable y sin presión: el estudiante está practicando, no rindiendo un examen.',
+        'Cuando la práctica requiera entregar un archivo o evidencia, pedile explícitamente que lo suba en la pestaña Documentos (máx. 5 MB).',
+        'Si el archivo es más grande, indicá que use el link de Drive del curso (si está configurado) desde Documentos.',
+        'No avances como si la entrega estuviera hecha hasta que el estudiante confirme que subió el archivo o el link.',
+      ];
+      if (agent_key) parts.push(`Identidad del agente: ${agent_key}`);
+      if (difficulty) parts.push(`Dificultad de la práctica: ${difficulty}`);
+      if (prior_context) {
+        parts.push(`Contexto resumido de prácticas anteriores:\n${prior_context}`);
+      }
+      sections.push({
+        id: 'practice_context',
+        header: 'CONTEXTO DE PRÁCTICA',
+        body: parts.join('\n'),
+        priority: 0,
+      });
+    }
 
     // 1. Base role (highest priority — never trimmed)
     sections.push({
@@ -261,11 +301,11 @@ export class AIService {
       greeting:
         'Estás dando la bienvenida al estudiante. Sé cálido, presentate brevemente y explicá de qué trata la simulación. No des tareas todavía.',
       development:
-        'El estudiante está trabajando en las tareas del escenario. Sé profesional, guiá sin dar respuestas directas, y evaluá sus decisiones.',
+        'El estudiante está trabajando en las tareas del escenario. Sé profesional, guiá sin dar respuestas directas. NO evalúes ni califiques.',
       milestone:
         'Se alcanzó un hito importante (evento, crisis o logro). Reconocé el progreso del estudiante, hacé un breve resumen y motivá a continuar.',
       closing:
-        'La simulación está por finalizar. Hacé un cierre amable, resumí los puntos clave y agradecé la participación.',
+        'La simulación está por finalizar. Hacé un cierre amable, resumí los puntos clave de la práctica y agradecé la participación.',
     };
     return instructions[state] ?? 'Responde de forma profesional y contextual.';
   }
@@ -321,75 +361,50 @@ export class AIService {
     return trimmed;
   }
 
-  async sendMessageToGemini(
+  async sendMessage(
     userMessage: string,
     systemPrompt: string,
     conversationHistory: Array<{ role: string; content: string }> = [],
     fallbackCtx?: FallbackContext,
+    preferDeepSeek: boolean = false,
   ): Promise<AIResponse> {
-    // Check if DeepSeek is available first
+    if (preferDeepSeek) {
+      // DeepSeek → scripted (skip OpenAI)
+      if (process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_API_KEY.trim() !== '') {
+        try {
+          return await this.sendMessageToDeepSeek(userMessage, systemPrompt, conversationHistory);
+        } catch (error) {
+          this.logger.warn(`DeepSeek failed, falling back: ${(error as Error).message}`);
+        }
+      }
+      return {
+        response: this.generateFallbackResponse(userMessage, systemPrompt, fallbackCtx),
+        mode: 'scripted',
+      };
+    }
+
+    // Default: OpenAI → DeepSeek → scripted
+    if (this.openai?.isConfigured()) {
+      try {
+        const response = await this.openai.chat(userMessage, systemPrompt, conversationHistory);
+        return { response, mode: 'live' };
+      } catch (error) {
+        this.logger.warn(`OpenAI failed, falling back to DeepSeek: ${(error as Error).message}`);
+      }
+    }
+
     if (process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_API_KEY.trim() !== '') {
       try {
         return await this.sendMessageToDeepSeek(userMessage, systemPrompt, conversationHistory);
       } catch (error) {
         this.logger.warn(`DeepSeek failed, falling back: ${(error as Error).message}`);
-        // Fall through to Gemini or fallback
       }
     }
 
-    const isKeyMissing =
-      !this.geminiApiKey ||
-      this.geminiApiKey === 'tu_gemini_api_key_aqui' ||
-      this.geminiApiKey.trim() === '';
-
-    if (isKeyMissing) {
-      return {
-        response: this.generateFallbackResponse(userMessage, systemPrompt, fallbackCtx),
-        mode: 'scripted',
-      };
-    }
-
-    try {
-      const messages = [
-        ...conversationHistory.map((msg) => ({
-          role: msg.role === 'user' ? 'user' : 'model',
-          parts: [{ text: msg.content }],
-        })),
-        {
-          role: 'user',
-          parts: [{ text: userMessage }],
-        },
-      ];
-
-      const response = await axios.post(
-        `${this.geminiApiUrl}?key=${this.geminiApiKey}`,
-        {
-          system_instruction: { parts: { text: systemPrompt } },
-          contents: messages,
-          generation_config: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 1024,
-          },
-        },
-        { timeout: 30000 },
-      );
-
-      const content = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!content) {
-        return {
-          response: this.generateFallbackResponse(userMessage, systemPrompt, fallbackCtx),
-          mode: 'scripted',
-        };
-      }
-      return { response: content, mode: 'live' };
-    } catch {
-      return {
-        response: this.generateFallbackResponse(userMessage, systemPrompt, fallbackCtx),
-        mode: 'scripted',
-      };
-    }
+    return {
+      response: this.generateFallbackResponse(userMessage, systemPrompt, fallbackCtx),
+      mode: 'scripted',
+    };
   }
 
   async analyzeStudentPerformance(
@@ -417,7 +432,7 @@ export class AIService {
       'Eres un evaluador pedagógico riguroso y justo. Devuelve SOLO JSON válido, sin explicaciones adicionales.';
 
     try {
-      const aiResult = await this.sendMessageToGemini(analysisPrompt, systemPrompt);
+      const aiResult = await this.sendMessage(analysisPrompt, systemPrompt);
 
       if (aiResult.mode === 'scripted') {
         return this.buildHeuristicEvaluation(logs, evalCriteria);

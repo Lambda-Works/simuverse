@@ -1,3 +1,11 @@
 'use client'
-import EvaluationsPage from '@/views/EvaluationsPage'
-export default function Page() { return <EvaluationsPage /> }
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+
+export default function MinisterioEvaluacionesPage() {
+  const router = useRouter()
+  useEffect(() => {
+    router.replace('/ministerio')
+  }, [router])
+  return null
+}

@@ -14,7 +14,6 @@ export default defineConfig({
     exclude: ["**/node_modules/**", "**/dist/**", "**/.next/**"],
     env: {
       NEXT_PUBLIC_API_URL: "http://localhost:5001/api",
-      NEXT_PUBLIC_GEMINI_API_KEY: "test-key-for-testing",
       NEXT_PUBLIC_SUPABASE_URL: "https://test.supabase.co",
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "test-key",
       NEXT_PUBLIC_CERTIFICATE_ISSUER_NAME: "Test Issuer",
