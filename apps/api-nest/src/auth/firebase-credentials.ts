@@ -28,6 +28,43 @@ function resolveCredentialPath(pathEnv: string): string {
 }
 
 /**
+ * True when env values look like .env.example placeholders, not real credentials.
+ * CI copies .env.example → .env; treating placeholders as "unset" avoids boot crashes.
+ */
+export function isPlaceholderFirebaseCredential(
+  projectId: string,
+  clientEmail: string,
+  privateKey: string,
+): boolean {
+  const key = privateKey.trim();
+  if (
+    key.includes('...') ||
+    key.includes('YOUR_') ||
+    key.includes('your_') ||
+    !key.includes('BEGIN PRIVATE KEY') ||
+    !key.includes('END PRIVATE KEY')
+  ) {
+    return true;
+  }
+
+  if (
+    clientEmail.includes('xxxxx') ||
+    clientEmail.includes('example.com') ||
+    projectId.includes('your-') ||
+    projectId === 'your_project_id'
+  ) {
+    return true;
+  }
+
+  // Real PEM bodies are long; placeholder keys are short even after \n expansion.
+  const body = key
+    .replace(/-----BEGIN PRIVATE KEY-----/, '')
+    .replace(/-----END PRIVATE KEY-----/, '')
+    .replace(/\s+/g, '');
+  return body.length < 80;
+}
+
+/**
  * Firebase Admin credentials from:
  * 1) FIREBASE_SERVICE_ACCOUNT_PATH or GOOGLE_APPLICATION_CREDENTIALS (JSON file), or
  * 2) FIREBASE_PROJECT_ID + FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY (Hub per-key env).
@@ -65,7 +102,13 @@ export function resolveFirebaseCredentials(): FirebaseServiceAccount | null {
   let privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
   if (projectId && clientEmail && privateKey) {
-    privateKey = privateKey.replace(/\\n/g, '\n');
+    // Strip wrapping quotes that some env loaders leave in place.
+    privateKey = privateKey.replace(/^["']|["']$/g, '').replace(/\\n/g, '\n');
+
+    if (isPlaceholderFirebaseCredential(projectId, clientEmail, privateKey)) {
+      return null;
+    }
+
     return { projectId, clientEmail, privateKey };
   }
 

@@ -20,14 +20,22 @@ export class FirebaseAdminService implements OnModuleInit {
       return;
     }
 
-    const { cert, getApps, initializeApp } = await import('firebase-admin/app');
-    if (!getApps().length) {
-      initializeApp({
-        credential: cert(credentials),
-      });
+    try {
+      const { cert, getApps, initializeApp } = await import('firebase-admin/app');
+      if (!getApps().length) {
+        initializeApp({
+          credential: cert(credentials),
+        });
+      }
+      this.configured = true;
+      this.logger.log(`Firebase Admin initialized for project ${credentials.projectId}`);
+    } catch (err: any) {
+      // Never crash API boot on bad/placeholder credentials (e.g. CI using .env.example).
+      this.logger.warn(
+        `Firebase Admin init failed (${err?.message || err}). Auth will use JWT_SECRET fallback.`,
+      );
+      this.configured = false;
     }
-    this.configured = true;
-    this.logger.log(`Firebase Admin initialized for project ${credentials.projectId}`);
   }
 
   get isConfigured(): boolean {
