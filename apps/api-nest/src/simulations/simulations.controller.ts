@@ -204,7 +204,7 @@ export class SimulationsController {
         course_context: config?.course_context || '',
       };
 
-      const aiResponse = await this.aiService.sendMessageToGemini(
+      const aiResponse = await this.aiService.sendMessage(
         dto.message,
         systemPrompt,
         [],
@@ -255,7 +255,7 @@ export class SimulationsController {
 
     const proactiveMessages: string[] = triggerResults.map((r) => r.message);
 
-    const aiResponse = await this.aiService.sendMessageToGemini(
+    const aiResponse = await this.aiService.sendMessage(
       dto.message,
       systemPrompt,
       resolvedHistory,

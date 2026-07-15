@@ -9,7 +9,7 @@ import { SessionCheckpointService } from './session-checkpoint.service';
 describe('PracticesService', () => {
   let service: PracticesService;
   let prismaMock: Record<string, any>;
-  let aiMock: { sendMessageToGemini: jest.Mock };
+  let aiMock: { sendMessage: jest.Mock };
   let sessionMemoryMock: {
     getHistory: jest.Mock;
     invalidate: jest.Mock;
@@ -67,7 +67,7 @@ describe('PracticesService', () => {
       },
     };
 
-    aiMock = { sendMessageToGemini: jest.fn() };
+    aiMock = { sendMessage: jest.fn() };
     sessionMemoryMock = {
       getHistory: jest.fn().mockResolvedValue([
         { speaker: 'student', message: 'Hola' },
@@ -287,7 +287,7 @@ describe('PracticesService', () => {
         course_id: courseId,
         scenario: practices[0],
       });
-      aiMock.sendMessageToGemini.mockResolvedValue({
+      aiMock.sendMessage.mockResolvedValue({
         response: 'Resumen de la sesión sin calificación.',
       });
       prismaMock.simulationInstance.update.mockResolvedValue({
@@ -298,7 +298,7 @@ describe('PracticesService', () => {
 
       const result = await service.completePractice(studentId, 'inst-1');
 
-      expect(aiMock.sendMessageToGemini).toHaveBeenCalledWith(
+      expect(aiMock.sendMessage).toHaveBeenCalledWith(
         expect.stringContaining('Sin calificar ni puntuar'),
         expect.any(String),
       );

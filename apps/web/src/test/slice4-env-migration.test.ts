@@ -79,20 +79,6 @@ describe('REQ-S4-01 — NEXT_PUBLIC_* usage in services', () => {
     expect(content).not.toContain('import.meta.env');
   });
 
-  it('should use process.env.NEXT_PUBLIC_GEMINI_API_KEY in ChatService.ts', () => {
-    const content = readFileSync(join(SRC_DIR, 'services', 'ChatService.ts'), 'utf-8');
-    expect(content).toContain('process.env.NEXT_PUBLIC_GEMINI_API_KEY');
-    expect(content).not.toContain('import.meta.env');
-  });
-
-  it('should use process.env.NEXT_PUBLIC_* in phase3-integration.ts', () => {
-    const content = readFileSync(join(SRC_DIR, 'services', 'phase3-integration.ts'), 'utf-8');
-    expect(content).toContain('process.env.NEXT_PUBLIC_GEMINI_API_KEY');
-    expect(content).toContain('process.env.NEXT_PUBLIC_CERTIFICATE_ISSUER_NAME');
-    expect(content).toContain('process.env.NEXT_PUBLIC_PWA_ENABLED');
-    expect(content).not.toContain('import.meta.env');
-  });
-
   it('should use process.env.NEXT_PUBLIC_API_URL in MSMApiClient.ts', () => {
     const content = readFileSync(join(SRC_DIR, 'services', 'MSMApiClient.ts'), 'utf-8');
     expect(content).toContain('process.env.NEXT_PUBLIC_API_URL');

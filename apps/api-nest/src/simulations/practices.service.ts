@@ -317,7 +317,7 @@ export class PracticesService {
 
     let summary = `Práctica ${instance.scenario.agent_key || instance.scenario.title} completada.`;
     try {
-      const result = await this.ai.sendMessageToGemini(
+      const result = await this.ai.sendMessage(
         `Resumí en 5-8 oraciones (español) lo que el alumno practicó y logró en esta sesión. Sin calificar ni puntuar.\n\nTRANSCRIPTO:\n${transcript}`,
         'Sos un asistente que resume prácticas profesionalizantes. Solo hechos y aprendizajes, sin evaluación.',
       );

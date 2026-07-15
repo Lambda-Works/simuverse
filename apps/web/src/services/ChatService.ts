@@ -1,7 +1,7 @@
 /**
  * ChatService - LLM Integration Layer
- * Integrates with Google Gemini API for AI-powered responses
- * Implements streaming, prompt engineering, and fallback logic
+ * Integrates with backend AI service for AI-powered responses
+ * Implements fallback logic for offline mode
  */
 
 interface ChatMessage {
@@ -17,14 +17,6 @@ interface ChatResponse {
   };
   model: string;
   timestamp: string;
-}
-
-interface ChatServiceConfig {
-  apiKey: string;
-  model?: string;
-  temperature?: number;
-  maxTokens?: number;
-  timeout?: number;
 }
 
 /**
@@ -77,23 +69,12 @@ Sé directo, honesto y orientado a resultados.`,
  * ChatService - Main class for LLM integration
  */
 class ChatService {
-  private apiKey: string;
-  private model: string;
   private temperature: number;
   private maxTokens: number;
-  private timeout: number;
-  private baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-  constructor(config: ChatServiceConfig) {
-    this.apiKey = config.apiKey;
-    this.model = config.model || 'gemini-pro';
+  constructor(config: { temperature?: number; maxTokens?: number }) {
     this.temperature = config.temperature ?? 0.7;
     this.maxTokens = config.maxTokens ?? 1024;
-    this.timeout = config.timeout ?? 30000;
-
-    if (!this.apiKey) {
-      console.warn('ChatService: No API key provided. Using fallback mode.');
-    }
   }
 
   /**
@@ -104,119 +85,14 @@ class ChatService {
   }
 
   /**
-   * Send message to Gemini API with streaming support
+   * Generate response using fallback mode (backend handles live AI)
    */
   async generateResponse(
     userMessage: string,
     conversationHistory: ChatMessage[],
     familyType: string = 'rrhh',
-    onStream?: (chunk: string) => void
   ): Promise<ChatResponse> {
-    try {
-      // If no API key, use fallback
-      if (!this.apiKey) {
-        return this.generateFallbackResponse(userMessage, familyType);
-      }
-
-      // Prepare request
-      const systemPrompt = this.getSystemPrompt(familyType);
-      const messages = [
-        ...conversationHistory,
-        { role: 'user', content: userMessage },
-      ];
-
-      // Build Gemini API request
-      const requestBody = {
-        contents: messages.map((msg) => ({
-          role: msg.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: msg.content }],
-        })),
-        systemInstruction: {
-          role: 'user',
-          parts: [{ text: systemPrompt }],
-        },
-        generationConfig: {
-          temperature: this.temperature,
-          maxOutputTokens: this.maxTokens,
-        },
-      };
-
-      // Call Gemini API
-      const response = await this.callGeminiAPI(requestBody, onStream);
-
-      return {
-        text: response.text,
-        tokens: response.tokens,
-        model: this.model,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      console.error('ChatService: Error generating response:', error);
-      return this.generateFallbackResponse(userMessage, familyType);
-    }
-  }
-
-  /**
-   * Call Gemini API endpoint
-   */
-  private async callGeminiAPI(
-    requestBody: any,
-    onStream?: (chunk: string) => void
-  ): Promise<{ text: string; tokens: { input: number; output: number } }> {
-    const endpoint = `${this.baseUrl}/${this.model}:generateContent?key=${this.apiKey}`;
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        if (response.status === 429) {
-          throw new Error('Rate limit exceeded. Please try again later.');
-        }
-        if (response.status === 401) {
-          throw new Error('Invalid API key. Please check your credentials.');
-        }
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      // Extract text from response
-      const text =
-        data.candidates?.[0]?.content?.parts?.[0]?.text ||
-        'No response generated';
-
-      // Extract token counts
-      const inputTokens =
-        data.usageMetadata?.promptTokenCount || requestBody.contents.length;
-      const outputTokens =
-        data.usageMetadata?.candidatesTokenCount || text.split(' ').length;
-
-      return {
-        text,
-        tokens: {
-          input: inputTokens,
-          output: outputTokens,
-        },
-      };
-    } catch (error: any) {
-      clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
-        throw new Error('API request timeout. Please try again.');
-      }
-      throw error;
-    }
+    return this.generateFallbackResponse(userMessage, familyType);
   }
 
   /**
@@ -412,38 +288,22 @@ Plan de negocio incluye:
   }
 
   /**
-   * Validate API key format
-   */
-  validateApiKey(apiKey: string): boolean {
-    // Gemini API keys are typically long alphanumeric strings
-    return Boolean(apiKey && apiKey.length > 20);
-  }
-
-  /**
    * Get model info
    */
   getModelInfo(): {
-    model: string;
     temperature: number;
     maxTokens: number;
   } {
     return {
-      model: this.model,
       temperature: this.temperature,
       maxTokens: this.maxTokens,
     };
   }
 }
 
-// Initialize ChatService with environment variable
-const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
-
 export const chatService = new ChatService({
-  apiKey: API_KEY,
-  model: 'gemini-1.5-flash',
   temperature: 0.7,
   maxTokens: 1024,
-  timeout: 30000,
 });
 
 export default ChatService;

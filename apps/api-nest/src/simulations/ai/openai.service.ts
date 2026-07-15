@@ -6,7 +6,7 @@ export class OpenAiService {
   private readonly logger = new Logger(OpenAiService.name);
   private readonly apiKey = process.env.OPENAI_API_KEY || '';
   private readonly apiUrl = 'https://api.openai.com/v1/chat/completions';
-  private readonly model = process.env.OPENAI_CHAT_MODEL || 'gpt-5.4-nano';
+  private readonly model = process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini';
 
   isConfigured(): boolean {
     return Boolean(this.apiKey && this.apiKey.trim() !== '');

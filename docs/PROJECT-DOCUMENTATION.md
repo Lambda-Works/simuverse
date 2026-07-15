@@ -35,7 +35,7 @@
 | **Base de datos** | PostgreSQL (Docker) | 15 (dev) / 16 (prod) |
 | **Proxy** | Express + http-proxy-middleware | — |
 | **AI Principal** | DeepSeek (vía DeepSeekService) | deepseek-v4-flash |
-| **AI Auxiliar** | Gemini (Google AI) — fallback histórico | — |
+| **AI Auxiliar** | OpenAI (gpt-4o-mini) — chat fallback | — |
 | **Documentos** | Markitdown (Python FastAPI) — PDF/DOCX→Markdown | Python 3.11 |
 | **Package manager** | npm (workspaces) | — |
 | **Monorepo** | 3 paquetes: `apps/web`, `apps/api-nest`, `proxy` | — |
@@ -476,7 +476,7 @@ Este es el endpoint más complejo del sistema. Flujo completo:
 ```
 1. Feature flag gate
    ├── chatbot_humano_enabled = false → Legacy flow
-   │   └── buildSystemPrompt() → sendMessageToGemini() → response
+   │   └── buildSystemPrompt() → sendMessage() → response
    └── chatbot_humano_enabled = true  → Chatbot Humano flow:
 
 2. Hydrate session memory
@@ -694,7 +694,7 @@ Todos los usuarios usan contraseña: `Admin123!`
 |---|----------|-----------|---------|
 | 13 | `localhost` hardcodeado en docker-compose | `docker-compose.yml` | No funciona en red externa |
 | 14 | Dos sistemas RBAC independientes | `User.role` string vs tablas Role/Permission | Confusión de permisos |
-| 15 | `sendMessageToGemini()` llama a DeepSeek | `AIService` | Nombre engañoso — Gemini es solo fallback histórico |
+| 15 | `sendMessage()` nombre actualizado | `AIService` | Renombrado de `sendMessageToGemini` para reflejar cascade real (OpenAI → DeepSeek → scripted) |
 | 16 | CRUD de Calendario no conectado al frontend | Backend existe, frontend no | Funcionalidad invisible |
 | 17 | Hard-delete de cursos no implementado | `courses.service.ts` | Solo soft-delete |
 | 18 | Ficha médica: no se pueden seleccionar cursos | Admin panel | Selector roto |
@@ -771,7 +771,7 @@ Este es el problema técnico más grave del proyecto. Documentación completa pa
 
 ```bash
 cp .env.example .env
-# Editar .env con valores reales (JWT_SECRET, GEMINI_API_KEY, etc.)
+# Editar .env con valores reales (JWT_SECRET, OPENAI_API_KEY, DEEPSEEK_API_KEY, etc.)
 docker compose up -d --build
 ```
 
@@ -789,9 +789,8 @@ docker compose up -d --build
 | `DATABASE_URL` | Connection string Prisma | — |
 | `JWT_SECRET` | Secreto JWT | — |
 | `NEXT_PUBLIC_API_URL` | URL del API | `http://localhost:5000/api` |
-| `GEMINI_API_KEY` | API key de Gemini | — |
-| `ASSESSMENT_HMAC_SECRET` | Firma de evaluaciones | — |
 | `DEEPSEEK_API_KEY` | API key DeepSeek | — |
+| `ASSESSMENT_HMAC_SECRET` | Firma de evaluaciones | — |
 
 ### Comandos Útiles
 

@@ -44,7 +44,7 @@ describe('Ministry (e2e)', () => {
     };
 
     aiServiceMock = {
-      sendMessageToGemini: jest.fn(),
+      sendMessage: jest.fn(),
     };
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -214,7 +214,7 @@ describe('Ministry (e2e)', () => {
           status: 'uploaded',
         });
         prismaMock.ministryRequirement.update.mockResolvedValue({});
-        aiServiceMock.sendMessageToGemini.mockResolvedValue({
+        aiServiceMock.sendMessage.mockResolvedValue({
           response: JSON.stringify([
             {
               name: 'Aprobación Matemática',
@@ -260,7 +260,7 @@ describe('Ministry (e2e)', () => {
           status: 'uploaded',
         });
         prismaMock.ministryRequirement.update.mockResolvedValue({});
-        aiServiceMock.sendMessageToGemini.mockResolvedValue({
+        aiServiceMock.sendMessage.mockResolvedValue({
           response: 'Sorry, I cannot extract KPIs from this document.',
           mode: 'scripted',
         });

@@ -80,7 +80,7 @@ Mostrar a Marcela (y equipo de Ministerio) el ciclo completo de SimuVerse:
 
 1. Login como `juan.perez@student.edu`
 2. Ver curso asignado en dashboard → Click "Iniciar Simulación"
-3. **Pestaña Chat IA**: El compañero de trabajo (gemini en rol) dice "Hola, necesito ayuda con una fórmula de Excel para liquidar sueldos"
+3. **Pestaña Chat IA**: El compañero de trabajo (IA en rol) dice "Hola, necesito ayuda con una fórmula de Excel para liquidar sueldos"
 4. **Pestaña Email**: Ver 3 emails pre-cargados:
    - Del jefe: "Armar minuta de reunión del viernes"
    - Del proveedor: "Confirmación de envío de material"
@@ -110,7 +110,7 @@ Mostrar a Marcela (y equipo de Ministerio) el ciclo completo de SimuVerse:
 | **Auth / Login** | Funciona (7 usuarios seed) | **REAL** — no tocar | 0 |
 | **Admin UI (CRUD)** | Funciona (cursos, escenarios, fichas, KPIs, tareas) | **REAL** — usar tal cual | 0 |
 | **SimulationPage (frontend)** | Existe, lee módulos del curso, muestra pestañas | **REAL** — verificar que muestra las 5 pestañas | 1h |
-| **Chat IA → Gemini** | Stubbed (retorna "OK"), servicio AI tiene fallback + integración Gemini real | **REAL** — reemplazar stub en controller, poner API key válida | 3h |
+| **Chat IA → AI** | Backend AI service (OpenAI/DeepSeek) | **REAL** — verificar que el backend responde correctamente | 1h |
 | **Emails** | Stubbed (retorna `[]`) | **MOCK** — pre-load estáticos en DB, controller los lee | 2h |
 | **Documentos** | Stubbed (retorna `[]`) | **MOCK** — pre-load estáticos en DB, controller los lee | 2h |
 | **Planilla** | Stubbed (retorna `{}`) | **MOCK** — retornar JSON hardcodeado con datos de ejemplo | 1h |
@@ -131,7 +131,7 @@ Mostrar a Marcela (y equipo de Ministerio) el ciclo completo de SimuVerse:
 
 | # | Tarea | Entregable | Est. |
 |---|---|---|---|
-| 1.1 | Obtener API key válida de Gemini (Google AI Studio) | Key funcionando en `.env` | 1h |
+| 1.1 | Verificar que las API keys de OpenAI y DeepSeek están configuradas en `.env` | Keys funcionando | 0.5h |
 | 1.2 | Crear script `seed-demo.ts` con: curso "Ofimática Básica", escenario "Primer Día", CourseConfig con `active_modules: ["chat_ia","email_simulado","documentos","hoja_calculo","crisis_engine"]`, `family_type: administration` | Script ejecutable | 3h |
 | 1.3 | Crear asignación de curso a Juan Pérez (`simulation_assignments`) | Registro en DB | 1h |
 | 1.4 | Poblar `role_permissions` con permisos para admin, teacher, student, ministerio | Tabla con datos | 1h |
@@ -144,7 +144,7 @@ Mostrar a Marcela (y equipo de Ministerio) el ciclo completo de SimuVerse:
 
 | # | Tarea | Entregable | Est. |
 |---|---|---|---|
-| 2.1 | Reemplazar stub `POST /simulations/:id/message` para usar `AIService.sendMessageToGemini()` con system prompt del `CourseConfig` | Chat funciona con Gemini real | 3h |
+| 2.1 | Reemplazar stub `POST /simulations/:id/message` para usar `AIService.sendMessage()` con system prompt del `CourseConfig` | Chat funciona con IA real | 3h |
 | 2.2 | Crear system prompt para el escenario: "Sos el compañero de trabajo de Juan en Administración Las Tradiciones. Pedile ayuda con una fórmula de Excel para liquidar sueldos. Mantené el roleplay." | Prompt guardado en `ai_config` del curso | 1h |
 | 2.3 | Implementar `GET /simulations/:id/emails` — retornar array de 3 emails pre-cargados desde `course_documents` o JSON hardcodeado | Endpoint funcional | 2h |
 | 2.4 | Implementar `GET /simulations/:id/documents` — retornar 2 documentos pre-cargados | Endpoint funcional | 1.5h |
@@ -273,7 +273,7 @@ La crisis de "Error crítico en liquidación de sueldos" ya existe en el banco d
 
 | Riesgo | Probabilidad | Impacto | Plan B |
 |---|---|---|---|
-| **Gemini API key no funciona o rate limit** | Media | Alto | El `AIService` ya tiene fallback automático — genera respuestas en-rol sin Gemini. Verificar que el fallback funcione antes del demo. |
+| **AI API key no funciona o rate limit** | Media | Alto | El `AIService` ya tiene fallback automático — genera respuestas en-rol sin API. Verificar que el fallback funcione antes del demo. |
 | **SimulationPage no muestra las 5 pestañas** | Baja | Alto | Verificar que `course.modules` incluye los 5 IDs. Si no, ajustar el seed. El frontend ya lee modules correctamente. |
 | **Seed falla por constraint violation** | Media | Medio | Usar `upsert` en el seed. Verificar IDs únicos. Testear el script antes de ejecutar en producción. |
 | **Crisis engine no expone endpoint a tiempo** | Media | Bajo | La crisis se puede mostrar manualmente desde la DB o se omite del demo. Los otros módulos son suficientes. |
@@ -290,14 +290,14 @@ La crisis de "Error crítico en liquidación de sueldos" ya existe en el banco d
 
 - [ ] **Pre-requisitos**: Docker corriendo, navegador Chrome actualizado
 - [ ] **Limpiar estado**: Si hay datos residuales, correr `docker-compose down -v && docker-compose up --build` y luego el seed
-- [ ] **Verificar Gemini**: Hacer un chat de prueba como alumno, confirmar que la IA responde en rol
+- [ ] **Verificar IA**: Hacer un chat de prueba como alumno, confirmar que la IA responde en rol
 - [ ] **Pre-cargar tabs del navegador**:
   - Tab 1: Login admin (`admin@simuverse.edu` / `Admin123!`)
   - Tab 2: Login alumno (`juan.perez@student.edu` / `Admin123!`)
   - Tab 3: Login profesor (`garcia@simuverse.edu` / `Admin123!`)
   - Tab 4: Login ministerio (`control@ministerio.gob` / `Admin123!`)
 - [ ] **Cerrar sesiones activas** en todos los tabs antes de empezar
-- [ ] **Velocidad de internet**: Verificar que Gemini responde rápido (si hay lag, considerar demo con fallback)
+- [ ] **Velocidad de internet**: Verificar que la IA responde rápido (si hay lag, considerar demo con fallback)
 
 ### Script del demo (orden de clicks)
 
@@ -310,7 +310,7 @@ La crisis de "Error crítico en liquidación de sueldos" ya existe en el banco d
 
 - Si algo falla durante el demo, tener abierto el terminal de Docker para hacer restart rápido
 - Tener la URL del frontend y backend escritas en un lugar visible
-- Si Gemini falla, el fallback genera respuestas automáticas — no decir nada, simplemente mostrar que "el asesor responde"
+- Si la IA falla durante el demo, el fallback genera respuestas automáticas — no decir nada, simplemente mostrar que "el asesor responde"
 
 ---
 
@@ -318,8 +318,7 @@ La crisis de "Error crítico en liquidación de sueldos" ya existe en el banco d
 
 | Archivo | Cambio | Prioridad |
 |---|---|---|
-| `.env` (API) | Poner `GEMINI_API_KEY` real | CRÍTICO |
-| `.env.local` (Web) | Poner `NEXT_PUBLIC_GEMINI_API_KEY` real | CRÍTICO |
+| `.env` (API) | Verificar `OPENAI_API_KEY` y `DEEPSEEK_API_KEY` reales | CRÍTICO |
 | `apps/api-nest/src/simulations/simulations.controller.ts` | Reemplazar stubs de `:id/message`, `:id/emails`, `:id/documents`, `:id/spreadsheet` con lógica real | CRÍTICO |
 | `apps/api-nest/src/simulations/engines/crisis-engine.service.ts` | Ya implementado — solo exponer endpoints | ALTO |
 | `apps/api-nest/src/prisma/seed.ts` | Agregar seed de curso, escenario, config, asignación, empresa, permisos | ALTO |
@@ -330,9 +329,9 @@ La crisis de "Error crítico en liquidación de sueldos" ya existe en el banco d
 ## Notas Finales
 
 - **Lo que ya funciona y no tocar**: Auth, Admin UI completo, estructura de SimulationPage, AI service con fallback
-- **Lo que hay que conectar**: Stub de chat → Gemini real, stubs de emails/docs → datos pre-cargados
+- **Lo que hay que conectar**: Stub de chat → IA real, stubs de emails/docs → datos pre-cargados
 - **Lo que hay que crear**: Seed completo, endpoint de crisis, system prompt del escenario
-- **El fallback es tu amigo**: Si Gemini falla, el `AIService` genera respuestas en-rol automáticamente. No panic.
+- **El fallback es tu amigo**: Si la IA falla, el `AIService` genera respuestas en-rol automáticamente. No panic.
 
 ---
 

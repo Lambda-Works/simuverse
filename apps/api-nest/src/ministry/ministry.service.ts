@@ -170,7 +170,7 @@ Document text: ${requirement.raw_text || 'No text available'}`;
 
     const systemPrompt = 'You are a KPI extraction expert. Return ONLY a valid JSON array, no explanations.';
 
-    const aiResult = await this.aiService.sendMessageToGemini(prompt, systemPrompt);
+    const aiResult = await this.aiService.sendMessage(prompt, systemPrompt, [], undefined, true);
 
     if (aiResult.mode === 'scripted') {
       return { kpis: [], mode: 'scripted' as const, message: 'AI unavailable, manual extraction required' };
