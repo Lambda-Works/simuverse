@@ -15,7 +15,6 @@ import { SimulationCalendar } from '@/components/SimulationCalendar';
 import TeacherSessionsPage from '@/views/TeacherSessionsPage';
 import { TeacherGroupsABM } from '@/components/TeacherGroupsABM';
 import { TechSheetsABM } from '@/components/TechSheetsABM';
-import { TemplatesABM } from '@/components/TemplatesABM';
 import { TermsABM } from '@/components/TermsABM';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -968,11 +967,11 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
         {/* Scenarios Tab */}
         {currentTab === 'scenarios' && <ScenariosABM />}
 
-        {/* Templates Tab */}
-        {currentTab === 'templates' && <TemplatesABM />}
-
-        {/* Prompt Templates Tab */}
+        {/* Prompt Templates Tab — prompts from tech sheet analysis, per course */}
         {currentTab === 'prompt-templates' && <PromptTemplatesABM />}
+
+        {/* Redirect legacy plantillas tab */}
+        {currentTab === 'templates' && <PromptTemplatesABM />}
 
         {/* Sessions Tab - Solo admin/teacher */}
         {currentTab === 'sessions' && <TeacherSessionsPage />}
