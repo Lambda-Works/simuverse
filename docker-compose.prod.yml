@@ -1,3 +1,22 @@
+x-web-build-args: &web-build-args
+  NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+  NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+  NEXT_PUBLIC_FIREBASE_API_KEY: ${NEXT_PUBLIC_FIREBASE_API_KEY:-}
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:-}
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${NEXT_PUBLIC_FIREBASE_PROJECT_ID:-}
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET:-}
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:-}
+  NEXT_PUBLIC_FIREBASE_APP_ID: ${NEXT_PUBLIC_FIREBASE_APP_ID:-}
+  NEXT_PUBLIC_RECAPTCHA_SITE_KEY: ${NEXT_PUBLIC_RECAPTCHA_SITE_KEY:-}
+  NEXT_PUBLIC_DEMO_MODE: ${NEXT_PUBLIC_DEMO_MODE:-false}
+  NEXT_PUBLIC_PWA_ENABLED: ${NEXT_PUBLIC_PWA_ENABLED:-true}
+  NEXT_PUBLIC_DEBUG_LOG: ${NEXT_PUBLIC_DEBUG_LOG:-false}
+  NEXT_PUBLIC_CERTIFICATE_ISSUER_NAME: ${NEXT_PUBLIC_CERTIFICATE_ISSUER_NAME:-${CERTIFICATE_ISSUER_NAME:-SimuVerse Academy}}
+
+# Host path to Firebase Admin JSON (default: secrets/firebase-service-account.json in project root)
+x-firebase-secret-volume: &firebase-secret-volume
+  ${FIREBASE_SERVICE_ACCOUNT_HOST_PATH:-./secrets/firebase-service-account.json}:/run/secrets/firebase-service-account.json:ro
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -24,27 +43,38 @@ services:
       context: .
       dockerfile: apps/api-nest/Dockerfile.seed
     restart: "no"
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      # Prefer mounted JSON when present; resolveFirebaseCredentials returns null if empty/invalid.
+      FIREBASE_SERVICE_ACCOUNT_PATH: ${FIREBASE_SERVICE_ACCOUNT_PATH:-/run/secrets/firebase-service-account.json}
+    volumes:
+      - *firebase-secret-volume
     depends_on:
       postgres:
         condition: service_healthy
         restart: true
     command: >
       sh -c "
-        echo 'Running migrations...' &&
-        npx prisma migrate deploy &&
-        echo '=== Seed 1/5: usuarios ===' &&
-        npx ts-node src/prisma/seed.ts &&
-        echo '=== Seed 2/5: empresas y cursos ===' &&
-        npx ts-node src/prisma/seed-companies.ts &&
-        echo '=== Seed 3/5: fundacion + avaladores + KPIs ===' &&
-        npx ts-node src/prisma/seed-demo.ts &&
-        echo '=== Seed 4/5: asignaciones + archivos ===' &&
-        npx ts-node src/prisma/seed-demo-2.ts &&
-        echo '=== Seed 5/5: ministry requirements extra ===' &&
-        npx ts-node src/prisma/seed-demo-3.ts &&
+        set -e
+        echo 'Running migrations...'
+        npx prisma migrate deploy || {
+          echo '=== prisma migrate deploy FAILED — status ==='
+          npx prisma migrate status || true
+          exit 1
+        }
+        echo '=== Seed 1/5: usuarios ==='
+        npx ts-node src/prisma/seed.ts
+        echo '=== Seed 2/5: empresas y cursos ==='
+        npx ts-node src/prisma/seed-companies.ts
+        echo '=== Seed 3/5: fundacion + avaladores + KPIs ==='
+        npx ts-node src/prisma/seed-demo.ts
+        echo '=== Seed 4/5: asignaciones + archivos ==='
+        npx ts-node src/prisma/seed-demo-2.ts
+        echo '=== Seed 5/5: ministry requirements extra ==='
+        npx ts-node src/prisma/seed-demo-3.ts
         echo '=== All seeds completed ==='
       "
     networks:
@@ -73,19 +103,31 @@ services:
       context: .
       dockerfile: apps/api-nest/Dockerfile.prod
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
       PORT: "5001"
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
-      CORS_ORIGIN: ${CORS_ORIGIN}
-      JWT_SECRET: ${JWT_SECRET}
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
-      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-v4-flash}
+      MARKITDOWN_URL: http://markitdown:5000
       PRISMA_QUERY_ENGINE_LIBRARY: /app/node_modules/.prisma/client/libquery_engine-linux-musl-openssl-3.0.x.so.node
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      RECAPTCHA_SECRET_KEY: ${RECAPTCHA_SECRET_KEY:-}
+      AUTH_TEST_MODE: ${AUTH_TEST_MODE:-}
+      # AI providers
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-v4-flash}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-4o-mini}
+      # Security
+      ASSESSMENT_HMAC_SECRET: ${ASSESSMENT_HMAC_SECRET:-}
+      FIREBASE_SERVICE_ACCOUNT_PATH: ${FIREBASE_SERVICE_ACCOUNT_PATH:-/run/secrets/firebase-service-account.json}
     ports:
       - "${PUERTO_BACKEND_NEST:-5001}:5001"
     volumes:
       - uploads_data:/app/apps/api-nest/uploads
+      - *firebase-secret-volume
     depends_on:
       seed:
         condition: service_completed_successfully
@@ -108,13 +150,15 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile.prod
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        <<: *web-build-args
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
       HOSTNAME: "0.0.0.0"
       PORT: "3000"
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      <<: *web-build-args
     ports:
       - "${PUERTO_FRONTEND:-3000}:3000"
     depends_on:

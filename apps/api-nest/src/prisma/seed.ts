@@ -160,9 +160,14 @@ async function main() {
   // Empresa Ficticia
   // ──────────────────────────────────────────────────────────
   console.log('🏢 Creando empresa ficticia...');
+  // Upsert by unique name — where: { id: 1 } breaks with P2002 when the
+  // company already exists under a different autoincrement id.
   const company = await prisma.simulatedCompany.upsert({
-    where: { id: 1 },
-    update: {},
+    where: { name: 'Administración Las Tradiciones' },
+    update: {
+      short_name: 'Las Tradiciones',
+      description: 'Empresa de servicios administrativos y contables',
+    },
     create: {
       name: 'Administración Las Tradiciones',
       short_name: 'Las Tradiciones',

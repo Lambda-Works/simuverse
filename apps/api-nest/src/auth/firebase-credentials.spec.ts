@@ -48,6 +48,12 @@ describe('firebase-credentials', () => {
     expect(resolveFirebaseCredentials()).toBeNull();
   });
 
+  it('returns null when service-account path is missing or empty', () => {
+    process.env.FIREBASE_SERVICE_ACCOUNT_PATH =
+      '/run/secrets/firebase-service-account.json';
+    expect(resolveFirebaseCredentials()).toBeNull();
+  });
+
   it('accepts a long-looking PEM when fields are not placeholders', () => {
     const body = 'A'.repeat(100);
     const privateKey = `-----BEGIN PRIVATE KEY-----\n${body}\n-----END PRIVATE KEY-----\n`;
