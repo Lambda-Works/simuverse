@@ -13,7 +13,7 @@ COPY tsconfig.json ./
 
 # NEXT_PUBLIC_* are baked into the client bundle at build time.
 # Optionals have Dockerfile defaults so compose need not interpolate them
-# (Hub marks every ${VAR} / ${VAR:-default} as required in shared/.env).
+# (Hub marks every compose interpolation as required in shared/.env).
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ARG NEXT_PUBLIC_FIREBASE_API_KEY

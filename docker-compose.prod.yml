@@ -1,5 +1,5 @@
 # Build-time public env for Next.js. Only interpolate vars that must exist in
-# shared/.env — optionals use Dockerfile ARG defaults (Hub treats ${VAR:-x} as required).
+# shared/.env — optionals use Dockerfile ARG defaults (Hub flags compose interpolations as required).
 x-web-build-args: &web-build-args
   NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
   NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
