@@ -48,6 +48,8 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      # Prefer mounted JSON when present; resolveFirebaseCredentials returns null if empty/invalid.
+      FIREBASE_SERVICE_ACCOUNT_PATH: ${FIREBASE_SERVICE_ACCOUNT_PATH:-/run/secrets/firebase-service-account.json}
     volumes:
       - *firebase-secret-volume
     depends_on:
@@ -56,18 +58,23 @@ services:
         restart: true
     command: >
       sh -c "
-        echo 'Running migrations...' &&
-        npx prisma migrate deploy &&
-        echo '=== Seed 1/5: usuarios ===' &&
-        npx ts-node src/prisma/seed.ts &&
-        echo '=== Seed 2/5: empresas y cursos ===' &&
-        npx ts-node src/prisma/seed-companies.ts &&
-        echo '=== Seed 3/5: fundacion + avaladores + KPIs ===' &&
-        npx ts-node src/prisma/seed-demo.ts &&
-        echo '=== Seed 4/5: asignaciones + archivos ===' &&
-        npx ts-node src/prisma/seed-demo-2.ts &&
-        echo '=== Seed 5/5: ministry requirements extra ===' &&
-        npx ts-node src/prisma/seed-demo-3.ts &&
+        set -e
+        echo 'Running migrations...'
+        npx prisma migrate deploy || {
+          echo '=== prisma migrate deploy FAILED — status ==='
+          npx prisma migrate status || true
+          exit 1
+        }
+        echo '=== Seed 1/5: usuarios ==='
+        npx ts-node src/prisma/seed.ts
+        echo '=== Seed 2/5: empresas y cursos ==='
+        npx ts-node src/prisma/seed-companies.ts
+        echo '=== Seed 3/5: fundacion + avaladores + KPIs ==='
+        npx ts-node src/prisma/seed-demo.ts
+        echo '=== Seed 4/5: asignaciones + archivos ==='
+        npx ts-node src/prisma/seed-demo-2.ts
+        echo '=== Seed 5/5: ministry requirements extra ==='
+        npx ts-node src/prisma/seed-demo-3.ts
         echo '=== All seeds completed ==='
       "
     networks:
@@ -115,6 +122,7 @@ services:
       OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-4o-mini}
       # Security
       ASSESSMENT_HMAC_SECRET: ${ASSESSMENT_HMAC_SECRET:-}
+      FIREBASE_SERVICE_ACCOUNT_PATH: ${FIREBASE_SERVICE_ACCOUNT_PATH:-/run/secrets/firebase-service-account.json}
     ports:
       - "${PUERTO_BACKEND_NEST:-5001}:5001"
     volumes:

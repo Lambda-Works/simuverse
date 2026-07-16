@@ -76,25 +76,37 @@ export function resolveFirebaseCredentials(): FirebaseServiceAccount | null {
 
   if (pathEnv) {
     const resolved = resolveCredentialPath(pathEnv);
-    if (!fs.existsSync(resolved)) {
-      throw new Error(`Firebase service account file not found: ${resolved}`);
+    try {
+      if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
+        const raw = fs.readFileSync(resolved, 'utf8').trim();
+        if (raw) {
+          const json = JSON.parse(raw) as {
+            project_id?: string;
+            client_email?: string;
+            private_key?: string;
+          };
+
+          if (json.project_id && json.client_email && json.private_key) {
+            if (
+              !isPlaceholderFirebaseCredential(
+                json.project_id,
+                json.client_email,
+                json.private_key,
+              )
+            ) {
+              return {
+                projectId: json.project_id,
+                clientEmail: json.client_email,
+                privateKey: json.private_key,
+              };
+            }
+          }
+        }
+      }
+      // Missing/empty/invalid mounted file → fall through to FIREBASE_* env vars.
+    } catch {
+      // Unreadable JSON → fall through to FIREBASE_* env vars.
     }
-
-    const json = JSON.parse(fs.readFileSync(resolved, 'utf8')) as {
-      project_id?: string;
-      client_email?: string;
-      private_key?: string;
-    };
-
-    if (!json.project_id || !json.client_email || !json.private_key) {
-      throw new Error(`Invalid Firebase service account JSON: ${resolved}`);
-    }
-
-    return {
-      projectId: json.project_id,
-      clientEmail: json.client_email,
-      privateKey: json.private_key,
-    };
   }
 
   const projectId = process.env.FIREBASE_PROJECT_ID;

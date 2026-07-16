@@ -125,7 +125,9 @@ jobs:
       - name: Setup environment variables
         run: |
           mkdir -p secrets
-          touch secrets/firebase-service-account.json
+          # Empty placeholder so Docker bind-mount is a file (not a directory).
+          # resolveFirebaseCredentials treats empty/invalid JSON as "unset".
+          : > secrets/firebase-service-account.json
           cat > .env << 'EOF'
           POSTGRES_USER=simuverse
           POSTGRES_PASSWORD=SimuVerse2024secret
