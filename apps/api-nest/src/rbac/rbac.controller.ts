@@ -21,9 +21,13 @@ import {
   AssignPermissionDto,
 } from './dto/rbac.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
 
 @Controller()
 @UseGuards(JwtAuthGuard)
+@Roles('admin')
+@UseGuards(RolesGuard)
 export class RbacController {
   constructor(private rbacService: RbacService) {}
 

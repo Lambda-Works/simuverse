@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RbacService } from '../rbac/rbac.service';
 
 @Injectable()
 export class CatalogQueryService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private rbacService: RbacService,
+  ) {}
 
   /**
    * Complex JOIN: evaluations with student name, course title, assignment data
@@ -107,45 +111,18 @@ export class CatalogQueryService {
   /**
    * ON CONFLICT upsert for role permissions
    * Ported from Express: PUT /role-permissions
+   * Delegated to RbacService for single source of truth
    */
   async upsertRolePermissions(roleName: string, permissions: { functionality_id: number; enabled: boolean | number }[]) {
-    const results = [];
-    
-    for (const p of permissions) {
-      const isEnabled = Boolean(p.enabled); // Convert 0/1 from frontend to proper boolean
-      
-      const result = await this.prisma.rolePermission.upsert({
-        where: {
-          role_name_functionality_id: {
-            role_name: roleName,
-            functionality_id: p.functionality_id
-          }
-        },
-        update: { enabled: isEnabled },
-        create: {
-          role_name: roleName,
-          functionality_id: p.functionality_id,
-          enabled: isEnabled
-        }
-      });
-      results.push(result);
-    }
-
-    return { updated: results.length };
+    return this.rbacService.bulkUpsertRolePermissions(roleName, permissions);
   }
 
   /**
    * Get role permissions with functionalities
    * Ported from Express: GET /role-permissions
+   * Delegated to RbacService for single source of truth
    */
   async getRolePermissions(roleName: string) {
-    return this.prisma.$queryRaw`
-      SELECT sf.id AS functionality_id, sf.name, sf.description, sf.module, sf.icon,
-             COALESCE(rp.enabled, false) AS enabled
-      FROM system_functionalities sf
-      LEFT JOIN role_permissions rp ON rp.functionality_id = sf.id AND rp.role_name = ${roleName}
-      WHERE sf.is_active = true
-      ORDER BY sf.module ASC, sf.name ASC
-    `;
+    return this.rbacService.getRolePermissionsFlat(roleName);
   }
 }

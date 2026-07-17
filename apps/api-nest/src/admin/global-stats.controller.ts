@@ -1,7 +1,11 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
 
 @Controller('global-stats')
+@Roles('admin')
+@UseGuards(RolesGuard)
 export class GlobalStatsController {
   constructor(private prisma: PrismaService) {}
 
