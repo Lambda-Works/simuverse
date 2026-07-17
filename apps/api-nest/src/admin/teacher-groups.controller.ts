@@ -1,7 +1,11 @@
-import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
 
 @Controller('teacher-groups')
+@Roles('admin', 'teacher')
+@UseGuards(RolesGuard)
 export class TeacherGroupsController {
   constructor(private prisma: PrismaService) {}
 

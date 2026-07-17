@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RbacService } from '../rbac/rbac.service';
 
 const DEFAULT_TEACHER_PERMISSIONS = {
   can_see_ai_config: false,
@@ -12,7 +13,10 @@ const DEFAULT_TEACHER_PERMISSIONS = {
 export class AdminService {
   private teacherPermissions = { ...DEFAULT_TEACHER_PERMISSIONS };
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private rbacService: RbacService,
+  ) {}
 
   // ── Teacher Permissions ────────────────────────────────────────
 
@@ -81,47 +85,38 @@ export class AdminService {
   }
 
   // ── Roles & Functionalities ────────────────────────────────────
+  // Delegated to RbacService for single source of truth
 
   async getRoles() {
-    return this.prisma.role.findMany({ orderBy: { name: 'asc' } });
+    return this.rbacService.listRoles();
   }
 
   async createRole(data: { name: string; description?: string; color?: string }) {
-    return this.prisma.role.create({
-      data: {
-        name: data.name,
-        description: data.description || '',
-        color: data.color || '#6366f1',
-      },
+    return this.rbacService.createRole({
+      name: data.name,
+      description: data.description || '',
+      color: data.color,
     });
   }
 
   async updateRole(id: number, data: { name?: string; description?: string; color?: string; is_active?: boolean }) {
-    return this.prisma.role.update({
-      where: { id },
-      data: {
-        ...(data.name && { name: data.name }),
-        ...(data.description !== undefined && { description: data.description }),
-        ...(data.color && { color: data.color }),
-        ...(data.is_active !== undefined && { is_active: data.is_active }),
-      },
+    return this.rbacService.updateRole(id, {
+      description: data.description,
+      color: data.color,
+      is_active: data.is_active,
     });
   }
 
   async removeRole(id: number) {
-    await this.prisma.role.update({ where: { id }, data: { is_active: false } });
-    return { message: 'Role deactivated' };
+    return this.rbacService.deleteRole(id);
   }
 
   async reactivateRole(id: number) {
-    await this.prisma.role.update({ where: { id }, data: { is_active: true } });
-    return { message: 'Role reactivated' };
+    return this.rbacService.updateRole(id, { is_active: true });
   }
 
   async getFunctionalities() {
-    return this.prisma.systemFunctionality.findMany({
-      orderBy: [{ module: 'asc' }, { name: 'asc' }],
-    });
+    return this.rbacService.listFunctionalities();
   }
 
   async createFunctionality(data: {
@@ -131,14 +126,12 @@ export class AdminService {
     icon?: string;
     route?: string;
   }) {
-    return this.prisma.systemFunctionality.create({
-      data: {
-        name: data.name,
-        description: data.description || '',
-        module: data.module || 'other',
-        icon: data.icon || '',
-        route: data.route || '',
-      },
+    return this.rbacService.createFunctionality({
+      name: data.name,
+      description: data.description || '',
+      module: data.module || 'other',
+      icon: data.icon || '',
+      route: data.route || '',
     });
   }
 
@@ -150,36 +143,28 @@ export class AdminService {
     route?: string;
     is_active?: boolean;
   }) {
-    return this.prisma.systemFunctionality.update({
-      where: { id },
-      data: {
-        ...(data.name && { name: data.name }),
-        ...(data.description !== undefined && { description: data.description }),
-        ...(data.module && { module: data.module }),
-        ...(data.icon !== undefined && { icon: data.icon }),
-        ...(data.route !== undefined && { route: data.route }),
-        ...(data.is_active !== undefined && { is_active: data.is_active }),
-      },
+    return this.rbacService.updateFunctionality(id, {
+      name: data.name,
+      description: data.description,
+      module: data.module,
+      icon: data.icon,
+      route: data.route,
+      is_active: data.is_active,
     });
   }
 
   async removeFunctionality(id: number) {
-    await this.prisma.systemFunctionality.update({ where: { id }, data: { is_active: false } });
-    return { message: 'Functionality deactivated' };
+    return this.rbacService.deleteFunctionality(id);
   }
 
   async reactivateFunctionality(id: number) {
-    await this.prisma.systemFunctionality.update({ where: { id }, data: { is_active: true } });
-    return { message: 'Functionality reactivated' };
+    return this.rbacService.updateFunctionality(id, { is_active: true });
   }
 
-  // ── Role Permissions (ON CONFLICT upsert) ─────────────────────────
+  // ── Role Permissions ──────────────────────────────────────────────
 
   async getRolePermissions(roleName: string) {
-    return (this.prisma.rolePermission as any).findMany({
-      where: { role_name: roleName },
-      include: { functionality: true },
-    });
+    return this.rbacService.getRolePermissionsWithFunctionalities(roleName);
   }
 
   async upsertRolePermission(data: {
@@ -187,19 +172,10 @@ export class AdminService {
     functionality_id: number;
     enabled: boolean;
   }) {
-    return this.prisma.rolePermission.upsert({
-      where: {
-        role_name_functionality_id: {
-          role_name: data.role_name,
-          functionality_id: data.functionality_id,
-        },
-      },
-      update: { enabled: data.enabled },
-      create: {
-        role_name: data.role_name,
-        functionality_id: data.functionality_id,
-        enabled: data.enabled,
-      },
+    return this.rbacService.assignPermission({
+      role_name: data.role_name,
+      functionality_id: data.functionality_id,
+      enabled: data.enabled,
     });
   }
 
@@ -207,24 +183,6 @@ export class AdminService {
     roleName: string,
     permissions: Array<{ functionality_id: number; enabled: boolean }>,
   ) {
-    const results: any[] = [];
-    for (const perm of permissions) {
-      const result = await this.prisma.rolePermission.upsert({
-        where: {
-          role_name_functionality_id: {
-            role_name: roleName,
-            functionality_id: perm.functionality_id,
-          },
-        },
-        update: { enabled: perm.enabled },
-        create: {
-          role_name: roleName,
-          functionality_id: perm.functionality_id,
-          enabled: perm.enabled,
-        },
-      });
-      results.push(result);
-    }
-    return results;
+    return this.rbacService.bulkUpsertRolePermissions(roleName, permissions);
   }
 }
