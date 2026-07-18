@@ -42,29 +42,39 @@ describe('PermissionsGuard', () => {
   });
 
   it('should allow admin regardless of permissions', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['manage_courses']);
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['users.manage']);
     const context = createMockContext('admin');
     expect(guard.canActivate(context)).resolves.toBe(true);
+    // Admin bypass: hasPermissions should NOT be called
+    expect(rbacService.hasPermissions).not.toHaveBeenCalled();
   });
 
-  it('should allow when user has all required permissions', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['manage_courses', 'manage_users']);
+  it('should allow when user has at least one required code', () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['scenarios.manage', 'scenarios.read']);
     rbacService.hasPermissions.mockResolvedValue(true);
     const context = createMockContext('teacher');
     expect(guard.canActivate(context)).resolves.toBe(true);
-    expect(rbacService.hasPermissions).toHaveBeenCalledWith('teacher', ['manage_courses', 'manage_users']);
+    expect(rbacService.hasPermissions).toHaveBeenCalledWith('teacher', ['scenarios.manage', 'scenarios.read']);
   });
 
-  it('should deny when user lacks one permission', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['manage_courses', 'manage_users']);
+  it('should deny when user has no matching code (403)', () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['catalog.manage']);
     rbacService.hasPermissions.mockResolvedValue(false);
-    const context = createMockContext('teacher');
+    const context = createMockContext('student');
     expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
   });
 
   it('should deny when user is undefined', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['manage_courses']);
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['users.manage']);
     const context = createMockContext(undefined);
     expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
+  });
+
+  it('should pass codes from decorator to hasPermissions', () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['files.read', 'files.upload']);
+    rbacService.hasPermissions.mockResolvedValue(true);
+    const context = createMockContext('teacher');
+    guard.canActivate(context);
+    expect(rbacService.hasPermissions).toHaveBeenCalledWith('teacher', ['files.read', 'files.upload']);
   });
 });

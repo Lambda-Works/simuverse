@@ -19,19 +19,19 @@ describe('RbacService', () => {
     service = new RbacService(mockPrisma);
   });
 
-  describe('hasPermission', () => {
-    it('should return true when permission exists and enabled', async () => {
+  describe('hasPermission (code-based)', () => {
+    it('should return true when code match exists and enabled', async () => {
       mockPrisma.systemFunctionality.findFirst.mockResolvedValue({ id: 1 });
       mockPrisma.rolePermission.findFirst.mockResolvedValue({ enabled: true });
-      const result = await service.hasPermission('teacher', 'manage_courses');
+      const result = await service.hasPermission('admin', 'users.manage');
       expect(result).toBe(true);
       expect(mockPrisma.systemFunctionality.findFirst).toHaveBeenCalledWith({
-        where: { name: 'manage_courses' },
+        where: { code: 'users.manage' },
         select: { id: true },
       });
       expect(mockPrisma.rolePermission.findFirst).toHaveBeenCalledWith({
         where: {
-          role_name: 'teacher',
+          role_name: 'admin',
           functionality_id: 1,
           enabled: true,
         },
@@ -39,24 +39,36 @@ describe('RbacService', () => {
       });
     });
 
-    it('should return false when functionality does not exist', async () => {
+    it('should return false when code does not exist', async () => {
       mockPrisma.systemFunctionality.findFirst.mockResolvedValue(null);
-      const result = await service.hasPermission('student', 'nonexistent');
+      const result = await service.hasPermission('teacher', 'nonexistent.code');
       expect(result).toBe(false);
     });
 
-    it('should return false when permission does not exist', async () => {
-      mockPrisma.systemFunctionality.findFirst.mockResolvedValue({ id: 1 });
+    it('should return false when code exists but role lacks permission', async () => {
+      mockPrisma.systemFunctionality.findFirst.mockResolvedValue({ id: 15 });
       mockPrisma.rolePermission.findFirst.mockResolvedValue(null);
-      const result = await service.hasPermission('student', 'manage_courses');
+      const result = await service.hasPermission('student', 'catalog.manage');
       expect(result).toBe(false);
     });
 
-    it('should return false when permission exists but disabled', async () => {
-      mockPrisma.systemFunctionality.findFirst.mockResolvedValue({ id: 1 });
+    it('should return false when code exists but permission is disabled', async () => {
+      mockPrisma.systemFunctionality.findFirst.mockResolvedValue({ id: 15 });
       mockPrisma.rolePermission.findFirst.mockResolvedValue({ enabled: false });
-      const result = await service.hasPermission('teacher', 'manage_courses');
+      const result = await service.hasPermission('student', 'catalog.manage');
       expect(result).toBe(false);
+    });
+
+    it('should work with different codes (backward compat pattern)', async () => {
+      // Simulates: existing role_permissions rows still resolve with codes after migration
+      mockPrisma.systemFunctionality.findFirst.mockResolvedValue({ id: 3 });
+      mockPrisma.rolePermission.findFirst.mockResolvedValue({ enabled: true });
+      const result = await service.hasPermission('admin', 'courses.manage');
+      expect(result).toBe(true);
+      expect(mockPrisma.systemFunctionality.findFirst).toHaveBeenCalledWith({
+        where: { code: 'courses.manage' },
+        select: { id: true },
+      });
     });
   });
 
@@ -65,8 +77,8 @@ describe('RbacService', () => {
       mockPrisma.systemFunctionality.findFirst.mockResolvedValue({ id: 1 });
       mockPrisma.rolePermission.findFirst.mockResolvedValue({ enabled: true });
 
-      await service.hasPermission('teacher', 'manage_courses');
-      await service.hasPermission('teacher', 'manage_courses');
+      await service.hasPermission('admin', 'users.manage');
+      await service.hasPermission('admin', 'users.manage');
 
       expect(mockPrisma.systemFunctionality.findFirst).toHaveBeenCalledTimes(1);
     });
@@ -75,29 +87,44 @@ describe('RbacService', () => {
       mockPrisma.systemFunctionality.findFirst.mockResolvedValue({ id: 1 });
       mockPrisma.rolePermission.findFirst.mockResolvedValue({ enabled: true });
 
-      await service.hasPermission('teacher', 'manage_courses');
-      service.invalidatePermissionCache('teacher');
-      await service.hasPermission('teacher', 'manage_courses');
+      await service.hasPermission('admin', 'users.manage');
+      service.invalidatePermissionCache('admin');
+      await service.hasPermission('admin', 'users.manage');
 
       expect(mockPrisma.systemFunctionality.findFirst).toHaveBeenCalledTimes(2);
     });
   });
 
   describe('hasPermissions', () => {
-    it('should return true when ALL permissions exist', async () => {
-      mockPrisma.systemFunctionality.findFirst.mockResolvedValue({ id: 1 });
-      mockPrisma.rolePermission.findFirst.mockResolvedValue({ enabled: true });
-      const result = await service.hasPermissions('teacher', ['read', 'write']);
+    it('should return true when ANY permission code matches', async () => {
+      // Spec: "at least ONE of the specified codes enabled"
+      mockPrisma.systemFunctionality.findFirst
+        .mockResolvedValueOnce({ id: 6 })  // scenarios.manage
+        .mockResolvedValueOnce({ id: null }); // scenarios.read doesn't exist
+      mockPrisma.rolePermission.findFirst
+        .mockResolvedValueOnce({ enabled: true });
+
+      const result = await service.hasPermissions('teacher', ['scenarios.manage', 'scenarios.read']);
       expect(result).toBe(true);
     });
 
-    it('should return false when ANY permission is missing', async () => {
-      mockPrisma.systemFunctionality.findFirst.mockResolvedValue({ id: 1 });
-      mockPrisma.rolePermission.findFirst
-        .mockResolvedValueOnce({ enabled: true })
-        .mockResolvedValueOnce(null);
-      const result = await service.hasPermissions('teacher', ['read', 'delete']);
+    it('should return false when NO permission codes match', async () => {
+      mockPrisma.systemFunctionality.findFirst.mockResolvedValue(null);
+
+      const result = await service.hasPermissions('student', ['nonexistent.a', 'nonexistent.b']);
       expect(result).toBe(false);
+    });
+
+    it('should return true when at least one code has enabled permission', async () => {
+      mockPrisma.systemFunctionality.findFirst
+        .mockResolvedValueOnce({ id: 7 })   // assignments.manage
+        .mockResolvedValueOnce({ id: 7 });  // same
+      mockPrisma.rolePermission.findFirst
+        .mockResolvedValueOnce(null)          // not enabled
+        .mockResolvedValueOnce({ enabled: true }); // enabled
+
+      const result = await service.hasPermissions('teacher', ['assignments.manage', 'assignments.read']);
+      expect(result).toBe(true);
     });
   });
 
@@ -107,9 +134,9 @@ describe('RbacService', () => {
       mockPrisma.rolePermission.findFirst.mockResolvedValue({ enabled: true });
       mockPrisma.rolePermission.upsert.mockResolvedValue({});
 
-      await service.hasPermission('teacher', 'manage_courses');
-      await service.assignPermission({ role_name: 'teacher', functionality_id: 1, enabled: true });
-      await service.hasPermission('teacher', 'manage_courses');
+      await service.hasPermission('admin', 'users.manage');
+      await service.assignPermission({ role_name: 'admin', functionality_id: 1, enabled: true });
+      await service.hasPermission('admin', 'users.manage');
 
       expect(mockPrisma.systemFunctionality.findFirst).toHaveBeenCalledTimes(2);
     });
@@ -119,12 +146,12 @@ describe('RbacService', () => {
     it('should invalidate cache after revoke', async () => {
       mockPrisma.systemFunctionality.findFirst.mockResolvedValue({ id: 1 });
       mockPrisma.rolePermission.findFirst.mockResolvedValue({ enabled: true });
-      mockPrisma.rolePermission.findUnique.mockResolvedValue({ id: 1, role_name: 'teacher' });
+      mockPrisma.rolePermission.findUnique.mockResolvedValue({ id: 1, role_name: 'admin' });
       mockPrisma.rolePermission.delete.mockResolvedValue({});
 
-      await service.hasPermission('teacher', 'manage_courses');
+      await service.hasPermission('admin', 'users.manage');
       await service.revokePermission(1);
-      await service.hasPermission('teacher', 'manage_courses');
+      await service.hasPermission('admin', 'users.manage');
 
       expect(mockPrisma.systemFunctionality.findFirst).toHaveBeenCalledTimes(2);
     });
