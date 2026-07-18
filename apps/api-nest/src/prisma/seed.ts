@@ -23,22 +23,54 @@ async function main() {
   }
   console.log('✅ Roles creados');
 
-  // System Functionalities
+  // System Functionalities (25 codes)
   const functionalitiesData = [
-    { name: 'Gestión de Usuarios', description: 'Permite administrar usuarios', module: 'Usuarios', route: '/admin/users' },
-    { name: 'Configuración de Roles', description: 'Permite configurar roles y permisos', module: 'Seguridad', route: '/admin/roles' },
-    { name: 'Gestión de Cursos', description: 'Creación y edición de cursos', module: 'Académico', route: '/admin/courses' },
-    { name: 'Reportes', description: 'Ver reportes del sistema', module: 'Reportes', route: '/admin/reports' },
+    // ── Existing 4 rows (backfill with codes) ──
+    { id: 1, name: 'Gestión de Usuarios', code: 'users.manage', description: 'Permite administrar usuarios', module: 'Usuarios', route: '/admin/users' },
+    { id: 2, name: 'Configuración de Roles', code: 'rbac.manage', description: 'Permite configurar roles y permisos', module: 'Seguridad', route: '/admin/roles' },
+    { id: 3, name: 'Gestión de Cursos', code: 'courses.manage', description: 'Creación y edición de cursos', module: 'Académico', route: '/admin/courses' },
+    { id: 4, name: 'Reportes', code: 'reports.read', description: 'Ver reportes del sistema', module: 'Reportes', route: '/admin/reports' },
+    // ── 21 new functionality codes ──
+    { name: 'Lectura de Usuarios', code: 'users.read', description: 'Ver listado de usuarios', module: 'Usuarios', route: '/admin/users' },
+    { name: 'Lectura de Cursos', code: 'courses.read', description: 'Ver cursos disponibles', module: 'Académico', route: '/admin/courses' },
+    { name: 'Lectura de Escenarios', code: 'scenarios.read', description: 'Ver escenarios de práctica', module: 'Académico', route: '/admin/scenarios' },
+    { name: 'Gestión de Escenarios', code: 'scenarios.manage', description: 'Crear y editar escenarios', module: 'Académico', route: '/admin/scenarios' },
+    { name: 'Lectura de Simulaciones', code: 'simulations.read', description: 'Ver historial de simulaciones', module: 'Simulaciones', route: '/admin/simulations' },
+    { name: 'Gestión de Catálogo', code: 'catalog.manage', description: 'Administrar catálogo de cursos', module: 'Catálogo', route: '/admin/catalog' },
+    { name: 'Lectura de Documentos', code: 'documents.read', description: 'Ver documentos del curso', module: 'Documentos', route: '/admin/documents' },
+    { name: 'Gestión de Documentos', code: 'documents.manage', description: 'Crear y editar documentos', module: 'Documentos', route: '/admin/documents' },
+    { name: 'Lectura de Asignaciones', code: 'assignments.read', description: 'Ver asignaciones de cursos', module: 'Asignaciones', route: '/admin/assignments' },
+    { name: 'Gestión de Asignaciones', code: 'assignments.manage', description: 'Crear y editar asignaciones', module: 'Asignaciones', route: '/admin/assignments' },
+    { name: 'Lectura de Plantillas', code: 'templates.read', description: 'Ver plantillas de prompts', module: 'Plantillas', route: '/admin/templates' },
+    { name: 'Gestión de Plantillas', code: 'templates.manage', description: 'Crear y editar plantillas', module: 'Plantillas', route: '/admin/templates' },
+    { name: 'Gestión de Empresas', code: 'companies.manage', description: 'Administrar empresas simuladas', module: 'Empresas', route: '/admin/companies' },
+    { name: 'Lectura del Ministerio', code: 'ministry.read', description: 'Ver datos del ministerio', module: 'Ministerio', route: '/admin/ministry' },
+    { name: 'Gestión del Ministerio', code: 'ministry.manage', description: 'Administrar requisitos del ministerio', module: 'Ministerio', route: '/admin/ministry' },
+    { name: 'Gestión de Notificaciones', code: 'notifications.manage', description: 'Administrar notificaciones del sistema', module: 'Notificaciones', route: '/admin/notifications' },
+    { name: 'Lectura de Archivos', code: 'files.read', description: 'Ver archivos subidos', module: 'Archivos', route: '/admin/files' },
+    { name: 'Subida de Archivos', code: 'files.upload', description: 'Subir archivos al sistema', module: 'Archivos', route: '/admin/files' },
+    { name: 'Gestión de Archivos', code: 'files.manage', description: 'Administrar archivos del sistema', module: 'Archivos', route: '/admin/files' },
+    { name: 'Lectura de Evaluaciones', code: 'assessments.read', description: 'Ver evaluaciones de simulaciones', module: 'Evaluaciones', route: '/admin/assessments' },
+    { name: 'Creación de Evaluaciones', code: 'assessments.create', description: 'Crear evaluaciones de simulaciones', module: 'Evaluaciones', route: '/admin/assessments' },
   ];
 
   for (const f of functionalitiesData) {
-    await prisma.systemFunctionality.upsert({
-      where: { id: functionalitiesData.indexOf(f) + 1 },
-      update: f,
-      create: { id: functionalitiesData.indexOf(f) + 1, ...f },
-    });
+    const { id, ...data } = f as any;
+    if (id) {
+      await prisma.systemFunctionality.upsert({
+        where: { id },
+        update: data,
+        create: { id, ...data },
+      });
+    } else {
+      await prisma.systemFunctionality.upsert({
+        where: { code: data.code },
+        update: data,
+        create: data,
+      });
+    }
   }
-  console.log('✅ Funcionalidades creados');
+  console.log(`✅ ${functionalitiesData.length} funcionalidades creadas`);
 
   // Asignar permisos básicos (Admin tiene todo habilitado)
   const allRoles = await prisma.role.findMany();
