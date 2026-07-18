@@ -20,9 +20,12 @@ import {
   ProcessRequirementDto,
 } from './dto/ministry.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 
 @Controller('ministry')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin', 'ministerio')
 export class MinistryController {
   constructor(private ministryService: MinistryService) {}
 

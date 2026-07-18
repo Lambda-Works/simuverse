@@ -24,10 +24,13 @@ import { createReadStream } from 'fs';
 import { FilesService, MAX_UPLOAD_BYTES } from './files.service';
 import { UpdateFileDto } from './dto/file.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('files')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin', 'teacher')
 export class FilesController {
   constructor(private filesService: FilesService) {}
 
