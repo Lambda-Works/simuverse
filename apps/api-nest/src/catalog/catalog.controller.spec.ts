@@ -3,6 +3,7 @@ import { CatalogController } from './catalog.controller';
 import { CategoriesService } from './categories.service';
 import { TechSheetsService } from './tech-sheets.service';
 import { ROLES_KEY } from '../common/decorators/roles.decorator';
+import { RbacService } from '../rbac/rbac.service';
 
 describe('CatalogController — RBAC Phase A', () => {
   let controller: CatalogController;
@@ -13,6 +14,7 @@ describe('CatalogController — RBAC Phase A', () => {
       providers: [
         { provide: CategoriesService, useValue: {} },
         { provide: TechSheetsService, useValue: {} },
+        { provide: RbacService, useValue: {} },
       ],
     }).compile();
 

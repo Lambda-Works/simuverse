@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AssignmentsController } from './assignments.controller';
 import { AssignmentsService } from './assignments.service';
 import { ROLES_KEY } from '../common/decorators/roles.decorator';
+import { RbacService } from '../rbac/rbac.service';
 
 describe('AssignmentsController — RBAC Phase A', () => {
   let controller: AssignmentsController;
@@ -9,7 +10,10 @@ describe('AssignmentsController — RBAC Phase A', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AssignmentsController],
-      providers: [{ provide: AssignmentsService, useValue: {} }],
+      providers: [
+        { provide: AssignmentsService, useValue: {} },
+        { provide: RbacService, useValue: {} },
+      ],
     }).compile();
 
     controller = module.get(AssignmentsController);
