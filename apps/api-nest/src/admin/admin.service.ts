@@ -121,6 +121,7 @@ export class AdminService {
 
   async createFunctionality(data: {
     name: string;
+    code?: string;
     description?: string;
     module?: string;
     icon?: string;
@@ -128,6 +129,7 @@ export class AdminService {
   }) {
     return this.rbacService.createFunctionality({
       name: data.name,
+      code: data.code || data.name.toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.+|\.+$/g, ''),
       description: data.description || '',
       module: data.module || 'other',
       icon: data.icon || '',

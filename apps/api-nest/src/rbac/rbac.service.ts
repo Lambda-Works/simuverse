@@ -210,7 +210,7 @@ export class RbacService {
 
   async getRolePermissionsFlat(roleName: string) {
     return this.prisma.$queryRaw`
-      SELECT sf.id AS functionality_id, sf.name, sf.description, sf.module, sf.icon,
+      SELECT sf.id AS functionality_id, sf.name, sf.code, sf.description, sf.module, sf.icon,
              COALESCE(rp.enabled, false) AS enabled
       FROM system_functionalities sf
       LEFT JOIN role_permissions rp ON rp.functionality_id = sf.id AND rp.role_name = ${roleName}

@@ -55,7 +55,7 @@ const Auth = () => {
           ? '/ministerio'
           : user.role === 'admin'
             ? '/admin/mis-cursos'
-            : user.role === 'teacher'
+            : user.role === 'teacher' || user.role === 'supervisor'
               ? '/profesor/cursos'
               : '/estudiante/cursos',
       );
