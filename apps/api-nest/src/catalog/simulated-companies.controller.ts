@@ -1,6 +1,8 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { IsString, IsOptional, IsBoolean } from 'class-validator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 
 class CreateSimulatedCompanyDto {
@@ -79,7 +81,8 @@ class UpdateSimulatedCompanyDto {
 }
 
 @Controller('simulated-companies')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin', 'teacher')
 export class SimulatedCompaniesController {
   constructor(private prisma: PrismaService) {}
 
