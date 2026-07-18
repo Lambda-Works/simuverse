@@ -23,11 +23,14 @@ import {
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { Permissions } from '../common/decorators/permissions.decorator';
 
 @Controller()
 @UseGuards(JwtAuthGuard)
 @Roles('admin')
-@UseGuards(RolesGuard)
+@UseGuards(RolesGuard, PermissionsGuard)
+@Permissions('rbac.manage')
 export class RbacController {
   constructor(private rbacService: RbacService) {}
 

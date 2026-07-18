@@ -12,6 +12,7 @@ import { CatalogQueryService } from './catalog-query.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { Permissions } from '../common/decorators/permissions.decorator';
 
 @Controller()
 @UseGuards(RolesGuard)
@@ -64,6 +65,7 @@ export class CatalogQueryController {
 
   @Put('role-permissions')
   @Roles('admin')
+  @Permissions('rbac.manage')
   async upsertRolePermissions(
     @Body() body: { role_name: string; permissions: { functionality_id: number; enabled: boolean | number }[] },
   ) {
