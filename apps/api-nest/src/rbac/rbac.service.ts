@@ -62,6 +62,7 @@ export class RbacService {
     return this.prisma.systemFunctionality.create({
       data: {
         name: dto.name,
+        code: dto.code,
         description: dto.description,
         module: dto.module,
         icon: dto.icon,
@@ -140,18 +141,18 @@ export class RbacService {
 
   async hasPermission(
     roleName: string,
-    functionalityName: string,
+    code: string,
   ): Promise<boolean> {
-    const cacheKey = `${roleName}:${functionalityName}`;
+    const cacheKey = `${roleName}:${code}`;
     const cached = this.permissionCache.get(cacheKey);
 
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {
       return cached.enabled;
     }
 
-    // Look up functionality_id by name first, then check permission
+    // Look up functionality_id by code, then check permission
     const func = await this.prisma.systemFunctionality.findFirst({
-      where: { name: functionalityName },
+      where: { code },
       select: { id: true },
     });
 
@@ -179,11 +180,11 @@ export class RbacService {
     codes: string[],
   ): Promise<boolean> {
     for (const code of codes) {
-      if (!(await this.hasPermission(roleName, code))) {
-        return false;
+      if (await this.hasPermission(roleName, code)) {
+        return true;
       }
     }
-    return true;
+    return false;
   }
 
   invalidatePermissionCache(roleName?: string): void {
