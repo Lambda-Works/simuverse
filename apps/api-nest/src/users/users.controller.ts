@@ -19,6 +19,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { Permissions } from '../common/decorators/permissions.decorator';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -27,6 +28,7 @@ export class UsersController {
 
   @Get()
   @Roles('admin')
+  @Permissions('users.manage')
   async findAll(@Query('role') role?: string) {
     return this.usersService.findAll(role);
   }
@@ -39,6 +41,7 @@ export class UsersController {
 
   @Post('create')
   @Roles('admin')
+  @Permissions('users.manage')
   async createUser(@Body() dto: CreateUserDto) {
     const bcrypt = await import('bcrypt');
     const password_hash = await bcrypt.hash(dto.password, 10);
@@ -87,6 +90,7 @@ export class UsersController {
 
   @Delete(':id')
   @Roles('admin')
+  @Permissions('users.manage')
   @HttpCode(HttpStatus.OK)
   async remove(@Param('id') id: string) {
     await this.usersService.remove(id);
@@ -95,6 +99,7 @@ export class UsersController {
 
   @Put(':id/reactivate')
   @Roles('admin')
+  @Permissions('users.manage')
   @HttpCode(HttpStatus.OK)
   async reactivate(@Param('id') id: string) {
     await this.usersService.reactivate(id);

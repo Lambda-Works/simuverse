@@ -25,16 +25,20 @@ import { FilesService, MAX_UPLOAD_BYTES } from './files.service';
 import { UpdateFileDto } from './dto/file.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { Permissions } from '../common/decorators/permissions.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('files')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles('admin', 'teacher')
+@Permissions('files.read')
 export class FilesController {
   constructor(private filesService: FilesService) {}
 
   @Post('upload')
+  @Permissions('files.upload')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
@@ -102,6 +106,7 @@ export class FilesController {
   }
 
   @Put(':id')
+  @Permissions('files.manage')
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateFileDto,
@@ -112,6 +117,7 @@ export class FilesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
+  @Permissions('files.manage')
   async remove(@Param('id') id: string, @CurrentUser() user: any) {
     return this.filesService.remove(id, user);
   }

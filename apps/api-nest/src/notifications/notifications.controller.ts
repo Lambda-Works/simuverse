@@ -15,11 +15,14 @@ import { NotificationsService } from './notifications.service';
 import { CreateNotificationDto, UpdateNotificationDto } from './dto/notification.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { Permissions } from '../common/decorators/permissions.decorator';
 
 @Controller('notifications')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles('admin')
+@Permissions('notifications.manage')
 export class NotificationsController {
   constructor(private notificationsService: NotificationsService) {}
 

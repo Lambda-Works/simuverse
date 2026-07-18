@@ -13,6 +13,7 @@ import { AssessmentsService } from './assessments.service';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { Permissions } from '../common/decorators/permissions.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('assessments')
@@ -48,6 +49,7 @@ export class AssessmentsController {
 
   @Post()
   @Roles('admin', 'teacher')
+  @Permissions('assessments.create')
   async create(@Body() dto: CreateAssessmentDto) {
     return this.assessmentsService.create(dto);
   }
