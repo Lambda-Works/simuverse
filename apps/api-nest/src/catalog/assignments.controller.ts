@@ -16,8 +16,12 @@ import { AssignmentsService } from './assignments.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 
 @Controller()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin', 'teacher')
 export class AssignmentsController {
   constructor(private assignmentsService: AssignmentsService) {}
 

@@ -15,8 +15,12 @@ import { ScenariosService } from './scenarios.service';
 import { CreateScenarioDto } from './dto/create-scenario.dto';
 import { UpdateScenarioDto } from './dto/update-scenario.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 
 @Controller('scenarios')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin', 'teacher')
 export class ScenariosController {
   constructor(private scenariosService: ScenariosService) {}
 
