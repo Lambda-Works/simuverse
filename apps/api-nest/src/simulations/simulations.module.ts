@@ -8,6 +8,7 @@ import { AIService } from './ai/ai.service';
 import { OpenAiService } from './ai/openai.service';
 import { CrisisEngine } from './engines/crisis-engine.service';
 import { CatalogModule } from '../catalog/catalog.module';
+import { RbacModule } from '../rbac/rbac.module';
 import { SessionMemoryService } from './session-memory.service';
 import { AsyncPersistenceService } from './async-persistence.service';
 import { SessionCheckpointService } from './session-checkpoint.service';
@@ -20,7 +21,7 @@ import { PracticesService } from './practices.service';
 import { PracticesController } from './practices.controller';
 
 @Module({
-  imports: [CatalogModule],
+  imports: [CatalogModule, RbacModule],
   controllers: [
     SimulationsController,
     SimulationReviewController,

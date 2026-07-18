@@ -4,6 +4,7 @@ import { FlowTemplatesService } from './flow-templates.service';
 import { PromptTemplatesService } from './prompt-templates.service';
 import { PromptConfigService } from './prompt-config.service';
 import { ROLES_KEY } from '../common/decorators/roles.decorator';
+import { RbacService } from '../rbac/rbac.service';
 
 describe('TemplatesController — RBAC Phase A', () => {
   let controller: TemplatesController;
@@ -15,6 +16,7 @@ describe('TemplatesController — RBAC Phase A', () => {
         { provide: FlowTemplatesService, useValue: {} },
         { provide: PromptTemplatesService, useValue: {} },
         { provide: PromptConfigService, useValue: {} },
+        { provide: RbacService, useValue: {} },
       ],
     }).compile();
 

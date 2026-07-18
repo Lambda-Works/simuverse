@@ -3,6 +3,7 @@ import { PromptTemplatesCompatController } from './prompt-templates-compat.contr
 import { PromptTemplatesService } from './prompt-templates.service';
 import { PromptConfigService } from './prompt-config.service';
 import { ROLES_KEY } from '../common/decorators/roles.decorator';
+import { RbacService } from '../rbac/rbac.service';
 
 describe('PromptTemplatesCompatController — RBAC Phase A', () => {
   let controller: PromptTemplatesCompatController;
@@ -13,6 +14,7 @@ describe('PromptTemplatesCompatController — RBAC Phase A', () => {
       providers: [
         { provide: PromptTemplatesService, useValue: {} },
         { provide: PromptConfigService, useValue: {} },
+        { provide: RbacService, useValue: {} },
       ],
     }).compile();
 

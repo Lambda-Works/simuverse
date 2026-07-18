@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { SimulationReviewController } from './simulation-review.controller';
 import { PrismaService } from '../prisma/prisma.service';
 import { ROLES_KEY } from '../common/decorators/roles.decorator';
+import { RbacService } from '../rbac/rbac.service';
 
 describe('SimulationReviewController — RBAC Phase A', () => {
   let controller: SimulationReviewController;
@@ -9,7 +10,10 @@ describe('SimulationReviewController — RBAC Phase A', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SimulationReviewController],
-      providers: [{ provide: PrismaService, useValue: {} }],
+      providers: [
+        { provide: PrismaService, useValue: {} },
+        { provide: RbacService, useValue: {} },
+      ],
     }).compile();
 
     controller = module.get(SimulationReviewController);

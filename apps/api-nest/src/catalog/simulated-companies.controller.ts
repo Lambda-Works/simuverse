@@ -2,7 +2,9 @@ import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nes
 import { IsString, IsOptional, IsBoolean } from 'class-validator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { Permissions } from '../common/decorators/permissions.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 
 class CreateSimulatedCompanyDto {
@@ -81,8 +83,9 @@ class UpdateSimulatedCompanyDto {
 }
 
 @Controller('simulated-companies')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles('admin', 'teacher')
+@Permissions('companies.manage')
 export class SimulatedCompaniesController {
   constructor(private prisma: PrismaService) {}
 
