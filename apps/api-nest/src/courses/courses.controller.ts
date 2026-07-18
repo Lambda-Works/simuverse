@@ -15,6 +15,7 @@ import { IsString, IsOptional, IsBoolean, IsArray, IsInt, MinLength } from 'clas
 import { CoursesService } from './courses.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Permissions } from '../common/decorators/permissions.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -146,7 +147,7 @@ class EnrollDto {
 }
 
 @Controller('courses')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 export class CoursesController {
   constructor(private coursesService: CoursesService) {}
 

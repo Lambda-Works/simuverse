@@ -12,10 +12,11 @@ import { CatalogQueryService } from './catalog-query.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
 
 @Controller()
-@UseGuards(RolesGuard)
+@UseGuards(RolesGuard, PermissionsGuard)
 export class CatalogQueryController {
   constructor(private queryService: CatalogQueryService) {}
 
