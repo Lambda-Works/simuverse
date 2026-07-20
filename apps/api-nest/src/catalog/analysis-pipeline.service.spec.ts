@@ -217,6 +217,44 @@ describe('AnalysisPipelineService', () => {
       });
     });
 
+    it('should include non-evaluative guidance language in simulation prompt (step 6)', async () => {
+      markitdownClient.convert.mockResolvedValue('# Doc');
+      deepseekService.chat
+        .mockResolvedValueOnce('VALIDADO')
+        .mockResolvedValueOnce('Comp')
+        .mockResolvedValueOnce('KPI')
+        .mockResolvedValueOnce('Preg')
+        .mockResolvedValueOnce('Simulación result')
+        .mockResolvedValueOnce('Coach');
+
+      await service.run(1);
+
+      // Step 6 prompt is the 5th call to deepseek.chat (index 4)
+      const step6Prompt = deepseekService.chat.mock.calls[4][0];
+      expect(step6Prompt).toContain('NO incluyas evaluación');
+      expect(step6Prompt).toContain('sin presión');
+      expect(step6Prompt).toContain('practicar y aprender');
+    });
+
+    it('should include non-evaluative guidance language in coaching prompt (step 7)', async () => {
+      markitdownClient.convert.mockResolvedValue('# Doc');
+      deepseekService.chat
+        .mockResolvedValueOnce('VALIDADO')
+        .mockResolvedValueOnce('Comp')
+        .mockResolvedValueOnce('KPI')
+        .mockResolvedValueOnce('Preg')
+        .mockResolvedValueOnce('Sim')
+        .mockResolvedValueOnce('Coach result');
+
+      await service.run(1);
+
+      // Step 7 prompt is the 6th call to deepseek.chat (index 5)
+      const step7Prompt = deepseekService.chat.mock.calls[5][0];
+      expect(step7Prompt).toContain('NO evalúes');
+      expect(step7Prompt).toContain('sin presión evaluativa');
+      expect(step7Prompt).toContain('practicando, no rindiendo un examen');
+    });
+
     describe.skip('table writes on completion', () => {
       it('should delete old data and insert new rows for competencies/KPIs/tasks/prompts', async () => {
         markitdownClient.convert.mockResolvedValue('# Documento markdown');

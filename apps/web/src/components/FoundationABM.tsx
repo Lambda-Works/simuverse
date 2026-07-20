@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { GraduationCap, Plus, Settings } from 'lucide-react';
+import { ClipboardList, GraduationCap, Globe, Mail, MapPin, Phone, Plus, RotateCw, Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -135,7 +135,7 @@ export function FoundationABM() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">🎓 Fundación / Institución Educativa</h2>
+          <h2 className="text-2xl font-bold flex items-center gap-2"><GraduationCap className="w-6 h-6" /> Fundación / Institución Educativa</h2>
           <p className="text-gray-600 mt-1">Datos de la institución que avala y emite los certificados. Su logo aparece en los certificados.</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={o => { setDialogOpen(o); if (!o) { setForm(emptyForm()); setEditingId(null); } }}>
@@ -237,13 +237,13 @@ export function FoundationABM() {
               </div>
             </CardHeader>
             <CardContent className="p-4 space-y-2 text-sm">
-              {f.address && <p className="text-gray-600">📍 {f.address}, {f.city}, {f.province}</p>}
-              {f.phone && <p className="text-gray-600">📞 {f.phone}</p>}
-              {f.email && <p className="text-gray-600">✉️ {f.email}</p>}
-              {f.website && <a href={f.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline block truncate">🌐 {f.website}</a>}
+              {f.address && <p className="text-gray-600 flex items-center gap-1"><MapPin className="w-4 h-4 shrink-0" /> {f.address}, {f.city}, {f.province}</p>}
+              {f.phone && <p className="text-gray-600 flex items-center gap-1"><Phone className="w-4 h-4 shrink-0" /> {f.phone}</p>}
+              {f.email && <p className="text-gray-600 flex items-center gap-1"><Mail className="w-4 h-4 shrink-0" /> {f.email}</p>}
+              {f.website && <a href={f.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline block truncate flex items-center gap-1"><Globe className="w-4 h-4 shrink-0" /> {f.website}</a>}
               {f.ministry_aval && (
                 <div className="mt-2 p-2 bg-purple-50 rounded border border-purple-200">
-                  <p className="text-xs text-purple-700 font-medium">📋 Aval ministerial:</p>
+                  <p className="text-xs text-purple-700 font-medium flex items-center gap-1"><ClipboardList className="w-3.5 h-3.5" /> Aval ministerial:</p>
                   <p className="text-xs text-purple-600 mt-0.5">{f.ministry_aval}</p>
                 </div>
               )}
@@ -255,7 +255,7 @@ export function FoundationABM() {
                   Desactivar
                 </Button>}
                 {!readOnly && f.is_active === false && <Button variant="outline" size="sm" className="text-green-600 border-green-300" onClick={() => handleReactivate(f.id)}>
-                  🔄 Reactivar
+                  <RotateCw className="w-4 h-4 mr-1" /> Reactivar
                 </Button>}
               </div>
             </CardContent>

@@ -93,6 +93,16 @@ export class SessionMemoryService {
   }
 
   /**
+   * Get the last N turns for summary generation.
+   * Returns available turns if fewer than N exist.
+   */
+  getRecentTurns(simulationId: string, n: number): ChatTurn[] {
+    const session = this.cache.get(simulationId);
+    if (!session) return [];
+    return session.turns.slice(-n);
+  }
+
+  /**
    * Get current turn count for a simulation.
    */
   getTurnCount(simulationId: string): number {

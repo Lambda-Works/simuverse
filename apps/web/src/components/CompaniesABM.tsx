@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { Building2, Plus, Settings, Trash2 } from 'lucide-react';
+import { Building2, Plus, RotateCw, Settings, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -147,7 +147,7 @@ export function CompaniesABM() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">🏢 Empresas Simuladas</h2>
+          <h2 className="text-2xl font-bold flex items-center gap-2"><Building2 className="w-6 h-6" /> Empresas Simuladas</h2>
           <p className="text-gray-600 mt-1">Empresas reales o ficticias que se simulan en los cursos. Si no hay logo, se muestran las iniciales.</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={o => { setDialogOpen(o); if (!o) { setForm(emptyCompany()); setEditingId(null); setLogoError(false); } }}>
@@ -257,7 +257,7 @@ export function CompaniesABM() {
                 <div className="flex gap-1">
                   {!readOnly && <Button variant="outline" size="sm" onClick={() => handleEdit(c)}><Settings className="w-3.5 h-3.5" /></Button>}
                   {!readOnly && (c as any).is_active !== false && <Button variant="destructive" size="sm" onClick={() => handleDelete(c.id)}><Trash2 className="w-3.5 h-3.5" /></Button>}
-                  {!readOnly && (c as any).is_active === false && <Button variant="outline" size="sm" className="text-green-600 border-green-300" onClick={() => handleReactivate(c.id)}>🔄</Button>}
+                  {!readOnly && (c as any).is_active === false && <Button variant="outline" size="sm" className="text-green-600 border-green-300" onClick={() => handleReactivate(c.id)}><RotateCw className="w-4 h-4" /></Button>}
                 </div>
               </div>
             </CardContent>

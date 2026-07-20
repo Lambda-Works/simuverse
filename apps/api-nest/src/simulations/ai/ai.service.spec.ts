@@ -92,16 +92,47 @@ describe('AIService', () => {
         ...basePromptData,
         chatbot_humano_enabled: true,
       });
-      expect(prompt).toContain('temas no relacionados con el curso');
-      expect(prompt).toContain('redirige amablemente');
+      expect(prompt).toContain('REGLA INQUEBRANTABLE');
+      expect(prompt).toContain('RESPUESTA DEBE SER');
     });
 
-    it('should NOT include off-topic guard when chatbot_humano_enabled is false', () => {
+    it('should include off-topic guard when chatbot_humano_enabled is false (universal guard)', () => {
       const prompt = service.buildSystemPrompt({
         ...basePromptData,
         chatbot_humano_enabled: false,
       });
-      expect(prompt).not.toContain('temas no relacionados');
+      expect(prompt).toContain('REGLA INQUEBRANTABLE');
+    });
+
+    it('should include off-topic guard for BOTH chatbot_humano_enabled true AND false (universal guard)', () => {
+      const promptTrue = service.buildSystemPrompt({
+        ...basePromptData,
+        chatbot_humano_enabled: true,
+      });
+      const promptFalse = service.buildSystemPrompt({
+        ...basePromptData,
+        chatbot_humano_enabled: false,
+      });
+      expect(promptTrue).toContain('RESTRICCIÓN ABSOLUTA DE CONTENIDO');
+      expect(promptFalse).toContain('RESTRICCIÓN ABSOLUTA DE CONTENIDO');
+    });
+
+    it('should include subject_domain in off-topic guard when provided', () => {
+      const prompt = service.buildSystemPrompt({
+        ...basePromptData,
+        chatbot_humano_enabled: true,
+        subject_domain: 'contabilidad',
+      });
+      expect(prompt).toContain('contabilidad');
+    });
+
+    it('should use generic guard fallback when subject_domain is missing', () => {
+      const prompt = service.buildSystemPrompt({
+        ...basePromptData,
+        chatbot_humano_enabled: true,
+      });
+      expect(prompt).toContain('REGLA INQUEBRANTABLE');
+      expect(prompt).toContain('RESPUESTA DEBE SER');
     });
 
     it('should include state instruction when current_state is provided', () => {

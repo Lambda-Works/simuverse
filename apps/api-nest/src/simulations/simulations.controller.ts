@@ -102,6 +102,8 @@ export class SimulationsController {
   @HttpCode(HttpStatus.OK)
   async pause(@Param('id') id: string) {
     await this.checkpoint.checkpointAndClose(id);
+    // Generate encore_summary before pause for session recall on resume
+    await this.practices.generateEncoreSummary(id);
     const instance = await this.prisma.simulationInstance.findUnique({ where: { id } });
     if (instance) return this.instanceService.pause(id);
     return this.simulationsService.pause(id);
@@ -131,6 +133,8 @@ export class SimulationsController {
   @HttpCode(HttpStatus.OK)
   async abandon(@Param('id') id: string) {
     await this.checkpoint.checkpointAndClose(id);
+    // Generate encore_summary before abandon for session recall on resume
+    await this.practices.generateEncoreSummary(id);
     const instance = await this.prisma.simulationInstance.findUnique({ where: { id } });
     if (instance) {
       return this.prisma.simulationInstance.update({
@@ -199,6 +203,7 @@ export class SimulationsController {
         knowledge_base: config?.knowledge_base_prompt || '',
         personality_traits: (config?.personality_traits as string[]) || [],
         student_history: [],
+        subject_domain: this.extractSubjectDomain(config?.course_context),
         ...practiceExtras,
       });
 
@@ -248,6 +253,7 @@ export class SimulationsController {
       role_behavior: config?.role_behavior || undefined,
       chatbot_humano_enabled: true,
       current_state: this.conversationState.getStatePrompt(convState.state),
+      subject_domain: this.extractSubjectDomain(config?.course_context),
       ...practiceExtras,
     });
 
@@ -322,5 +328,18 @@ export class SimulationsController {
   async getMessages(@Param('id') id: string) {
     const history = await this.sessionMemory.getHistory(id);
     return { simulationId: id, messages: history };
+  }
+
+  /**
+   * Extract a short subject domain hint from course_context.
+   * Takes the first sentence (up to 80 chars) as a domain descriptor.
+   */
+  private extractSubjectDomain(courseContext?: string): string | undefined {
+    if (!courseContext) return undefined;
+    const firstSentence = courseContext.split(/[.!?]\s/)[0]?.trim();
+    if (!firstSentence || firstSentence.length < 5) return undefined;
+    return firstSentence.length > 80
+      ? `${firstSentence.slice(0, 77)}...`
+      : firstSentence;
   }
 }

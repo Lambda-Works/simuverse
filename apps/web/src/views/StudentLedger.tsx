@@ -6,6 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/useAuth';
 import { useSidebarHeader } from '@/lib/sidebar-header-context';
 import { apiClient } from '@/services/ApiClient';
+import { getScoreBarColor, getScoreText } from '@/lib/score-colors';
 import {
     AlertTriangle,
     ArrowLeft,
@@ -84,13 +85,6 @@ interface SimulationRecord {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const scoreColor = (s: number) =>
-  s >= 85 ? 'text-green-600' : s >= 70 ? 'text-yellow-600' : 'text-red-600';
-const scoreBarColor = (s: number) =>
-  s >= 85 ? 'bg-green-500' : s >= 70 ? 'bg-yellow-400' : 'bg-red-500';
-const scoreBg = (s: number) =>
-  s >= 85 ? 'bg-green-50 border-green-200' : s >= 70 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200';
-
 const familyLabel: Record<string, string> = {
   administracion: 'Administración',
   rrhh: 'RRHH',
@@ -138,7 +132,7 @@ function ScoringTable({ method }: { method: ScoringMethodology }) {
                 <tr key={key} className="hover:bg-muted/30">
                   <td className="px-4 py-2.5 font-medium capitalize">{key.replace(/_/g, ' ')}</td>
                   <td className="px-4 py-2.5 text-center">
-                    <span className={`font-bold ${scoreColor(comp.value)}`}>{comp.value}</span>
+                    <span className={`font-bold ${getScoreText(comp.value)}`}>{comp.value}</span>
                   </td>
                   <td className="px-4 py-2.5 text-center text-muted-foreground">
                     {comp.weight != null ? `${Math.round(comp.weight * 100)}%` : '—'}
@@ -156,7 +150,7 @@ function ScoringTable({ method }: { method: ScoringMethodology }) {
             <tr className="bg-muted/20 font-semibold border-t-2">
               <td className="px-4 py-2.5">PUNTAJE FINAL</td>
               <td className="px-4 py-2.5 text-center">
-                <span className={`text-lg font-bold ${scoreColor(method.puntaje_final)}`}>
+                <span className={`text-lg font-bold ${getScoreText(method.puntaje_final)}`}>
                   {method.puntaje_final}
                 </span>
               </td>
@@ -215,10 +209,10 @@ function KPIBars({ kpis }: { kpis: Record<string, number> }) {
           <div key={kpi}>
             <div className="flex justify-between text-xs mb-0.5">
               <span className="capitalize text-muted-foreground">{kpi.replace(/_/g, ' ')}</span>
-              <span className={`font-semibold ${scoreColor(n)}`}>{n}/100</span>
+              <span className={`font-semibold ${getScoreText(n)}`}>{n}/100</span>
             </div>
             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div className={`h-full ${scoreBarColor(n)} rounded-full transition-all`} style={{ width: `${Math.min(100, n)}%` }} />
+              <div className={`h-full ${getScoreBarColor(n)} rounded-full transition-all`} style={{ width: `${Math.min(100, n)}%` }} />
             </div>
           </div>
         );
@@ -347,7 +341,6 @@ const StudentLedger = () => {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: 'Simulaciones',  value: stats.total_simulations,    icon: <BookOpen className="w-4 h-4" />,    color: 'text-blue-600' },
-            { label: 'Evaluadas',     value: stats.total_evaluations,     icon: <BarChart3 className="w-4 h-4" />,   color: 'text-purple-600' },
             { label: 'Aprobadas',     value: stats.passed_evaluations,    icon: <Trophy className="w-4 h-4" />,      color: 'text-green-600' },
             { label: 'Prom. puntaje', value: stats.avg_score !== null ? `${stats.avg_score}/100` : '—', icon: <TrendingUp className="w-4 h-4" />, color: stats.avg_score >= 70 ? 'text-green-600' : 'text-red-600' },
           ].map(stat => (
@@ -380,7 +373,7 @@ const StudentLedger = () => {
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
-                {stats.passed_evaluations} aprobadas de {stats.total_evaluations} evaluadas
+                {stats.passed_evaluations} aprobadas de {stats.total_evaluations} simulaciones
                 {stats.best_score !== null && stats.best_score !== undefined && ` · Mejor puntaje: ${stats.best_score}/100`}
               </p>
             </CardContent>
@@ -521,7 +514,7 @@ const StudentLedger = () => {
                   {isOpen && !sim.criteria_met && (
                     <div className="border-t bg-muted/20 px-6 py-5 text-center text-sm text-muted-foreground">
                       <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                      Esta simulación todavía no tiene evaluación registrada.
+                      Esta simulación todavía no tiene prácticas registradas por el usuario.
                       {sim.status === 'completed' && ' Un docente o administrador puede generarla desde el panel de Evaluaciones.'}
                     </div>
                   )}

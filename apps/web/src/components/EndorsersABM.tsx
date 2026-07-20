@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { Handshake, Link, Plus, Settings, Trash2, Unlink } from 'lucide-react';
+import { ClipboardList, Globe, Handshake, Landmark, Link, Link2, Plus, RotateCw, Scale, Settings, Trash2, Unlink } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -52,12 +52,25 @@ const getInitials = (name: string) => {
 };
 
 const ENDORSEMENT_TYPES = [
-  { value: 'institution', label: '🏛️ Institución educativa' },
-  { value: 'ministry', label: '📋 Ministerio / Ente gubernamental' },
-  { value: 'company', label: '🏢 Empresa privada' },
-  { value: 'professional_chamber', label: '⚖️ Colegio / Cámara profesional' },
-  { value: 'ngo', label: '🤝 ONG / Asociación civil' },
+  { value: 'institution', label: 'Institución educativa' },
+  { value: 'ministry', label: 'Ministerio / Ente gubernamental' },
+  { value: 'company', label: 'Empresa privada' },
+  { value: 'professional_chamber', label: 'Colegio / Cámara profesional' },
+  { value: 'ngo', label: 'ONG / Asociación civil' },
 ];
+
+const ENDORSEMENT_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  institution: Landmark,
+  ministry: ClipboardList,
+  company: Handshake,
+  professional_chamber: Scale,
+  ngo: Handshake,
+};
+
+function EndorsementTypeIcon({ type, className }: { type: string; className?: string }) {
+  const Icon = ENDORSEMENT_ICON_MAP[type] || Handshake;
+  return <Icon className={className} />;
+}
 
 const emptyForm = (): Omit<Endorser, 'id' | 'is_active'> => ({
   name: '', short_name: '', logo_url: '', description: '', endorsement_type: 'institution', website: '',
@@ -189,7 +202,7 @@ export function EndorsersABM() {
       {/* Header + Add */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">🤝 Avaladores</h2>
+          <h2 className="text-2xl font-bold flex items-center gap-2"><Handshake className="w-6 h-6" /> Avaladores</h2>
           <p className="text-gray-600 mt-1">Organizaciones o instituciones que avalan las simulaciones. Se pueden vincular a cursos específicos.</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={o => { setDialogOpen(o); if (!o) { setForm(emptyForm()); setEditingId(null); } }}>
@@ -211,7 +224,7 @@ export function EndorsersABM() {
                 }
                 <div>
                   <p className="font-semibold">{form.name || 'Nombre del avalador'}</p>
-                  <p className="text-xs text-gray-500">{ENDORSEMENT_TYPES.find(t => t.value === form.endorsement_type)?.label || ''}</p>
+                  <p className="text-xs text-gray-500 flex items-center gap-1"><EndorsementTypeIcon type={form.endorsement_type} className="w-3.5 h-3.5" /> {ENDORSEMENT_TYPES.find(t => t.value === form.endorsement_type)?.label || ''}</p>
                 </div>
               </div>
 
@@ -229,7 +242,7 @@ export function EndorsersABM() {
                   <Select value={form.endorsement_type} onValueChange={v => setForm(p => ({ ...p, endorsement_type: v }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {ENDORSEMENT_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                      {ENDORSEMENT_TYPES.map(t => <SelectItem key={t.value} value={t.value}><span className="flex items-center gap-1.5"><EndorsementTypeIcon type={t.value} className="w-4 h-4" />{t.label}</span></SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -264,16 +277,16 @@ export function EndorsersABM() {
                 <LogoDisplay name={e.name} logoUrl={e.logo_url} />
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm leading-tight truncate">{e.name}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{ENDORSEMENT_TYPES.find(t => t.value === e.endorsement_type)?.label || e.endorsement_type}</p>
+                  <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1"><EndorsementTypeIcon type={e.endorsement_type} className="w-3.5 h-3.5" /> {ENDORSEMENT_TYPES.find(t => t.value === e.endorsement_type)?.label || e.endorsement_type}</p>
                   {e.is_active === false && <Badge variant="secondary" className="text-xs bg-gray-400 mt-1">Inactivo</Badge>}
                 </div>
               </div>
               {e.description && <p className="text-xs text-gray-600 mb-3 line-clamp-2">{e.description}</p>}
-              {e.website && <a href={e.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline block mb-3 truncate">🌐 {e.website}</a>}
+              {e.website && <a href={e.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline block mb-3 truncate flex items-center gap-1"><Globe className="w-4 h-4 shrink-0" /> {e.website}</a>}
               <div className="flex justify-end gap-1">
                 {!readOnly && <Button variant="outline" size="sm" onClick={() => handleEdit(e)}><Settings className="w-3 h-3" /></Button>}
                 {!readOnly && e.is_active !== false && <Button variant="ghost" size="sm" onClick={() => handleDeactivate(e.id)} className="text-red-500 hover:bg-red-50"><Trash2 className="w-3 h-3" /></Button>}
-                {!readOnly && e.is_active === false && <Button variant="ghost" size="sm" onClick={() => handleReactivate(e.id)} className="text-green-500 hover:bg-green-50">🔄</Button>}
+                {!readOnly && e.is_active === false && <Button variant="ghost" size="sm" onClick={() => handleReactivate(e.id)} className="text-green-500 hover:bg-green-50"><RotateCw className="w-4 h-4" /></Button>}
               </div>
             </CardContent>
           </Card>
@@ -293,7 +306,7 @@ export function EndorsersABM() {
           {/* Vinculación a cursos */}
           <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-bold">🔗 Vincular avaladores a un curso</h3>
+              <h3 className="text-lg font-bold flex items-center gap-2"><Link2 className="w-5 h-5" /> Vincular avaladores a un curso</h3>
               <p className="text-sm text-gray-500 mt-1">Seleccioná un curso y marcá los avaladores que corresponden.</p>
             </div>
 
@@ -322,7 +335,7 @@ export function EndorsersABM() {
                         <LogoDisplay name={e.name} logoUrl={e.logo_url} size="sm" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{e.name}</p>
-                          <p className="text-xs text-gray-500">{e.short_name || ENDORSEMENT_TYPES.find(t => t.value === e.endorsement_type)?.label || ''}</p>
+                          <p className="text-xs text-gray-500 flex items-center gap-1">{e.short_name || <><EndorsementTypeIcon type={e.endorsement_type} className="w-3.5 h-3.5" /> {ENDORSEMENT_TYPES.find(t => t.value === e.endorsement_type)?.label || ''}</>}</p>
                         </div>
                         {isLinked
                           ? <span className="text-green-600 shrink-0"><Link className="w-4 h-4" /></span>
