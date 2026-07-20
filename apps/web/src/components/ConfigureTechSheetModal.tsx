@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { API_BASE, authFetch } from '@/lib/api';
 import { apiClient } from '@/services/ApiClient';
-import { Edit2, Plus, Trash2, X } from 'lucide-react';
+import { BarChart3, Edit2, Mail, Plus, ShieldAlert, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -41,6 +41,40 @@ interface TaskConfig {
   expected_duration_minutes: number;
 }
 
+interface EmailConfig {
+  subject: string;
+  body: string;
+  trigger_condition: string;
+  timing_minutes: number;
+}
+
+interface SpreadsheetColumn {
+  header: string;
+  type: string;
+  formula?: string;
+}
+
+interface SpreadsheetConfig {
+  columns: SpreadsheetColumn[];
+  sample_data: unknown[];
+}
+
+interface CrisisScenario {
+  trigger: string;
+  description: string;
+  resolution_options: string[];
+}
+
+interface CrisisConfig {
+  scenarios: CrisisScenario[];
+}
+
+interface AssetsConfig {
+  emails: EmailConfig[];
+  spreadsheet: SpreadsheetConfig;
+  crisis: CrisisConfig;
+}
+
 interface AnalyzedKPIsConfig {
   tech_sheet_id: number;
   analyzed_at: Date;
@@ -51,6 +85,7 @@ interface AnalyzedKPIsConfig {
     system_prompt: string;
     coaching_prompt: string;
   };
+  assets: AssetsConfig;
 }
 
 const DIFFICULTY_LABELS: Record<TaskConfig['difficulty'], string> = {
@@ -146,6 +181,11 @@ export function ConfigureTechSheetModal({
             system_prompt: data.prompts?.system_prompt || data.prompts?.system || '',
             coaching_prompt: data.prompts?.coaching_prompt || '',
           },
+          assets: {
+            emails: data.assets?.emails || data.step_8_emails?.emails || [],
+            spreadsheet: data.assets?.spreadsheet || data.step_9_spreadsheet || { columns: [], sample_data: [] },
+            crisis: data.assets?.crisis || data.step_10_crisis || { scenarios: [] },
+          },
         });
       }
     } catch (error) {
@@ -166,13 +206,14 @@ export function ConfigureTechSheetModal({
           kpis: config.kpis,
           tasks: config.tasks,
           prompts: config.prompts,
+          assets: config.assets,
         }
       );
       setEditing(false);
-      toast.success('Configuración guardada exitosamente');
+      toast.success('Configuracion guardada exitosamente');
     } catch (error) {
       console.error('Error saving config:', error);
-      toast.error('Error al guardar configuración');
+      toast.error('Error al guardar configuracion');
     }
   };
 
@@ -236,11 +277,12 @@ export function ConfigureTechSheetModal({
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="competencies">Competencias</TabsTrigger>
             <TabsTrigger value="kpis">KPIs</TabsTrigger>
             <TabsTrigger value="tasks">Tareas</TabsTrigger>
             <TabsTrigger value="prompts">Prompts</TabsTrigger>
+            <TabsTrigger value="assets">Assets</TabsTrigger>
             <TabsTrigger value="summary">Resumen</TabsTrigger>
           </TabsList>
 
@@ -443,10 +485,10 @@ export function ConfigureTechSheetModal({
                   {!editing && (
                     <>
                       <p className="text-xs text-gray-500 mt-2">
-                        📋 Tareas: {config.tasks.filter((t) => t.kpi_id === kpi.id).length}
+                        Tareas: {config.tasks.filter((t) => t.kpi_id === kpi.id).length}
                       </p>
                       <p className="text-xs text-gray-500">
-                        📝 Preguntas: {kpi.evaluation_questions.length}
+                        Preguntas: {kpi.evaluation_questions.length}
                       </p>
                     </>
                   )}
@@ -622,6 +664,340 @@ export function ConfigureTechSheetModal({
                   </Card>
                 )}
               </div>
+            </div>
+          </TabsContent>
+
+          {/* ASSETS */}
+          <TabsContent value="assets" className="space-y-4 mt-4">
+            <h3 className="font-semibold text-lg flex items-center gap-2">
+              <Mail className="w-5 h-5" />
+              Activos Generados por Pipeline
+            </h3>
+
+            {/* Emails Section */}
+            <div className="space-y-3">
+              <h4 className="font-semibold flex items-center gap-2">
+                <Mail className="w-4 h-4 text-blue-600" />
+                Emails Simulados ({config.assets.emails.length})
+              </h4>
+              {config.assets.emails.length === 0 ? (
+                <Card className="p-4 bg-gray-50 text-sm text-gray-500">
+                  No hay emails generados. Ejecuta el pipeline con el modulo de email activado.
+                </Card>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-auto">
+                  {config.assets.emails.map((email, idx) => (
+                    <Card key={idx} className="p-3">
+                      {editing ? (
+                        <div className="space-y-2">
+                          <Input
+                            value={email.subject}
+                            onChange={(e) => {
+                              const newEmails = [...config.assets.emails];
+                              newEmails[idx] = { ...email, subject: e.target.value };
+                              setConfig({ ...config, assets: { ...config.assets, emails: newEmails } });
+                            }}
+                            placeholder="Asunto"
+                          />
+                          <Textarea
+                            value={email.body}
+                            onChange={(e) => {
+                              const newEmails = [...config.assets.emails];
+                              newEmails[idx] = { ...email, body: e.target.value };
+                              setConfig({ ...config, assets: { ...config.assets, emails: newEmails } });
+                            }}
+                            placeholder="Cuerpo del email"
+                            rows={3}
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <Input
+                              value={email.trigger_condition}
+                              onChange={(e) => {
+                                const newEmails = [...config.assets.emails];
+                                newEmails[idx] = { ...email, trigger_condition: e.target.value };
+                                setConfig({ ...config, assets: { ...config.assets, emails: newEmails } });
+                              }}
+                              placeholder="Condicion de activacion"
+                            />
+                            <Input
+                              type="number"
+                              value={email.timing_minutes}
+                              onChange={(e) => {
+                                const newEmails = [...config.assets.emails];
+                                newEmails[idx] = { ...email, timing_minutes: parseInt(e.target.value) || 0 };
+                                setConfig({ ...config, assets: { ...config.assets, emails: newEmails } });
+                              }}
+                              placeholder="Minutos"
+                            />
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600"
+                            onClick={() => {
+                              const newEmails = config.assets.emails.filter((_, i) => i !== idx);
+                              setConfig({ ...config, assets: { ...config.assets, emails: newEmails } });
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" /> Eliminar
+                          </Button>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="font-semibold text-sm">{email.subject}</p>
+                          <p className="text-xs text-gray-600 mt-1 line-clamp-2">{email.body}</p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            Trigger: {email.trigger_condition} | Timing: {email.timing_minutes}min
+                          </p>
+                        </div>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              )}
+              {editing && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const newEmail = {
+                      subject: 'Nuevo Email',
+                      body: '',
+                      trigger_condition: '',
+                      timing_minutes: 0,
+                    };
+                    setConfig({
+                      ...config,
+                      assets: { ...config.assets, emails: [...config.assets.emails, newEmail] },
+                    });
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-1" /> Agregar Email
+                </Button>
+              )}
+            </div>
+
+            {/* Spreadsheet Section */}
+            <div className="space-y-3">
+              <h4 className="font-semibold flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-green-600" />
+                Hoja de Calculo
+              </h4>
+              {config.assets.spreadsheet.columns.length === 0 ? (
+                <Card className="p-4 bg-gray-50 text-sm text-gray-500">
+                  No hay hoja de calculo generada. Ejecuta el pipeline con el modulo de calculo activado.
+                </Card>
+              ) : (
+                <Card className="p-3 overflow-auto">
+                  <div className="min-w-full">
+                    <div className="flex gap-2 border-b pb-2 mb-2">
+                      {config.assets.spreadsheet.columns.map((col, idx) => (
+                        <div key={idx} className="flex-1 min-w-[120px]">
+                          {editing ? (
+                            <Input
+                              value={col.header}
+                              onChange={(e) => {
+                                const newCols = [...config.assets.spreadsheet.columns];
+                                newCols[idx] = { ...col, header: e.target.value };
+                                setConfig({
+                                  ...config,
+                                  assets: {
+                                    ...config.assets,
+                                    spreadsheet: { ...config.assets.spreadsheet, columns: newCols },
+                                  },
+                                });
+                              }}
+                              className="text-xs"
+                            />
+                          ) : (
+                            <span className="text-xs font-semibold">{col.header}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {config.assets.spreadsheet.sample_data.map((row: any, rowIdx) => (
+                      <div key={rowIdx} className="flex gap-2 py-1">
+                        {config.assets.spreadsheet.columns.map((col, colIdx) => (
+                          <div key={colIdx} className="flex-1 min-w-[120px] text-xs">
+                            {editing ? (
+                              <Input
+                                value={row[col.header] || ''}
+                                onChange={(e) => {
+                                  const newData = [...config.assets.spreadsheet.sample_data];
+                                  newData[rowIdx] = { ...newData[rowIdx], [col.header]: e.target.value };
+                                  setConfig({
+                                    ...config,
+                                    assets: {
+                                      ...config.assets,
+                                      spreadsheet: { ...config.assets.spreadsheet, sample_data: newData },
+                                    },
+                                  });
+                                }}
+                                className="text-xs"
+                              />
+                            ) : (
+                              <span>{row[col.header] || ''}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+            </div>
+
+            {/* Crisis Section */}
+            <div className="space-y-3">
+              <h4 className="font-semibold flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-red-600" />
+                Escenarios de Crisis ({config.assets.crisis.scenarios.length})
+              </h4>
+              {config.assets.crisis.scenarios.length === 0 ? (
+                <Card className="p-4 bg-gray-50 text-sm text-gray-500">
+                  No hay escenarios de crisis generados. Ejecuta el pipeline con el modulo de crisis activado.
+                </Card>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-auto">
+                  {config.assets.crisis.scenarios.map((scenario, idx) => (
+                    <Card key={idx} className="p-3">
+                      {editing ? (
+                        <div className="space-y-2">
+                          <Input
+                            value={scenario.trigger}
+                            onChange={(e) => {
+                              const newScenarios = [...config.assets.crisis.scenarios];
+                              newScenarios[idx] = { ...scenario, trigger: e.target.value };
+                              setConfig({
+                                ...config,
+                                assets: { ...config.assets, crisis: { scenarios: newScenarios } },
+                              });
+                            }}
+                            placeholder="Trigger del escenario"
+                          />
+                          <Textarea
+                            value={scenario.description}
+                            onChange={(e) => {
+                              const newScenarios = [...config.assets.crisis.scenarios];
+                              newScenarios[idx] = { ...scenario, description: e.target.value };
+                              setConfig({
+                                ...config,
+                                assets: { ...config.assets, crisis: { scenarios: newScenarios } },
+                              });
+                            }}
+                            placeholder="Descripcion del escenario"
+                            rows={2}
+                          />
+                          <div>
+                            <label className="text-xs text-gray-600">Opciones de resolucion:</label>
+                            {scenario.resolution_options.map((opt, optIdx) => (
+                              <div key={optIdx} className="flex gap-1 mt-1">
+                                <Input
+                                  value={opt}
+                                  onChange={(e) => {
+                                    const newScenarios = [...config.assets.crisis.scenarios];
+                                    const newOpts = [...scenario.resolution_options];
+                                    newOpts[optIdx] = e.target.value;
+                                    newScenarios[idx] = { ...scenario, resolution_options: newOpts };
+                                    setConfig({
+                                      ...config,
+                                      assets: { ...config.assets, crisis: { scenarios: newScenarios } },
+                                    });
+                                  }}
+                                  className="text-xs"
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 text-red-600"
+                                  onClick={() => {
+                                    const newScenarios = [...config.assets.crisis.scenarios];
+                                    const newOpts = scenario.resolution_options.filter((_, i) => i !== optIdx);
+                                    newScenarios[idx] = { ...scenario, resolution_options: newOpts };
+                                    setConfig({
+                                      ...config,
+                                      assets: { ...config.assets, crisis: { scenarios: newScenarios } },
+                                    });
+                                  }}
+                                >
+                                  X
+                                </Button>
+                              </div>
+                            ))}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="mt-1"
+                              onClick={() => {
+                                const newScenarios = [...config.assets.crisis.scenarios];
+                                newScenarios[idx] = {
+                                  ...scenario,
+                                  resolution_options: [...scenario.resolution_options, ''],
+                                };
+                                setConfig({
+                                  ...config,
+                                  assets: { ...config.assets, crisis: { scenarios: newScenarios } },
+                                });
+                              }}
+                            >
+                              <Plus className="w-3 h-3 mr-1" /> Opcion
+                            </Button>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600"
+                            onClick={() => {
+                              const newScenarios = config.assets.crisis.scenarios.filter((_, i) => i !== idx);
+                              setConfig({
+                                ...config,
+                                assets: { ...config.assets, crisis: { scenarios: newScenarios } },
+                              });
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" /> Eliminar
+                          </Button>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="font-semibold text-sm">{scenario.trigger}</p>
+                          <p className="text-xs text-gray-600 mt-1">{scenario.description}</p>
+                          <div className="mt-1">
+                            <span className="text-xs text-gray-400">Resoluciones:</span>
+                            <ul className="text-xs text-gray-500 ml-4 list-disc">
+                              {scenario.resolution_options.map((opt, optIdx) => (
+                                <li key={optIdx}>{opt}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              )}
+              {editing && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const newScenario = {
+                      trigger: 'Nuevo Escenario',
+                      description: '',
+                      resolution_options: [],
+                    };
+                    setConfig({
+                      ...config,
+                      assets: {
+                        ...config.assets,
+                        crisis: { scenarios: [...config.assets.crisis.scenarios, newScenario] },
+                      },
+                    });
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-1" /> Agregar Escenario
+                </Button>
+              )}
             </div>
           </TabsContent>
 
