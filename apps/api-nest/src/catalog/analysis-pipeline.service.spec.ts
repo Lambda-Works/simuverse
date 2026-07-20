@@ -35,6 +35,9 @@ describe('AnalysisPipelineService', () => {
           file_path: '/uploads/test.pdf',
         }),
       },
+      courseConfig: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
       techSheetCompetency: {
         deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
         createMany: jest.fn().mockResolvedValue({ count: 0 }),
@@ -59,6 +62,9 @@ describe('AnalysisPipelineService', () => {
 
     const mockDeepseekService = {
       chat: jest.fn(),
+      buildEmailsPrompt: jest.fn().mockReturnValue('mock-emails-prompt'),
+      buildSpreadsheetPrompt: jest.fn().mockReturnValue('mock-spreadsheet-prompt'),
+      buildCrisisPrompt: jest.fn().mockReturnValue('mock-crisis-prompt'),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -255,6 +261,289 @@ describe('AnalysisPipelineService', () => {
       expect(step7Prompt).toContain('practicando, no rindiendo un examen');
     });
 
+    describe('step 8 — email generation (module gate)', () => {
+      it('should skip step 8 when email_simulado is not active', async () => {
+        prismaService.courseConfig.findUnique.mockResolvedValue({
+          active_modules: ['chat_ia', 'documentos'],
+        });
+        markitdownClient.convert.mockResolvedValue('# Doc');
+        deepseekService.chat
+          .mockResolvedValueOnce('VALIDADO')
+          .mockResolvedValueOnce('Comp')
+          .mockResolvedValueOnce('KPI')
+          .mockResolvedValueOnce('Preg')
+          .mockResolvedValueOnce('Sim')
+          .mockResolvedValueOnce('Coach');
+
+        await service.run(1);
+
+        // DeepSeek should only be called 6 times (steps 2-7), not 7
+        expect(deepseekService.chat).toHaveBeenCalledTimes(6);
+        // Last updateOutput call should not contain step_8_emails
+        const lastOutputUpdate = prismaService.techSheet.update.mock.calls
+          .filter((c: any) => c[0].data?.pipeline_output)
+          .pop();
+        expect(lastOutputUpdate[0].data.pipeline_output.step_8_emails).toBeUndefined();
+      });
+
+      it('should run step 8 when email_simulado is active', async () => {
+        prismaService.courseConfig.findUnique.mockResolvedValue({
+          active_modules: ['email_simulado'],
+        });
+        markitdownClient.convert.mockResolvedValue('# Doc');
+        deepseekService.chat
+          .mockResolvedValueOnce('VALIDADO')
+          .mockResolvedValueOnce('Comp')
+          .mockResolvedValueOnce('KPI')
+          .mockResolvedValueOnce('Preg')
+          .mockResolvedValueOnce('Sim')
+          .mockResolvedValueOnce('Coach')
+          .mockResolvedValueOnce(
+            JSON.stringify([{ subject: 'Test', body: 'Body', trigger_condition: 'on_start', timing_minutes: 0 }]),
+          );
+
+        await service.run(1);
+
+        // DeepSeek should be called 7 times (steps 2-8)
+        expect(deepseekService.chat).toHaveBeenCalledTimes(7);
+        const lastOutputUpdate = prismaService.techSheet.update.mock.calls
+          .filter((c: any) => c[0].data?.pipeline_output)
+          .pop();
+        expect(lastOutputUpdate[0].data.pipeline_output.step_8_emails).toBeDefined();
+      });
+
+      it('should not fail pipeline when step 8 DeepSeek call throws', async () => {
+        prismaService.courseConfig.findUnique.mockResolvedValue({
+          active_modules: ['email_simulado'],
+        });
+        markitdownClient.convert.mockResolvedValue('# Doc');
+        deepseekService.chat
+          .mockResolvedValueOnce('VALIDADO')
+          .mockResolvedValueOnce('Comp')
+          .mockResolvedValueOnce('KPI')
+          .mockResolvedValueOnce('Preg')
+          .mockResolvedValueOnce('Sim')
+          .mockResolvedValueOnce('Coach')
+          .mockRejectedValueOnce(new Error('DeepSeek timeout'));
+
+        await service.run(1);
+
+        expect(prismaService.techSheet.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ pipeline_status: 'completed' }),
+          }),
+        );
+      });
+    });
+
+    describe('normalizeActiveModules', () => {
+      it('should support array-of-objects format (from frontend course config)', async () => {
+        prismaService.courseConfig.findUnique.mockResolvedValue({
+          active_modules: [
+            { id: 'email_simulado', name: 'Email Simulado', enabled: true },
+            { id: 'hoja_calculo', name: 'Hoja de Cálculo', enabled: true },
+            { id: 'crisis_engine', name: 'Motor de Crisis', enabled: true },
+          ],
+        });
+        markitdownClient.convert.mockResolvedValue('# Doc');
+        deepseekService.chat
+          .mockResolvedValueOnce('VALIDADO')
+          .mockResolvedValueOnce('Comp')
+          .mockResolvedValueOnce('KPI')
+          .mockResolvedValueOnce('Preg')
+          .mockResolvedValueOnce('Sim')
+          .mockResolvedValueOnce('Coach')
+          .mockResolvedValueOnce(
+            JSON.stringify([{ subject: 'Email', body: 'Body', trigger_condition: 'start', timing_minutes: 0 }]),
+          )
+          .mockResolvedValueOnce(
+            JSON.stringify({ columnas: [{ encabezado: 'C', tipo: 'texto' }], datos_ejemplo: [] }),
+          )
+          .mockResolvedValueOnce(
+            JSON.stringify([{ detonante: 'X', descripcion: 'Y', opciones_resolucion: ['A'] }]),
+          );
+
+        await service.run(1);
+
+        // Should call 9 times: steps 2-7 + 3 extra for steps 8-10
+        expect(deepseekService.chat).toHaveBeenCalledTimes(9);
+      });
+
+      it('should skip disabled modules in object format', async () => {
+        prismaService.courseConfig.findUnique.mockResolvedValue({
+          active_modules: [
+            { id: 'email_simulado', name: 'Email', enabled: true },
+            { id: 'hoja_calculo', name: 'Hoja', enabled: false },
+            { id: 'crisis_engine', name: 'Crisis', enabled: false },
+          ],
+        });
+        markitdownClient.convert.mockResolvedValue('# Doc');
+        deepseekService.chat
+          .mockResolvedValueOnce('VALIDADO')
+          .mockResolvedValueOnce('Comp')
+          .mockResolvedValueOnce('KPI')
+          .mockResolvedValueOnce('Preg')
+          .mockResolvedValueOnce('Sim')
+          .mockResolvedValueOnce('Coach')
+          .mockResolvedValueOnce(
+            JSON.stringify([{ subject: 'E', body: 'B', trigger_condition: 'start', timing_minutes: 0 }]),
+          );
+
+        await service.run(1);
+
+        // Only step 8 should run (email_simulado enabled), steps 9-10 skipped
+        expect(deepseekService.chat).toHaveBeenCalledTimes(7);
+      });
+    });
+
+    describe('step 9 — spreadsheet generation (module gate + retry)', () => {
+      it('should skip step 9 when hoja_calculo is not active', async () => {
+        prismaService.courseConfig.findUnique.mockResolvedValue({
+          active_modules: ['chat_ia'],
+        });
+        markitdownClient.convert.mockResolvedValue('# Doc');
+        deepseekService.chat
+          .mockResolvedValueOnce('VALIDADO')
+          .mockResolvedValueOnce('Comp')
+          .mockResolvedValueOnce('KPI')
+          .mockResolvedValueOnce('Preg')
+          .mockResolvedValueOnce('Sim')
+          .mockResolvedValueOnce('Coach');
+
+        await service.run(1);
+
+        expect(deepseekService.chat).toHaveBeenCalledTimes(6);
+        const lastOutputUpdate = prismaService.techSheet.update.mock.calls
+          .filter((c: any) => c[0].data?.pipeline_output)
+          .pop();
+        expect(lastOutputUpdate[0].data.pipeline_output.step_9_spreadsheet).toBeUndefined();
+      });
+
+      it('should run step 9 when hoja_calculo is active', async () => {
+        prismaService.courseConfig.findUnique.mockResolvedValue({
+          active_modules: ['hoja_calculo'],
+        });
+        markitdownClient.convert.mockResolvedValue('# Doc');
+        deepseekService.chat
+          .mockResolvedValueOnce('VALIDADO')
+          .mockResolvedValueOnce('Comp')
+          .mockResolvedValueOnce('KPI')
+          .mockResolvedValueOnce('Preg')
+          .mockResolvedValueOnce('Sim')
+          .mockResolvedValueOnce('Coach')
+          .mockResolvedValueOnce(
+            JSON.stringify({ columnas: [{ encabezado: 'A', tipo: 'texto' }], datos_ejemplo: [{ a: 1 }] }),
+          );
+
+        await service.run(1);
+
+        expect(deepseekService.chat).toHaveBeenCalledTimes(7);
+        const lastOutputUpdate = prismaService.techSheet.update.mock.calls
+          .filter((c: any) => c[0].data?.pipeline_output)
+          .pop();
+        expect(lastOutputUpdate[0].data.pipeline_output.step_9_spreadsheet).toBeDefined();
+      });
+
+      it('should retry once on parse failure then succeed', async () => {
+        prismaService.courseConfig.findUnique.mockResolvedValue({
+          active_modules: ['hoja_calculo'],
+        });
+        markitdownClient.convert.mockResolvedValue('# Doc');
+        deepseekService.chat
+          .mockResolvedValueOnce('VALIDADO')
+          .mockResolvedValueOnce('Comp')
+          .mockResolvedValueOnce('KPI')
+          .mockResolvedValueOnce('Preg')
+          .mockResolvedValueOnce('Sim')
+          .mockResolvedValueOnce('Coach')
+          .mockResolvedValueOnce('not valid json {{{')
+          .mockResolvedValueOnce(
+            JSON.stringify({ columnas: [{ encabezado: 'A', tipo: 'texto' }], datos_ejemplo: [{ a: 1 }] }),
+          );
+
+        await service.run(1);
+
+        // 8 calls: steps 2-7 + first attempt (parse fail) + retry (success)
+        expect(deepseekService.chat).toHaveBeenCalledTimes(8);
+        const lastOutputUpdate = prismaService.techSheet.update.mock.calls
+          .filter((c: any) => c[0].data?.pipeline_output)
+          .pop();
+        expect(lastOutputUpdate[0].data.pipeline_output.step_9_spreadsheet).toBeDefined();
+      });
+    });
+
+    describe('step 10 — crisis scenarios (module gate + timeout resilience)', () => {
+      it('should skip step 10 when crisis_engine is not active', async () => {
+        prismaService.courseConfig.findUnique.mockResolvedValue({
+          active_modules: ['chat_ia'],
+        });
+        markitdownClient.convert.mockResolvedValue('# Doc');
+        deepseekService.chat
+          .mockResolvedValueOnce('VALIDADO')
+          .mockResolvedValueOnce('Comp')
+          .mockResolvedValueOnce('KPI')
+          .mockResolvedValueOnce('Preg')
+          .mockResolvedValueOnce('Sim')
+          .mockResolvedValueOnce('Coach');
+
+        await service.run(1);
+
+        expect(deepseekService.chat).toHaveBeenCalledTimes(6);
+        const lastOutputUpdate = prismaService.techSheet.update.mock.calls
+          .filter((c: any) => c[0].data?.pipeline_output)
+          .pop();
+        expect(lastOutputUpdate[0].data.pipeline_output.step_10_crisis).toBeUndefined();
+      });
+
+      it('should run step 10 when crisis_engine is active', async () => {
+        prismaService.courseConfig.findUnique.mockResolvedValue({
+          active_modules: ['crisis_engine'],
+        });
+        markitdownClient.convert.mockResolvedValue('# Doc');
+        deepseekService.chat
+          .mockResolvedValueOnce('VALIDADO')
+          .mockResolvedValueOnce('Comp')
+          .mockResolvedValueOnce('KPI')
+          .mockResolvedValueOnce('Preg')
+          .mockResolvedValueOnce('Sim')
+          .mockResolvedValueOnce('Coach')
+          .mockResolvedValueOnce(
+            JSON.stringify({ escenarios: [{ detonante: 'X', descripcion: 'Y', opciones_resolucion: ['A'] }] }),
+          );
+
+        await service.run(1);
+
+        expect(deepseekService.chat).toHaveBeenCalledTimes(7);
+        const lastOutputUpdate = prismaService.techSheet.update.mock.calls
+          .filter((c: any) => c[0].data?.pipeline_output)
+          .pop();
+        expect(lastOutputUpdate[0].data.pipeline_output.step_10_crisis).toBeDefined();
+      });
+
+      it('should not fail pipeline when step 10 throws timeout error', async () => {
+        prismaService.courseConfig.findUnique.mockResolvedValue({
+          active_modules: ['crisis_engine'],
+        });
+        markitdownClient.convert.mockResolvedValue('# Doc');
+        deepseekService.chat
+          .mockResolvedValueOnce('VALIDADO')
+          .mockResolvedValueOnce('Comp')
+          .mockResolvedValueOnce('KPI')
+          .mockResolvedValueOnce('Preg')
+          .mockResolvedValueOnce('Sim')
+          .mockResolvedValueOnce('Coach')
+          .mockRejectedValueOnce(Object.assign(new Error('timeout of 60000ms exceeded'), { code: 'ECONNABORTED' }));
+
+        await service.run(1);
+
+        expect(prismaService.techSheet.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ pipeline_status: 'completed' }),
+          }),
+        );
+      });
+    });
+
     describe.skip('table writes on completion', () => {
       it('should delete old data and insert new rows for competencies/KPIs/tasks/prompts', async () => {
         markitdownClient.convert.mockResolvedValue('# Documento markdown');
@@ -298,7 +587,7 @@ describe('AnalysisPipelineService', () => {
 
         // Inserts still attempted (deleteMany + createMany for prompts)
         expect(prismaService.techSheetPrompt.deleteMany).toHaveBeenCalled();
-      });
+    });
     });
   });
 });
