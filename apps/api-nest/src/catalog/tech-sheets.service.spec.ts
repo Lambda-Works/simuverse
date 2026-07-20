@@ -1,11 +1,11 @@
-// SKIP: Tests broken from Vite→Next.js migration
+// NOTE: Some tests broken from Vite→Next.js migration — config API tests for step 8-10 are new and should pass
 import { Test, TestingModule } from '@nestjs/testing';
 import { TechSheetsService } from './tech-sheets.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnalysisPipelineService } from './analysis-pipeline.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 
-describe.skip('TechSheetsService', () => {
+describe('TechSheetsService', () => {
   let service: TechSheetsService;
   let prismaService: any;
   let analysisPipeline: any;
@@ -219,6 +219,75 @@ describe.skip('TechSheetsService', () => {
           },
         },
       });
+    });
+
+    it('should return step_8_emails from pipeline_output in getConfig', async () => {
+      prismaService.techSheetCompetency.count.mockResolvedValue(0);
+      prismaService.techSheet.findUnique.mockResolvedValue({
+        ...mockSheet,
+        extracted_data: null,
+        pipeline_output: {
+          step_1_markdown: '# Doc',
+          step_8_emails: [{ subject: 'Email', body: 'Body', trigger_condition: 'start', timing_minutes: 0 }],
+          step_9_spreadsheet: { columnas: [{ encabezado: 'Col', tipo: 'texto' }], datos_ejemplo: [] },
+          step_10_crisis: [{ detonante: 'X', descripcion: 'Y', opciones_resolucion: ['A'] }],
+        },
+      });
+
+      const result = await service.getConfig(1);
+
+      // Config should include pipeline_output step 8-10 fields
+      expect((result as any).pipeline_output).toBeDefined();
+      expect((result as any).pipeline_output.step_8_emails).toHaveLength(1);
+      expect((result as any).pipeline_output.step_9_spreadsheet.columnas).toHaveLength(1);
+      expect((result as any).pipeline_output.step_10_crisis).toHaveLength(1);
+    });
+
+    it('should return null step 8-10 fields when pipeline_output has no step 8-10 keys', async () => {
+      prismaService.techSheetCompetency.count.mockResolvedValue(0);
+      prismaService.techSheet.findUnique.mockResolvedValue({
+        ...mockSheet,
+        extracted_data: null,
+        pipeline_output: { step_1_markdown: '# Doc' },
+      });
+
+      const result = await service.getConfig(1);
+
+      expect((result as any).pipeline_output).toBeDefined();
+      expect((result as any).pipeline_output.step_8_emails).toBeNull();
+      expect((result as any).pipeline_output.step_9_spreadsheet).toBeNull();
+      expect((result as any).pipeline_output.step_10_crisis).toBeNull();
+    });
+
+    it('should persist step_8_emails edits via updateConfig without removing other keys', async () => {
+      prismaService.techSheet.findUnique.mockResolvedValue({
+        ...mockSheet,
+        extracted_data: { analyzed_config: {} },
+        pipeline_output: {
+          step_1_markdown: '# Doc',
+          step_7_coaching_prompt: 'Coach prompt',
+          step_8_emails: [{ subject: 'Old', body: 'Old body' }],
+        },
+      });
+      prismaService.techSheet.update.mockResolvedValue(mockSheet);
+      prismaService.$transaction.mockImplementation(async (fn: any) => fn(prismaService));
+
+      await service.updateConfig(1, {
+        competencies: [],
+        kpis: [],
+        tasks: [],
+        prompts: {},
+        pipeline_output: {
+          step_8_emails: [{ subject: 'New', body: 'New body' }],
+        },
+      });
+
+      const updateCall = prismaService.techSheet.update.mock.calls.find(
+        (c: any) => c[0].data?.pipeline_output,
+      );
+      expect(updateCall).toBeDefined();
+      expect(updateCall[0].data.pipeline_output.step_8_emails[0].subject).toBe('New');
+      expect(updateCall[0].data.pipeline_output.step_7_coaching_prompt).toBe('Coach prompt');
     });
   });
 
