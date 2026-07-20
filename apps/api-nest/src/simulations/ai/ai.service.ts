@@ -22,6 +22,10 @@ export interface PromptData {
   prior_context?: string;
   /** Domain boundary for off-topic guard */
   subject_domain?: string;
+  /** Custom system prompt configured per-course (ia_config.systemPrompt). Overrides the default persona body. */
+  system_prompt?: string;
+  /** Custom coaching prompt configured per-course (ia_config.coachingPrompt). */
+  coaching_prompt?: string;
 }
 
 /** Section identifiers for priority-based trimming (higher index = trimmed first). */
@@ -32,7 +36,9 @@ interface PromptSection {
   priority: number;
 }
 
-const DEFAULT_MAX_TOKENS = 2000;
+// High cap so a per-course custom system/coaching prompt is never truncated.
+// Trimming still applies as a safety net for pathologically large prompts.
+const DEFAULT_MAX_TOKENS = 50000;
 const CHARS_PER_TOKEN = 4; // heuristic for Spanish
 
 export interface AIResponse {
@@ -170,6 +176,8 @@ export class AIService {
       difficulty,
       prior_context,
       subject_domain,
+      system_prompt,
+      coaching_prompt,
     } = promptData;
 
     const sections: PromptSection[] = [];
@@ -228,6 +236,18 @@ NO des tutoriales, ejemplos de código, instrucciones paso a paso, ni ayuda de n
       });
     }
 
+    // Custom system prompt (per-course ia_config.systemPrompt) — highest priority,
+    // becomes the main persona body when configured. Placed before base_role so it
+    // leads and is never trimmed.
+    if (system_prompt && system_prompt.trim()) {
+      sections.push({
+        id: 'custom_system_prompt',
+        header: '',
+        body: system_prompt.trim(),
+        priority: 0,
+      });
+    }
+
     // 1. Base role (highest priority — never trimmed)
     sections.push({
       id: 'base_role',
@@ -269,6 +289,17 @@ NO des tutoriales, ejemplos de código, instrucciones paso a paso, ni ayuda de n
         header: 'COMPORTAMIENTO DE ROL',
         body: role_behavior,
         priority: 4,
+      });
+    }
+
+    // 5b. Custom coaching prompt (per-course ia_config.coachingPrompt) — how the
+    // agent should guide/coach the student.
+    if (coaching_prompt && coaching_prompt.trim()) {
+      sections.push({
+        id: 'custom_coaching_prompt',
+        header: 'GUÍA DE COACHING',
+        body: coaching_prompt.trim(),
+        priority: 5,
       });
     }
 

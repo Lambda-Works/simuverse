@@ -22,7 +22,13 @@ export class SimulationReviewController {
       where: { id: instanceId },
       include: {
         scenario: true,
-        course: { select: { title: true, category: true } },
+        course: {
+          select: {
+            title: true,
+            category: true,
+            teachers: { include: { teacher: { select: { name: true } } } },
+          },
+        },
         student: { select: { name: true, email: true } },
       },
     });

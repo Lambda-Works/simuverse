@@ -159,6 +159,42 @@ describe('AIService', () => {
       expect(prompt).not.toContain('INSTRUCCIONES CRÍTICAS');
     });
 
+    it('includes a custom system_prompt when provided', () => {
+      const prompt = service.buildSystemPrompt({
+        ...basePromptData,
+        system_prompt: 'Actuá como un cliente enojado que reclama por un producto defectuoso.',
+      });
+      expect(prompt).toContain('Actuá como un cliente enojado que reclama por un producto defectuoso.');
+    });
+
+    it('leads with the custom system_prompt before base_role', () => {
+      const prompt = service.buildSystemPrompt({
+        ...basePromptData,
+        system_prompt: 'PROMPT_PERSONALIZADO_MARCADOR',
+      });
+      expect(prompt.indexOf('PROMPT_PERSONALIZADO_MARCADOR')).toBeLessThan(
+        prompt.indexOf('Sos un profesor de contabilidad.'),
+      );
+    });
+
+    it('includes a custom coaching_prompt under a coaching section', () => {
+      const prompt = service.buildSystemPrompt({
+        ...basePromptData,
+        coaching_prompt: 'Guiá al alumno con preguntas socráticas, sin dar la respuesta.',
+      });
+      expect(prompt).toContain('GUÍA DE COACHING');
+      expect(prompt).toContain('Guiá al alumno con preguntas socráticas, sin dar la respuesta.');
+    });
+
+    it('omits custom prompt sections when they are empty or whitespace', () => {
+      const prompt = service.buildSystemPrompt({
+        ...basePromptData,
+        system_prompt: '   ',
+        coaching_prompt: '',
+      });
+      expect(prompt).not.toContain('GUÍA DE COACHING');
+    });
+
     it('should prepend employment axis content when available', () => {
       const employmentContent =
         '# Eje Empleabilidad — Contenido Estático\n\nEmpleabilidad.\nMedidas de Seguridad e Higiene en el ámbito laboral.';

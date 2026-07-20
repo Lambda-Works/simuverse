@@ -204,6 +204,8 @@ export class SimulationsController {
         personality_traits: (config?.personality_traits as string[]) || [],
         student_history: [],
         subject_domain: this.extractSubjectDomain(config?.course_context),
+        system_prompt: (config?.ia_config as any)?.systemPrompt || '',
+        coaching_prompt: (config?.ia_config as any)?.coachingPrompt || '',
         ...practiceExtras,
       });
 
@@ -254,6 +256,8 @@ export class SimulationsController {
       chatbot_humano_enabled: true,
       current_state: this.conversationState.getStatePrompt(convState.state),
       subject_domain: this.extractSubjectDomain(config?.course_context),
+      system_prompt: (config?.ia_config as any)?.systemPrompt || '',
+      coaching_prompt: (config?.ia_config as any)?.coachingPrompt || '',
       ...practiceExtras,
     });
 

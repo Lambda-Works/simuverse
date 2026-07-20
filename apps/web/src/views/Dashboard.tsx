@@ -10,6 +10,7 @@ import { apiClient } from '@/services/ApiClient';
 import { Award, BookOpen, CalendarDays, CheckCircle2, Clock, Eye, GraduationCap, HelpCircle, Lock, MessageSquare, Play, Settings, Shield } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 interface Course {
   id: string;
@@ -61,6 +62,7 @@ const Dashboard = () => {
   const [enrollPassword, setEnrollPassword] = useState('');
   const [enrollingId, setEnrollingId] = useState<string | null>(null);
   const [enrollError, setEnrollError] = useState('');
+  const [enrollErrorCourseId, setEnrollErrorCourseId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) router.push('/auth');
@@ -80,6 +82,7 @@ const Dashboard = () => {
 
   const handleEnroll = async (courseId: string, requiresPassword: boolean) => {
     setEnrollError('');
+    setEnrollErrorCourseId(null);
     setEnrollingId(courseId);
     try {
       await apiClient.post(`/courses/${courseId}/enroll`, {
@@ -97,9 +100,10 @@ const Dashboard = () => {
         setCourses(allCourses.filter((c) => assignedCourseIds.has(c.id)));
       }
     } catch (err: any) {
-      setEnrollError(
-        err.response?.data?.message || err.message || 'No se pudo inscribir al curso',
-      );
+      const msg = err.response?.data?.message || err.message || 'No se pudo inscribir al curso';
+      setEnrollError(msg);
+      setEnrollErrorCourseId(courseId);
+      toast.error(msg);
     } finally {
       setEnrollingId(null);
     }
@@ -267,7 +271,11 @@ const Dashboard = () => {
                             type="password"
                             placeholder="Contraseña del curso"
                             value={enrollingId === c.id || !enrollingId ? enrollPassword : ''}
-                            onChange={(e) => setEnrollPassword(e.target.value)}
+                            onChange={(e) => {
+                              setEnrollPassword(e.target.value);
+                              if (enrollErrorCourseId === c.id) { setEnrollError(''); setEnrollErrorCourseId(null); }
+                            }}
+                            className={enrollErrorCourseId === c.id ? 'border-red-500 focus-visible:ring-red-500' : ''}
                           />
                         )}
                         <Button
@@ -422,7 +430,7 @@ const Dashboard = () => {
                         {/* Info de intentos / score */}
                         {enriched && (
                           <div className="flex items-center justify-between text-xs text-muted-foreground mb-3 bg-muted/40 rounded-md px-2 py-1.5">
-                            {attemptsLeft !== null && (
+                            {attemptsLeft !== null && calStatus !== 'completed' && (
                               <span className={`flex items-center gap-1 ${attemptsLeft === 0 ? 'text-red-600 font-semibold' : ''}`}>
                                 <Clock className="w-3 h-3" />
                                 {attemptsLeft > 0 ? `${attemptsLeft} intento${attemptsLeft !== 1 ? 's' : ''} restante${attemptsLeft !== 1 ? 's' : ''}` : 'Sin intentos'}
