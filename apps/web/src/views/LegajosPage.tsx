@@ -48,7 +48,7 @@ const LegajosPage = () => {
   const [sortBy, setSortBy] = useState<'name' | 'activity' | 'score'>('activity');
 
   useEffect(() => {
-    if (!loading && user && !hasRole('admin') && !hasRole('teacher') && !hasRole('ministerio')) {
+    if (!loading && user && !hasRole('admin') && !hasRole('teacher') && !hasRole('ministerio') && !hasRole('supervisor')) {
       router.push('/auth');
     }
   }, [user, loading, hasRole, router]);
@@ -107,7 +107,7 @@ const LegajosPage = () => {
           <p className="text-muted-foreground mb-6">{error}</p>
           <Button onClick={() => {
             if (hasRole('admin')) router.push('/admin/mis-cursos');
-            else if (hasRole('teacher')) router.push('/profesor/cursos');
+            else if (hasRole('teacher') || hasRole('supervisor')) router.push('/profesor/cursos');
             else if (hasRole('ministerio')) router.push('/ministerio');
             else router.push('/estudiante/cursos');
           }}>Volver al inicio</Button>

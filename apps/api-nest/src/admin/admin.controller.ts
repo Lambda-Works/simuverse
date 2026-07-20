@@ -12,10 +12,13 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CoursesService } from '../courses/courses.service';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
 
 @Controller('admin')
+@Roles('admin')
+@UseGuards(RolesGuard)
 export class AdminController {
   constructor(
     private adminService: AdminService,

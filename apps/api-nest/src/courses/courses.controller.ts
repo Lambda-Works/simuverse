@@ -15,7 +15,9 @@ import { IsString, IsOptional, IsBoolean, IsArray, IsInt, MinLength } from 'clas
 import { CoursesService } from './courses.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { Permissions } from '../common/decorators/permissions.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 class CreateCourseDto {
@@ -145,7 +147,7 @@ class EnrollDto {
 }
 
 @Controller('courses')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 export class CoursesController {
   constructor(private coursesService: CoursesService) {}
 
@@ -167,12 +169,14 @@ export class CoursesController {
 
   @Post()
   @Roles('admin')
+  @Permissions('courses.manage')
   async create(@Body() dto: CreateCourseDto) {
     return this.coursesService.create(dto);
   }
 
   @Put(':id')
   @Roles('admin', 'teacher')
+  @Permissions('courses.manage')
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateCourseDto,
@@ -183,6 +187,7 @@ export class CoursesController {
 
   @Post(':id/regenerate-password')
   @Roles('admin', 'teacher')
+  @Permissions('courses.manage')
   async regeneratePassword(
     @Param('id') id: string,
     @CurrentUser() user: { id: string; role: string },
@@ -202,6 +207,7 @@ export class CoursesController {
 
   @Delete(':id')
   @Roles('admin')
+  @Permissions('courses.manage')
   @HttpCode(HttpStatus.OK)
   async remove(@Param('id') id: string) {
     await this.coursesService.remove(id);

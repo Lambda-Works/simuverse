@@ -19,10 +19,11 @@ import { useAdmin } from '@/lib/admin-context';
 import { ADMIN_NAV_GROUPS } from '@/lib/admin-nav';
 import { ROLE_NAV } from '@/lib/nav-config';
 import { useSidebarHeader } from '@/lib/sidebar-header-context';
+import { apiClient } from '@/services/ApiClient';
 import { ArrowLeft, ChevronDown, ChevronRight, LogOut, Menu, PanelLeftClose, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const GROUP_STORAGE_KEY = 'admin-sidebar:groups-v2';
 
@@ -49,6 +50,50 @@ export function AppSidebar() {
   const role = (displayUser?.role || 'student') as string;
   const navItems = ROLE_NAV[role as keyof typeof ROLE_NAV] || ROLE_NAV.student;
   const isAdmin = role === 'admin' || role === 'ministerio';
+
+  // ── Permission-based sidebar visibility ──────────────────────────
+  const [enabledCodes, setEnabledCodes] = useState<Set<string>>(new Set());
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!role || role === 'student' || isAdmin) {
+      setEnabledCodes(new Set());
+      setPermissionsLoaded(true);
+      return;
+    }
+    setPermissionsLoaded(false);
+    apiClient
+      .get(`/role-permissions?role_name=${encodeURIComponent(role)}`)
+      .then((res) => {
+        const data = Array.isArray(res.data) ? res.data : [];
+        const codes = new Set<string>();
+        for (const p of data) {
+          if (p.enabled && p.code) codes.add(p.code);
+        }
+        setEnabledCodes(codes);
+      })
+      .catch(() => setEnabledCodes(new Set()))
+      .finally(() => setPermissionsLoaded(true));
+  }, [role, isAdmin, user]);
+  // Filter groups by permissions (for non-admin roles that have admin permissions)
+  const visibleGroups = useMemo(() => {
+    if (isAdmin) return ADMIN_NAV_GROUPS;
+
+    if (!permissionsLoaded) return [];
+
+    return ADMIN_NAV_GROUPS
+      .map((group) => {
+        const visibleItems = group.items.filter((item) => {
+          if (item.excludeRoles?.includes(role)) return false;
+          if (!item.permissionCode) return false; // admin-only item
+          return enabledCodes.has(item.permissionCode);
+        });
+        return { ...group, items: visibleItems };
+      })
+      .filter((group) => group.items.length > 0);
+  }, [isAdmin, permissionsLoaded, enabledCodes, role]);
+
+  const showAdminSidebar = isAdmin || visibleGroups.length > 0;
   const adminPath = role === 'ministerio' ? '/ministerio/admin' : '/admin';
   const homeRoute = role === 'admin' ? '/admin/mis-cursos' : role === 'ministerio' ? '/ministerio' : (navItems[0]?.href || '/auth');
   const { currentTab, setCurrentTab } = useAdmin();
@@ -64,11 +109,11 @@ export function AppSidebar() {
 
   // Auto-expand group containing the active admin sub-tab
   useEffect(() => {
-    if (!isAdmin || pathname !== adminPath) return;
+    if (!showAdminSidebar || pathname !== adminPath) return;
     setExpandedGroups((prev) => {
       let changed = false;
       const next = { ...prev };
-      for (const group of ADMIN_NAV_GROUPS) {
+      for (const group of visibleGroups) {
         const hasActive = group.items.some((item) => item.id === currentTab);
         if (hasActive && !next[group.id]) {
           next[group.id] = true;
@@ -173,10 +218,10 @@ export function AppSidebar() {
           </SidebarMenu>
         </SidebarGroup>
 
-        {isAdmin && (
+        {showAdminSidebar && (
           <>
         <SidebarSeparator />
-            {ADMIN_NAV_GROUPS.map((group) => (
+            {visibleGroups.map((group) => (
               <SidebarGroup key={group.id} className="group-data-[collapsible=icon]:px-0">
                 <SidebarMenu className="group-data-[collapsible=icon]:items-center">
                   <SidebarMenuItem className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">

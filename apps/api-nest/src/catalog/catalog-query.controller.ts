@@ -9,10 +9,14 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { CatalogQueryService } from './catalog-query.service';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { Permissions } from '../common/decorators/permissions.decorator';
 
 @Controller()
+@UseGuards(RolesGuard, PermissionsGuard)
 export class CatalogQueryController {
   constructor(private queryService: CatalogQueryService) {}
 
@@ -55,11 +59,14 @@ export class CatalogQueryController {
   }
 
   @Get('role-permissions')
+  @Roles('admin', 'teacher')
   async getRolePermissions(@Query('role_name') roleName: string) {
     return this.queryService.getRolePermissions(roleName);
   }
 
   @Put('role-permissions')
+  @Roles('admin')
+  @Permissions('rbac.manage')
   async upsertRolePermissions(
     @Body() body: { role_name: string; permissions: { functionality_id: number; enabled: boolean | number }[] },
   ) {

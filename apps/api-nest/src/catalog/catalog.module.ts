@@ -21,8 +21,10 @@ import {
 import { MarkitdownClient } from './markitdown-client.service';
 import { DeepSeekService } from './deepseek.service';
 import { AnalysisPipelineService } from './analysis-pipeline.service';
+import { RbacModule } from '../rbac/rbac.module';
 
 @Module({
+  imports: [RbacModule],
   controllers: [
     CatalogController,
     DocumentsController,

@@ -6,6 +6,7 @@ import {
   Delete,
   Param,
   Body,
+  UseGuards,
   HttpCode,
   HttpStatus,
   ParseIntPipe,
@@ -19,8 +20,16 @@ import { UpdateTechSheetDto } from './dto/update-tech-sheet.dto';
 import { UpdateTechSheetConfigDto } from './dto/update-tech-sheet-config.dto';
 import { TriggerAnalysisDto } from './dto/trigger-analysis.dto';
 import { UpdateTechSheetPromptsDto } from './dto/update-tech-sheet-prompts.dto';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Permissions } from '../common/decorators/permissions.decorator';
 
 @Controller()
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@Roles('admin')
+@Permissions('catalog.manage')
 export class CatalogController {
   constructor(
     private categoriesService: CategoriesService,

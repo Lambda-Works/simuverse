@@ -4,7 +4,7 @@ import { DEMO_USERS } from '@/services/demoData';
 import { firebaseLogout, isFirebaseConfigured, onFirebaseAuthChanged, getFirebaseIdToken } from '@/lib/firebase';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-type AppRole = 'student' | 'teacher' | 'admin' | 'ministerio';
+type AppRole = string;
 
 interface AuthUser {
   id: string;

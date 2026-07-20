@@ -111,7 +111,7 @@ const Dashboard = () => {
     const fetchData = async () => {
       try {
         // Admin, docentes y ministerio ven todos los cursos directamente
-        if (hasRole('admin') || hasRole('teacher') || hasRole('ministerio')) {
+        if (hasRole('admin') || hasRole('teacher') || hasRole('ministerio') || hasRole('supervisor')) {
           const response = await apiClient.get('/courses');
           setCourses(response.data);
           setAssignmentsLoaded(true);
@@ -190,7 +190,7 @@ const Dashboard = () => {
     ministerio: { label: 'Ministerio', icon: <Shield className="w-3 h-3" />, color: 'bg-warning/10 text-warning' },
   };
 
-  const isStudentOnly = hasRole('student') && !hasRole('teacher') && !hasRole('admin');
+  const isStudentOnly = hasRole('student') && !hasRole('teacher') && !hasRole('admin') && !hasRole('supervisor');
   const hasNoAssignments = isStudentOnly && assignments.length === 0;
 
   return (
