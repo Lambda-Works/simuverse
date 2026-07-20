@@ -46,11 +46,12 @@ describe('LegajosPage terminology', () => {
     vi.clearAllMocks();
   });
 
-  it('renders "Con Simulaciones Completadas" instead of "Con evaluaciones"', async () => {
+  it('removes "Con evaluaciones" and "Con Simulaciones Completadas", keeps single "Con simulaciones"', async () => {
     render(<LegajosPage />);
     await screen.findByText('Ana');
-    expect(screen.getByText('Con Simulaciones Completadas')).toBeDefined();
+    expect(screen.getByText('Con simulaciones')).toBeDefined();
     expect(screen.queryByText('Con evaluaciones')).toBeNull();
+    expect(screen.queryByText('Con Simulaciones Completadas')).toBeNull();
   });
 
   it('renders "Sim." instead of "Eval." in stats row', async () => {
