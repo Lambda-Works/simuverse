@@ -33,10 +33,14 @@ describe('Courses (e2e)', () => {
         create: jest.fn(),
         upsert: jest.fn(),
       },
-      $transaction: jest.fn(),
+      courseEndorser: { deleteMany: jest.fn(), createMany: jest.fn() },
+      courseSimulatedCompany: { deleteMany: jest.fn(), createMany: jest.fn() },
+      courseFoundationConfig: { deleteMany: jest.fn(), createMany: jest.fn() },
+      courseSponsor: { deleteMany: jest.fn(), createMany: jest.fn() },
       $connect: jest.fn(),
       $disconnect: jest.fn(),
     };
+    prismaMock.$transaction = jest.fn((callback: any) => callback(prismaMock));
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -134,11 +138,15 @@ describe('Courses (e2e)', () => {
     });
 
     it('should create a new course', async () => {
-      prismaMock.course.findUnique.mockResolvedValue(null);
-      prismaMock.course.create.mockResolvedValue({
+      const created = {
         id: 'c-new', course_id: 'NEW1', title: 'New Course', category: 'it',
         is_active: true, created_at: new Date(), updated_at: new Date(),
+      };
+      prismaMock.course.findUnique.mockImplementation(({ where }: any) => {
+        if (where.id === 'c-new') return Promise.resolve(created);
+        return Promise.resolve(null);
       });
+      prismaMock.course.create.mockResolvedValue(created);
 
       const response = await request(app.getHttpServer())
         .post('/api/courses')
@@ -180,9 +188,14 @@ describe('Courses (e2e)', () => {
     });
 
     it('should update a course', async () => {
-      prismaMock.course.update.mockResolvedValue({
+      const updated = {
         id: 'c1', course_id: 'CS101', title: 'Updated CS', category: 'it',
         is_active: true, created_at: new Date(), updated_at: new Date(),
+      };
+      prismaMock.course.update.mockResolvedValue(updated);
+      prismaMock.course.findUnique.mockImplementation(({ where }: any) => {
+        if (where.id === 'CS101' || where.course_id === 'CS101') return Promise.resolve(updated);
+        return Promise.resolve(null);
       });
 
       const response = await request(app.getHttpServer())

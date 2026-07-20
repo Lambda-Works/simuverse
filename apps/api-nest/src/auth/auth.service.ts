@@ -131,6 +131,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (!user.is_active) {
+      throw new UnauthorizedException('Cuenta desactivada. Contacte al administrador.');
+    }
+
     return this.generateTokens(user.id, user.email, user.role);
   }
 

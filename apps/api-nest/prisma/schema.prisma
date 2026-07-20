@@ -205,39 +205,42 @@ model TeacherGroup {
 }
 
 model Course {
-  id                   String   @id @default(uuid()) @db.VarChar(36)
-  course_id            String   @unique @db.VarChar(36)
-  title                String   @db.VarChar(255)
-  description          String?  @db.Text
-  category             String   @db.VarChar(100)
-  categories           Json?
-  modules              Json?
-  ai_config            Json?
-  eval_criteria        Json?
-  crisis_events        Json?
-  simulated_company_id Int?
-  tech_sheet_id        Int?
-  password_hash        String?  @db.VarChar(255)
-  drive_folder_url     String?  @db.Text
-  is_active            Boolean  @default(true)
-  created_by           String?  @db.VarChar(36)
-  created_at           DateTime @default(now())
-  updated_at           DateTime @updatedAt
+  id               String   @id @default(uuid()) @db.VarChar(36)
+  course_id        String   @unique @db.VarChar(36)
+  title            String   @db.VarChar(255)
+  description      String?  @db.Text
+  category         String   @db.VarChar(100)
+  categories       Json?
+  modules          Json?
+  ai_config        Json?
+  eval_criteria    Json?
+  crisis_events    Json?
+  tech_sheet_id    Int?
+  password_hash    String?  @db.VarChar(255)
+  drive_folder_url String?  @db.Text
+  is_active        Boolean  @default(true)
+  created_by       String?  @db.VarChar(36)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
 
-  config                CourseConfig?
-  simulations           Simulation[]
-  scenarios             Scenario[]
-  assessments           Assessment[]
-  course_modules        CourseModule[]
-  telemetry_logs        TelemetryLog[]
-  simulation_instances  SimulationInstance[]
-  ministry_requirements MinistryRequirement[]
-  kpis                  KPI[]
-  tasks                 Task[]
-  practice_logs         PracticeLogs[]
-  file_uploads          FileUpload[]
-  teachers              CourseTeacher[]
-  enrollment_attempts   EnrollmentAttempt[]
+  config                     CourseConfig?
+  simulations                Simulation[]
+  scenarios                  Scenario[]
+  assessments                Assessment[]
+  course_modules             CourseModule[]
+  telemetry_logs             TelemetryLog[]
+  simulation_instances       SimulationInstance[]
+  ministry_requirements      MinistryRequirement[]
+  kpis                       KPI[]
+  tasks                      Task[]
+  practice_logs              PracticeLogs[]
+  file_uploads               FileUpload[]
+  teachers                   CourseTeacher[]
+  enrollment_attempts        EnrollmentAttempt[]
+  course_endorsers           CourseEndorser[]
+  course_simulated_companies CourseSimulatedCompany[]
+  course_foundation_configs  CourseFoundationConfig[]
+  course_sponsors            CourseSponsor[]
 
   @@index([category])
   @@map("courses")
@@ -258,11 +261,11 @@ model CourseTeacher {
 }
 
 model EnrollmentAttempt {
-  id          Int      @id @default(autoincrement())
-  student_id  String   @db.VarChar(36)
-  course_id   String   @db.VarChar(36)
-  success     Boolean  @default(false)
-  created_at  DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  student_id String   @db.VarChar(36)
+  course_id  String   @db.VarChar(36)
+  success    Boolean  @default(false)
+  created_at DateTime @default(now())
 
   student User   @relation(fields: [student_id], references: [id], onDelete: Cascade)
   course  Course @relation(fields: [course_id], references: [id], onDelete: Cascade)
@@ -272,14 +275,14 @@ model EnrollmentAttempt {
 }
 
 model TermsVersion {
-  id           Int      @id @default(autoincrement())
-  version      String   @unique @db.VarChar(50)
-  title        String   @db.VarChar(255)
-  content      String   @db.Text
-  is_current   Boolean  @default(false)
+  id           Int       @id @default(autoincrement())
+  version      String    @unique @db.VarChar(50)
+  title        String    @db.VarChar(255)
+  content      String    @db.Text
+  is_current   Boolean   @default(false)
   published_at DateTime?
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
 
   acceptances UserTermsAcceptance[]
 
@@ -367,7 +370,7 @@ model SimulationInstance {
   completed_at        DateTime?
   updated_at          DateTime                 @updatedAt
 
-  student       User           @relation(fields: [student_id], references: [id])
+  student       User           @relation(fields: [student_id], references: [id], onDelete: Cascade)
   course        Course         @relation(fields: [course_id], references: [id])
   scenario      Scenario       @relation(fields: [scenario_id], references: [id])
   logs          PracticeLogs[]
@@ -417,7 +420,7 @@ model PracticeLogs {
   timestamp              BigInt
   docenter_notes         String?    @db.Text
 
-  student             User                @relation(fields: [student_id], references: [id])
+  student             User                @relation(fields: [student_id], references: [id], onDelete: Cascade)
   course              Course              @relation(fields: [course_id], references: [id])
   simulation_instance SimulationInstance? @relation(fields: [simulation_instance_id], references: [id])
 
@@ -851,32 +854,77 @@ model Endorser {
 }
 
 model CourseEndorser {
-  id          Int       @id @default(autoincrement())
-  course_id   String    @db.VarChar(36)
+  course_id   String   @db.VarChar(36)
   endorser_id Int
-  Endorser    Endorser? @relation(fields: [endorserId], references: [id])
-  endorserId  Int?
+  course      Course   @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  endorser    Endorser @relation(fields: [endorser_id], references: [id], onDelete: Cascade)
 
-  @@unique([course_id, endorser_id])
+  @@id([course_id, endorser_id])
   @@map("course_endorsers")
 }
 
+model CourseSimulatedCompany {
+  course_id            String           @db.VarChar(36)
+  simulated_company_id Int
+  course               Course           @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  simulated_company    SimulatedCompany @relation(fields: [simulated_company_id], references: [id], onDelete: Cascade)
+
+  @@id([course_id, simulated_company_id])
+  @@map("course_simulated_companies")
+}
+
+model CourseFoundationConfig {
+  course_id            String           @db.VarChar(36)
+  foundation_config_id Int
+  course               Course           @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  foundation_config    FoundationConfig @relation(fields: [foundation_config_id], references: [id], onDelete: Cascade)
+
+  @@id([course_id, foundation_config_id])
+  @@map("course_foundation_configs")
+}
+
+model CourseSponsor {
+  course_id  String  @db.VarChar(36)
+  sponsor_id Int
+  course     Course  @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  sponsor    Sponsor @relation(fields: [sponsor_id], references: [id], onDelete: Cascade)
+
+  @@id([course_id, sponsor_id])
+  @@map("course_sponsors")
+}
+
+model Sponsor {
+  id         Int      @id @default(autoincrement())
+  name       String   @db.VarChar(255)
+  logo_url   String?  @db.VarChar(500)
+  website    String?  @db.VarChar(500)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  course_sponsors CourseSponsor[]
+
+  @@map("sponsors")
+}
+
 model FoundationConfig {
-  id            Int      @id @default(autoincrement())
-  name          String   @db.VarChar(255)
-  short_name    String?  @db.VarChar(100)
-  logo_url      String?  @db.VarChar(500)
-  address       String?  @db.VarChar(255)
-  city          String?  @default("Rosario") @db.VarChar(100)
-  province      String?  @default("Santa Fe") @db.VarChar(100)
-  country       String?  @default("Argentina") @db.VarChar(100)
-  phone         String?  @db.VarChar(50)
-  email         String?  @db.VarChar(150)
-  website       String?  @db.VarChar(255)
-  ministry_aval String?  @db.Text
-  is_active     Boolean? @default(true)
-  created_at    DateTime @default(now()) @db.Timestamp(0)
-  updated_at    DateTime @default(now()) @updatedAt @db.Timestamp(0)
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(255)
+  short_name  String?  @db.VarChar(100)
+  logo_url    String?  @db.VarChar(500)
+  address     String?  @db.VarChar(255)
+  city        String?  @default("Rosario") @db.VarChar(100)
+  province    String?  @default("Santa Fe") @db.VarChar(100)
+  country     String?  @default("Argentina") @db.VarChar(100)
+  phone       String?  @db.VarChar(50)
+  email       String?  @db.VarChar(150)
+  website     String?  @db.VarChar(255)
+  description String?  @db.Text
+  is_active   Boolean? @default(true)
+  created_at  DateTime @default(now()) @db.Timestamp(0)
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamp(0)
+
+  course_foundation_configs CourseFoundationConfig[]
 
   @@map("foundation_config")
 }
@@ -919,7 +967,7 @@ model RolePermission {
   functionality_id Int
   enabled          Boolean @default(false)
 
-  role         Role               @relation(fields: [role_name], references: [name])
+  role          Role                @relation(fields: [role_name], references: [name])
   functionality SystemFunctionality @relation(fields: [functionality_id], references: [id])
 
   @@unique([role_name, functionality_id])
@@ -962,19 +1010,21 @@ model SimulationChatLog {
 }
 
 model SimulatedCompany {
-  id            Int      @id @default(autoincrement())
-  name          String   @db.VarChar(255)
-  short_name    String?  @db.VarChar(50)
-  description   String?  @db.Text
-  industry      String?  @db.VarChar(100)
-  logo_url      String?  @db.Text
-  is_fictional  Boolean  @default(false)
-  city          String?  @db.VarChar(100)
-  country       String?  @db.VarChar(100)
-  website       String?  @db.Text
-  is_active     Boolean  @default(true)
-  created_at    DateTime @default(now()) @db.Timestamptz
-  updated_at    DateTime @default(now()) @db.Timestamptz
+  id           Int      @id @default(autoincrement())
+  name         String   @db.VarChar(255)
+  short_name   String?  @db.VarChar(50)
+  description  String?  @db.Text
+  industry     String?  @db.VarChar(100)
+  logo_url     String?  @db.Text
+  is_fictional Boolean  @default(false)
+  city         String?  @db.VarChar(100)
+  country      String?  @db.VarChar(100)
+  website      String?  @db.Text
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now()) @db.Timestamptz
+  updated_at   DateTime @default(now()) @db.Timestamptz
+
+  course_simulated_companies CourseSimulatedCompany[]
 
   @@unique([name])
   @@map("simulated_companies")

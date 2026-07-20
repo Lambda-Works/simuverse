@@ -1,5 +1,7 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, NotFoundException, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { PrismaService } from '../prisma/prisma.service';
+import { logoUploadOptions, resolveLogoUrl, cleanupOldLogo } from '../files/logo-upload';
 
 // ── Foundation Config ────────────────────────────────────────────
 @Controller('foundation-config')
@@ -12,13 +14,15 @@ export class FoundationConfigController {
     });
   }
 
-  @Post() async create(@Body() body: any) {
-    const { name, short_name, logo_url, address, city, province, country, phone, email, website, ministry_aval } = body;
+  @Post()
+  @UseInterceptors(FileInterceptor('logo_file', logoUploadOptions))
+  async create(@Body() body: any, @UploadedFile() logo_file?: Express.Multer.File) {
+    const { name, short_name, logo_url, address, city, province, country, phone, email, website, description } = body;
     return (this.prisma as any).foundationConfig.create({
       data: {
         name,
         short_name: short_name ?? null,
-        logo_url: logo_url ?? null,
+        logo_url: resolveLogoUrl(logo_file, logo_url) ?? null,
         address: address ?? null,
         city: city ?? null,
         province: province ?? null,
@@ -26,19 +30,27 @@ export class FoundationConfigController {
         phone: phone ?? null,
         email: email ?? null,
         website: website ?? null,
-        ministry_aval: ministry_aval ?? null,
+        description: description ?? null,
       },
     });
   }
 
-  @Put(':id') async update(@Param('id') id: string, @Body() body: any) {
-    const { name, short_name, logo_url, address, city, province, country, phone, email, website, ministry_aval, is_active } = body;
+  @Put(':id')
+  @UseInterceptors(FileInterceptor('logo_file', logoUploadOptions))
+  async update(@Param('id') id: string, @Body() body: any, @UploadedFile() logo_file?: Express.Multer.File) {
+    const { name, short_name, logo_url, address, city, province, country, phone, email, website, description, is_active } = body;
+
+    if (logo_file) {
+      const existing = await (this.prisma as any).foundationConfig.findUnique({ where: { id: Number(id) } });
+      cleanupOldLogo(existing?.logo_url);
+    }
+
     return (this.prisma as any).foundationConfig.update({
       where: { id: Number(id) },
       data: {
         ...(name !== undefined && { name }),
         ...(short_name !== undefined && { short_name: short_name ?? null }),
-        ...(logo_url !== undefined && { logo_url: logo_url ?? null }),
+        ...((logo_file || logo_url !== undefined) && { logo_url: resolveLogoUrl(logo_file, logo_url) ?? null }),
         ...(address !== undefined && { address: address ?? null }),
         ...(city !== undefined && { city: city ?? null }),
         ...(province !== undefined && { province: province ?? null }),
@@ -46,7 +58,7 @@ export class FoundationConfigController {
         ...(phone !== undefined && { phone: phone ?? null }),
         ...(email !== undefined && { email: email ?? null }),
         ...(website !== undefined && { website: website ?? null }),
-        ...(ministry_aval !== undefined && { ministry_aval: ministry_aval ?? null }),
+        ...(description !== undefined && { description: description ?? null }),
         ...(is_active !== undefined && { is_active }),
       },
     });
@@ -80,13 +92,15 @@ export class EndorsersController {
     });
   }
 
-  @Post() async create(@Body() body: any) {
+  @Post()
+  @UseInterceptors(FileInterceptor('logo_file', logoUploadOptions))
+  async create(@Body() body: any, @UploadedFile() logo_file?: Express.Multer.File) {
     const { name, short_name, logo_url, description, endorsement_type, website } = body;
     return (this.prisma as any).endorser.create({
       data: {
         name,
         short_name: short_name ?? null,
-        logo_url: logo_url ?? null,
+        logo_url: resolveLogoUrl(logo_file, logo_url) ?? null,
         description: description ?? null,
         endorsement_type: endorsement_type ?? 'institution',
         website: website ?? null,
@@ -94,14 +108,22 @@ export class EndorsersController {
     });
   }
 
-  @Put(':id') async update(@Param('id') id: string, @Body() body: any) {
+  @Put(':id')
+  @UseInterceptors(FileInterceptor('logo_file', logoUploadOptions))
+  async update(@Param('id') id: string, @Body() body: any, @UploadedFile() logo_file?: Express.Multer.File) {
     const { name, short_name, logo_url, description, endorsement_type, website, is_active } = body;
+
+    if (logo_file) {
+      const existing = await (this.prisma as any).endorser.findUnique({ where: { id: Number(id) } });
+      cleanupOldLogo(existing?.logo_url);
+    }
+
     return (this.prisma as any).endorser.update({
       where: { id: Number(id) },
       data: {
         ...(name !== undefined && { name }),
         ...(short_name !== undefined && { short_name: short_name ?? null }),
-        ...(logo_url !== undefined && { logo_url: logo_url ?? null }),
+        ...((logo_file || logo_url !== undefined) && { logo_url: resolveLogoUrl(logo_file, logo_url) ?? null }),
         ...(description !== undefined && { description: description ?? null }),
         ...(endorsement_type !== undefined && { endorsement_type: endorsement_type ?? null }),
         ...(website !== undefined && { website: website ?? null }),
@@ -121,64 +143,6 @@ export class EndorsersController {
     return (this.prisma as any).endorser.update({
       where: { id: Number(id) },
       data: { is_active: true },
-    });
-  }
-}
-
-// ── Course Endorsers ─────────────────────────────────────────────
-@Controller('course-endorsers')
-export class CourseEndorsersController {
-  constructor(private prisma: PrismaService) {}
-
-  @Get() async findAll(@Query('course_id') courseId?: string) {
-    if (courseId) {
-      return (this.prisma as any).courseEndorser.findMany({
-        where: { course_id: courseId },
-        include: { Endorser: true },
-        orderBy: { id: 'asc' },
-      });
-    }
-    return (this.prisma as any).courseEndorser.findMany({
-      include: { Endorser: true },
-      orderBy: { id: 'asc' },
-    });
-  }
-
-  @Get(':courseId') async findByCourse(@Param('courseId') courseId: string) {
-    const courseEndorsers = await (this.prisma as any).courseEndorser.findMany({
-      where: { course_id: courseId },
-      include: { Endorser: true },
-      orderBy: { id: 'asc' },
-    });
-    // Flatten endorser fields for frontend compatibility
-    return courseEndorsers.map((ce: any) => ({
-      id: ce.id,
-      course_id: ce.course_id,
-      endorser_id: ce.endorser_id,
-      name: ce.Endorser?.name ?? '',
-      short_name: ce.Endorser?.short_name ?? '',
-      logo_url: ce.Endorser?.logo_url ?? '',
-      endorsement_type: ce.Endorser?.endorsement_type ?? '',
-    }));
-  }
-
-  @Post() async create(@Body() body: any) {
-    const { course_id, endorser_id } = body;
-    return (this.prisma as any).courseEndorser.create({
-      data: {
-        course_id,
-        endorserId: Number(endorser_id),
-      },
-    });
-  }
-
-  @Delete() async remove(@Body() body: any) {
-    const { course_id, endorser_id } = body;
-    return (this.prisma as any).courseEndorser.deleteMany({
-      where: {
-        course_id,
-        endorser_id: Number(endorser_id),
-      },
     });
   }
 }

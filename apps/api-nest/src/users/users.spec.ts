@@ -221,4 +221,82 @@ describe('Users (e2e)', () => {
         .expect(404);
     });
   });
+
+  describe('DELETE /api/users/:id/hard', () => {
+    it('should return 401 without auth token', async () => {
+      await request(app.getHttpServer())
+        .delete('/api/users/some-id/hard')
+        .expect(401);
+    });
+
+    it('should return 403 for non-admin role', async () => {
+      await request(app.getHttpServer())
+        .delete('/api/users/u1/hard')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .expect(403);
+    });
+
+    it('should return 400 when target user is still active', async () => {
+      prismaMock.user.findUnique.mockImplementation(({ where }: any) => {
+        if (where.id === 'admin-id') {
+          return Promise.resolve({
+            id: 'admin-id', name: 'Admin', email: 'admin@test.com', role: 'admin',
+            password_hash: '$2b$10$hashed', created_at: new Date(), updated_at: new Date(),
+          });
+        }
+        if (where.id === 'u1') {
+          return Promise.resolve({ id: 'u1', name: 'Alice', email: 'alice@test.com', role: 'student', is_active: true });
+        }
+        return Promise.resolve(null);
+      });
+
+      await request(app.getHttpServer())
+        .delete('/api/users/u1/hard')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(400);
+
+      expect(prismaMock.user.delete).not.toHaveBeenCalled();
+    });
+
+    it('should delete a deactivated user permanently', async () => {
+      prismaMock.user.findUnique.mockImplementation(({ where }: any) => {
+        if (where.id === 'admin-id') {
+          return Promise.resolve({
+            id: 'admin-id', name: 'Admin', email: 'admin@test.com', role: 'admin',
+            password_hash: '$2b$10$hashed', created_at: new Date(), updated_at: new Date(),
+          });
+        }
+        if (where.id === 'u1') {
+          return Promise.resolve({ id: 'u1', name: 'Alice', email: 'alice@test.com', role: 'student', is_active: false });
+        }
+        return Promise.resolve(null);
+      });
+      prismaMock.user.delete.mockResolvedValue({ id: 'u1', name: 'Alice', email: 'alice@test.com', role: 'student' });
+
+      const response = await request(app.getHttpServer())
+        .delete('/api/users/u1/hard')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(prismaMock.user.delete).toHaveBeenCalledWith({ where: { id: 'u1' } });
+      expect(response.body).toHaveProperty('message');
+    });
+
+    it('should return 404 for non-existent user', async () => {
+      prismaMock.user.findUnique.mockImplementation(({ where }: any) => {
+        if (where.id === 'admin-id') {
+          return Promise.resolve({
+            id: 'admin-id', name: 'Admin', email: 'admin@test.com', role: 'admin',
+            password_hash: '$2b$10$hashed', created_at: new Date(), updated_at: new Date(),
+          });
+        }
+        return Promise.resolve(null);
+      });
+
+      await request(app.getHttpServer())
+        .delete('/api/users/nonexistent/hard')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(404);
+    });
+  });
 });

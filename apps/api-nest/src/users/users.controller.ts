@@ -107,4 +107,13 @@ export class UsersController {
     await this.usersService.reactivate(id);
     return { message: 'User reactivated' };
   }
+
+  @Delete(':id/hard')
+  @Roles('admin')
+  @Permissions('users.hard-delete')
+  @HttpCode(HttpStatus.OK)
+  async hardDelete(@Param('id') id: string) {
+    await this.usersService.hardDelete(id);
+    return { message: 'User permanently deleted' };
+  }
 }

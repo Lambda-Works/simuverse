@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { LogoField, useFilePreview } from '@/components/ui/logo-field';
 import { Building2, Plus, RotateCw, Settings, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -60,9 +61,11 @@ export function CompaniesABM() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyCompany());
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const filePreviewUrl = useFilePreview(logoFile);
 
   const fetchCompanies = async () => {
     try {
@@ -74,18 +77,31 @@ export function CompaniesABM() {
 
   useEffect(() => { fetchCompanies(); }, []);
 
+  const buildPayload = (): FormData | typeof form => {
+    if (!logoFile) return form;
+    const fd = new FormData();
+    Object.entries(form).forEach(([key, value]) => {
+      if (key === 'logo_url') return; // uploaded file wins over the pasted URL
+      fd.append(key, typeof value === 'boolean' ? String(value) : (value ?? ''));
+    });
+    fd.append('logo_file', logoFile);
+    return fd;
+  };
+
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('El nombre es obligatorio'); return; }
     setSaving(true);
     try {
+      const payload = buildPayload();
       if (editingId) {
-        await apiClient.put(`/simulated-companies/${editingId}`, form);
+        await apiClient.put(`/simulated-companies/${editingId}`, payload);
       } else {
-        await apiClient.post('/simulated-companies', form);
+        await apiClient.post('/simulated-companies', payload);
       }
       toast.success(editingId ? 'Empresa actualizada' : 'Empresa creada');
       setDialogOpen(false);
       setForm(emptyCompany());
+      setLogoFile(null);
       setEditingId(null);
       fetchCompanies();
     } catch (e: any) { toast.error(e.message); }
@@ -98,6 +114,7 @@ export function CompaniesABM() {
       industry: c.industry || '', logo_url: c.logo_url || '', is_fictional: !!c.is_fictional,
       city: c.city || '', country: c.country || 'Argentina', website: c.website || '',
     });
+    setLogoFile(null);
     setLogoError(false);
     setEditingId(c.id);
     setDialogOpen(true);
@@ -150,7 +167,7 @@ export function CompaniesABM() {
           <h2 className="text-2xl font-bold flex items-center gap-2"><Building2 className="w-6 h-6" /> Empresas Simuladas</h2>
           <p className="text-gray-600 mt-1">Empresas reales o ficticias que se simulan en los cursos. Si no hay logo, se muestran las iniciales.</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={o => { setDialogOpen(o); if (!o) { setForm(emptyCompany()); setEditingId(null); setLogoError(false); } }}>
+        <Dialog open={dialogOpen} onOpenChange={o => { setDialogOpen(o); if (!o) { setForm(emptyCompany()); setLogoFile(null); setEditingId(null); setLogoError(false); } }}>
           {!readOnly && <DialogTrigger asChild>
             <Button><Plus className="w-4 h-4 mr-2" /> Nueva Empresa</Button>
           </DialogTrigger>}
@@ -161,8 +178,8 @@ export function CompaniesABM() {
             <div className="space-y-4 mt-2">
               {/* Preview */}
               <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl border">
-                {form.logo_url && !logoError
-                  ? <img src={form.logo_url} alt="preview" className="w-16 h-16 rounded-full object-cover border" onError={() => setLogoError(true)} />
+                {(filePreviewUrl || form.logo_url) && !logoError
+                  ? <img src={filePreviewUrl || form.logo_url} alt="preview" className="w-16 h-16 rounded-full object-cover border" onError={() => setLogoError(true)} />
                   : <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl shrink-0 ${form.name ? getBrandColor(form.name) : 'bg-gray-400'}`}>
                       {form.name ? getInitials(form.name) : '?'}
                     </div>
@@ -200,11 +217,12 @@ export function CompaniesABM() {
                   <Input value={form.website} onChange={e => setForm(p => ({ ...p, website: e.target.value }))} placeholder="https://empresa.com.ar" />
                 </div>
                 <div className="col-span-2 space-y-1.5">
-                  <Label>URL del Logo <span className="text-xs text-gray-400">(opcional — si no hay, se usan las iniciales)</span></Label>
-                  <Input
-                    value={form.logo_url}
-                    onChange={e => { setLogoError(false); setForm(p => ({ ...p, logo_url: e.target.value })); }}
-                    placeholder="https://empresa.com/logo.png"
+                  <LogoField
+                    label="Logo (si no hay, se usan las iniciales)"
+                    urlValue={form.logo_url}
+                    onUrlChange={v => { setLogoError(false); setForm(p => ({ ...p, logo_url: v })); }}
+                    file={logoFile}
+                    onFileChange={f => { setLogoError(false); setLogoFile(f); }}
                   />
                 </div>
                 <div className="col-span-2 space-y-1.5">

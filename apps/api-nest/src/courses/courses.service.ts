@@ -7,12 +7,27 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 
 const ENROLL_MAX_ATTEMPTS = 5;
 const ENROLL_WINDOW_MS = 15 * 60 * 1000;
+
+const COURSE_ASSOCIATIONS_INCLUDE = {
+  course_endorsers: { include: { endorser: true } },
+  course_simulated_companies: { include: { simulated_company: true } },
+  course_foundation_configs: { include: { foundation_config: true } },
+  course_sponsors: { include: { sponsor: true } },
+} satisfies Prisma.CourseInclude;
+
+interface CourseAssociationIds {
+  endorser_ids?: number[];
+  company_ids?: number[];
+  foundation_ids?: number[];
+  sponsor_ids?: number[];
+}
 
 @Injectable()
 export class CoursesService {
@@ -51,6 +66,7 @@ export class CoursesService {
             teacher: { select: { id: true, name: true, email: true } },
           },
         },
+        ...COURSE_ASSOCIATIONS_INCLUDE,
       },
       orderBy: { created_at: 'desc' },
     });
@@ -66,6 +82,7 @@ export class CoursesService {
             teacher: { select: { id: true, name: true, email: true } },
           },
         },
+        ...COURSE_ASSOCIATIONS_INCLUDE,
       },
     });
     if (!course) {
@@ -75,27 +92,17 @@ export class CoursesService {
   }
 
   async findById(id: string) {
-    let course = await this.prisma.course.findUnique({
-      where: { id },
-      include: {
-        teachers: {
-          include: {
-            teacher: { select: { id: true, name: true, email: true } },
-          },
+    const include = {
+      teachers: {
+        include: {
+          teacher: { select: { id: true, name: true, email: true } },
         },
       },
-    });
+      ...COURSE_ASSOCIATIONS_INCLUDE,
+    };
+    let course = await this.prisma.course.findUnique({ where: { id }, include });
     if (!course) {
-      course = await this.prisma.course.findUnique({
-        where: { course_id: id },
-        include: {
-          teachers: {
-            include: {
-              teacher: { select: { id: true, name: true, email: true } },
-            },
-          },
-        },
-      });
+      course = await this.prisma.course.findUnique({ where: { course_id: id }, include });
     }
     if (!course) {
       throw new NotFoundException('Course not found');
@@ -144,24 +151,57 @@ export class CoursesService {
     }));
   }
 
-  async create(data: {
-    course_id: string;
-    title: string;
-    description?: string;
-    category: string;
-    modules?: any;
-    ai_config?: any;
-    eval_criteria?: any;
-    crisis_events?: any;
-    categories?: any;
-    is_active?: boolean;
-    simulated_company_id?: number;
-    tech_sheet_id?: number;
-    created_by?: string;
-    password?: string;
-    drive_folder_url?: string | null;
-    teacher_ids?: string[];
-  }) {
+  /** Syncs one course's *_ids arrays into their junction tables. Undefined = leave untouched; [] = clear all. */
+  private async syncAssociations(
+    tx: Prisma.TransactionClient,
+    courseId: string,
+    data: CourseAssociationIds,
+  ) {
+    const jobs: Array<[keyof CourseAssociationIds, string]> = [
+      ['endorser_ids', 'endorser_id'],
+      ['company_ids', 'simulated_company_id'],
+      ['foundation_ids', 'foundation_config_id'],
+      ['sponsor_ids', 'sponsor_id'],
+    ];
+    const delegates: Record<string, any> = {
+      endorser_ids: tx.courseEndorser,
+      company_ids: tx.courseSimulatedCompany,
+      foundation_ids: tx.courseFoundationConfig,
+      sponsor_ids: tx.courseSponsor,
+    };
+
+    for (const [key, idField] of jobs) {
+      const ids = data[key];
+      if (ids === undefined) continue;
+      const delegate = delegates[key];
+      await delegate.deleteMany({ where: { course_id: courseId } });
+      if (ids.length) {
+        await delegate.createMany({
+          data: ids.map((id: number) => ({ course_id: courseId, [idField]: id })),
+        });
+      }
+    }
+  }
+
+  async create(
+    data: {
+      course_id: string;
+      title: string;
+      description?: string;
+      category: string;
+      modules?: any;
+      ai_config?: any;
+      eval_criteria?: any;
+      crisis_events?: any;
+      categories?: any;
+      is_active?: boolean;
+      tech_sheet_id?: number;
+      created_by?: string;
+      password?: string;
+      drive_folder_url?: string | null;
+      teacher_ids?: string[];
+    } & CourseAssociationIds,
+  ) {
     const existing = await this.prisma.course.findUnique({
       where: { course_id: data.course_id },
     });
@@ -177,37 +217,36 @@ export class CoursesService {
       ? data.modules.filter((m: string) => m !== 'evaluacion_auto')
       : data.modules;
 
-    const course = await this.prisma.course.create({
-      data: {
-        course_id: data.course_id,
-        title: data.title,
-        description: data.description,
-        category: data.category,
-        modules: modules || undefined,
-        // IA / ficha técnica se configuran desde la ficha ministerial, no en create de curso
-        eval_criteria: data.eval_criteria || undefined,
-        crisis_events: data.crisis_events || undefined,
-        categories: data.categories || undefined,
-        is_active: data.is_active ?? true,
-        simulated_company_id: data.simulated_company_id ?? undefined,
-        created_by: data.created_by || undefined,
-        password_hash,
-        drive_folder_url: data.drive_folder_url || null,
-      },
+    const course = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.course.create({
+        data: {
+          course_id: data.course_id,
+          title: data.title,
+          description: data.description,
+          category: data.category,
+          modules: modules || undefined,
+          // IA / ficha técnica se configuran desde la ficha ministerial, no en create de curso
+          eval_criteria: data.eval_criteria || undefined,
+          crisis_events: data.crisis_events || undefined,
+          categories: data.categories || undefined,
+          is_active: data.is_active ?? true,
+          created_by: data.created_by || undefined,
+          password_hash,
+          drive_folder_url: data.drive_folder_url || null,
+        },
+      });
+
+      await this.syncAssociations(tx, created.id, data);
+
+      return created;
     });
 
     if (data.teacher_ids?.length) {
       await this.setTeachers(course.id, data.teacher_ids);
-      const full = await this.findById(course.id);
-      return data.password
-        ? { ...full, password_plain: data.password }
-        : full;
     }
 
-    return this.stripPassword(
-      { ...course, teachers: [] },
-      data.password ? { password_plain: data.password } : undefined,
-    );
+    const full = await this.findById(course.id);
+    return data.password ? { ...full, password_plain: data.password } : full;
   }
 
   async update(
@@ -222,17 +261,26 @@ export class CoursesService {
       crisis_events?: any;
       categories?: any;
       is_active?: boolean;
-      simulated_company_id?: number;
       tech_sheet_id?: number;
       created_by?: string;
       password?: string | null;
       clear_password?: boolean;
       drive_folder_url?: string | null;
       teacher_ids?: string[];
-    },
+    } & CourseAssociationIds,
     actor?: { id: string; role: string },
   ) {
-    const { created_by, password, clear_password, teacher_ids, ...rawUpdate } = data;
+    const {
+      created_by,
+      password,
+      clear_password,
+      teacher_ids,
+      endorser_ids,
+      company_ids,
+      foundation_ids,
+      sponsor_ids,
+      ...rawUpdate
+    } = data;
     // IA / ficha / evaluación auto no se editan desde el formulario de curso
     const {
       ai_config: _aiConfig,
@@ -263,37 +311,39 @@ export class CoursesService {
     }
 
     try {
-      const updated = await this.prisma.course.update({
-        where: { id },
-        data: {
-          ...updateData,
-          ...passwordUpdate,
-          modules: updateData.modules || undefined,
-          eval_criteria: updateData.eval_criteria || undefined,
-          crisis_events: updateData.crisis_events || undefined,
-          categories: updateData.categories || undefined,
-          simulated_company_id: updateData.simulated_company_id ?? undefined,
-          drive_folder_url:
-            updateData.drive_folder_url === undefined
-              ? undefined
-              : updateData.drive_folder_url || null,
-        },
+      await this.prisma.$transaction(async (tx) => {
+        await tx.course.update({
+          where: { id },
+          data: {
+            ...updateData,
+            ...passwordUpdate,
+            modules: updateData.modules || undefined,
+            eval_criteria: updateData.eval_criteria || undefined,
+            crisis_events: updateData.crisis_events || undefined,
+            categories: updateData.categories || undefined,
+            drive_folder_url:
+              updateData.drive_folder_url === undefined
+                ? undefined
+                : updateData.drive_folder_url || null,
+          },
+        });
+
+        await this.syncAssociations(tx, id, {
+          endorser_ids,
+          company_ids,
+          foundation_ids,
+          sponsor_ids,
+        });
       });
 
       if (teacher_ids) {
         await this.setTeachers(id, teacher_ids);
-        const full = await this.findById(id);
-        return typeof password === 'string' && password.length > 0
-          ? { ...full, password_plain: password }
-          : full;
       }
 
-      return this.stripPassword(
-        { ...updated, teachers: [] },
-        typeof password === 'string' && password.length > 0
-          ? { password_plain: password }
-          : undefined,
-      );
+      const full = await this.findById(id);
+      return typeof password === 'string' && password.length > 0
+        ? { ...full, password_plain: password }
+        : full;
     } catch (error: any) {
       if (error.code === 'P2025') {
         throw new NotFoundException('Course not found');
