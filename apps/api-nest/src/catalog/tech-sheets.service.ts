@@ -141,7 +141,7 @@ export class TechSheetsService {
       where: { tech_sheet_id: id },
     });
     if (compCount > 0) {
-      return this.getConfigFromTables(id, sheet.pipeline_status);
+      return this.getConfigFromTables(id, sheet);
     }
 
     // Fallback to JSONB parsing (legacy data)
@@ -210,6 +210,7 @@ export class TechSheetsService {
         tasks,
         prompts,
         pipeline_status: sheet.pipeline_status,
+        pipeline_output: this.getPipelineAssets(sheet),
       };
     }
 
@@ -220,6 +221,24 @@ export class TechSheetsService {
       tasks: [],
       prompts: {},
       pipeline_status: sheet.pipeline_status,
+      pipeline_output: this.getPipelineAssets(sheet),
+    };
+  }
+
+  /**
+   * Extract step_8_emails, step_9_spreadsheet, step_10_crisis from pipeline_output JSONB.
+   * Returns null for each if absent.
+   */
+  private getPipelineAssets(sheet: any): {
+    step_8_emails: any;
+    step_9_spreadsheet: any;
+    step_10_crisis: any;
+  } {
+    const po = (sheet.pipeline_output || {}) as Record<string, any>;
+    return {
+      step_8_emails: po.step_8_emails ?? null,
+      step_9_spreadsheet: po.step_9_spreadsheet ?? null,
+      step_10_crisis: po.step_10_crisis ?? null,
     };
   }
 
@@ -228,8 +247,9 @@ export class TechSheetsService {
    */
   private async getConfigFromTables(
     id: number,
-    pipeline_status: string | null,
+    sheet: any,
   ) {
+    const pipeline_status = sheet.pipeline_status;
     const competencies = await (this.prisma as any).techSheetCompetency.findMany({
       where: { tech_sheet_id: id },
       orderBy: { created_at: 'asc' },
@@ -282,6 +302,7 @@ export class TechSheetsService {
         coaching_prompt: prompts.find((p: any) => p.type === 'coaching')?.content || '',
       },
       pipeline_status,
+      pipeline_output: this.getPipelineAssets(sheet),
     };
   }
 
@@ -562,9 +583,20 @@ export class TechSheetsService {
     });
 
     // Also update JSONB for backward compat (read-only fallback)
+    const updateData: any = { extracted_data: updatedExtractedData };
+
+    // Merge pipeline_output assets from DTO (steps 8-10) preserving other pipeline keys
+    if (dto.pipeline_output) {
+      const currentPO = (sheet.pipeline_output || {}) as Record<string, any>;
+      updateData.pipeline_output = {
+        ...currentPO,
+        ...dto.pipeline_output,
+      };
+    }
+
     const updated = await (this.prisma as any).techSheet.update({
       where: { id },
-      data: { extracted_data: updatedExtractedData },
+      data: updateData,
     });
 
     // Keep course practices in sync when tasks were part of the save

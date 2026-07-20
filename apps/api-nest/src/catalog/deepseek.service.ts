@@ -85,4 +85,74 @@ export class DeepSeekService {
 
     throw lastError;
   }
+
+  buildEmailsPrompt(markdown: string, competencies: string, kpis: string): string {
+    return `Genera una lista de emails simulados para esta práctica educativa. Basate en el contenido, competencias y KPIs.
+
+Documento:
+${markdown}
+
+Competencias:
+${competencies}
+
+KPIs:
+${kpis}
+
+Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta (sin markdown, sin explicaciones):
+{
+  "emails": [
+    {
+      "subject": "string",
+      "body": "string",
+      "trigger_condition": "string",
+      "timing_minutes": number
+    }
+  ]
+}`;
+  }
+
+  buildSpreadsheetPrompt(markdown: string, competencies: string, kpis: string): string {
+    return `Genera una plantilla de hoja de cálculo para seguimiento de esta práctica. Basate en las competencias y KPIs.
+
+Documento:
+${markdown}
+
+Competencias:
+${competencies}
+
+KPIs:
+${kpis}
+
+Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta (sin markdown, sin explicaciones):
+{
+  "columnas": [
+    { "encabezado": "string", "tipo": "texto | numero | formula", "formula": "string (opcional)" }
+  ],
+  "datos_ejemplo": []
+}`;
+  }
+
+  buildCrisisPrompt(markdown: string, competencies: string, kpis: string): string {
+    return `Genera escenarios de crisis simulados para esta práctica. Basate en el contenido y contexto educativo.
+
+Documento:
+${markdown}
+
+Competencias:
+${competencies}
+
+KPIs:
+${kpis}
+
+Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta (sin markdown, sin explicaciones):
+{
+  "escenarios": [
+    {
+      "detonante": "string",
+      "descripcion": "string",
+      "opciones_resolucion": ["string", "string"]
+    }
+  ]
+}`;
+  }
 }
