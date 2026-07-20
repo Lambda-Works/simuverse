@@ -12,7 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/hooks/useAuth';
 import {
     AlertCircle, BarChart3,
-    CheckCircle2,
     ChevronRight,
     Clock,
     FileText,
@@ -169,12 +168,6 @@ const LegajosPage = () => {
               value: students.filter(s => n(s.total_simulations) > 0).length,
               icon: BarChart3,
               color: 'text-purple-600',
-            },
-            {
-              label: 'Con Simulaciones Completadas',
-              value: students.filter(s => n(s.total_evaluations) > 0).length,
-              icon: CheckCircle2,
-              color: 'text-green-600',
             },
             {
               label: 'Sin actividad',
