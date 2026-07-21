@@ -1,15 +1,16 @@
-import { Controller, Get, Param, Query, UseGuards, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { Permissions } from '../common/decorators/permissions.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
+// Students can review their OWN simulation (the Eye button in the dashboard);
+// teachers/admins/ministerio can review any. No @Permissions here so students
+// aren't blocked by simulations.read — ownership is enforced in the handler.
 @Controller('student-review')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-@Roles('admin', 'teacher')
-@Permissions('simulations.read')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin', 'teacher', 'ministerio', 'student')
 export class SimulationReviewController {
   constructor(private prisma: PrismaService) {}
 
@@ -17,6 +18,7 @@ export class SimulationReviewController {
   async review(
     @Param('instanceId') instanceId: string,
     @Query('student_id') studentId: string,
+    @CurrentUser() user: { id: string; role: string },
   ) {
     const instance = await this.prisma.simulationInstance.findUnique({
       where: { id: instanceId },
@@ -33,6 +35,11 @@ export class SimulationReviewController {
       },
     });
     if (!instance) throw new NotFoundException('Instance not found');
+
+    // A student may only review their own simulation.
+    if (user.role === 'student' && instance.student_id !== user.id) {
+      throw new ForbiddenException('Solo podés revisar tus propias simulaciones');
+    }
 
     const logs = await this.prisma.simulationChatLog.findMany({
       where: { simulation_instance_id: instanceId },

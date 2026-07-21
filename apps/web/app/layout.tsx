@@ -38,8 +38,21 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" className={sourceSans.variable}>
-      <body className="font-sans antialiased">
-        <Providers>{children}</Providers>
+      <body className="font-sans antialiased min-h-screen flex flex-col">
+        <div className="flex-1">
+          <Providers>{children}</Providers>
+        </div>
+        <footer className="py-3 text-center text-xs text-muted-foreground border-t">
+          Producido por{' '}
+          <a
+            href="https://lambdaworks.io"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium hover:underline"
+          >
+            lambdaWorks
+          </a>
+        </footer>
       </body>
     </html>
   )

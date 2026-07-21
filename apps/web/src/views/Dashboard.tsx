@@ -372,22 +372,22 @@ const Dashboard = () => {
                 <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-3 flex items-center gap-2 text-sm">
                   <HelpCircle className="w-4 h-4" /> ¿Cómo usar el simulador?
                 </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {[
                     { icon: BookOpen, title: 'Elegí tu simulación', desc: 'Hacé click en una tarjeta para ver los detalles del escenario asignado.' },
                     { icon: Play, title: 'Iniciá', desc: 'Presioná "Iniciar". El sistema te presentará el contexto del caso a resolver.' },
                     { icon: MessageSquare, title: 'Interactuá', desc: 'Usá el chat con tu asesor, revisá emails y documentos del escenario.' },
                     { icon: Award, title: 'Finalizá', desc: 'Al terminar, el sistema evalúa tu desempeño y genera tu puntaje y certificado.' },
                   ].map(({ icon: Icon, title, desc }, i) => (
-                    <div key={i} className="flex items-start gap-2.5">
-                      <div className="bg-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                    <div key={i} className="flex items-start gap-3">
+                      <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shrink-0 mt-0.5">
                         {i + 1}
                       </div>
                       <div>
-                        <p className="text-xs font-semibold text-blue-900 dark:text-blue-200 flex items-center gap-1">
-                          <Icon className="w-3 h-3" /> {title}
+                        <p className="text-sm font-semibold text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
+                          <Icon className="w-4 h-4" /> {title}
                         </p>
-                        <p className="text-xs text-blue-700 dark:text-blue-400 mt-0.5 leading-snug">{desc}</p>
+                        <p className="text-sm text-blue-700 dark:text-blue-400 mt-0.5 leading-snug">{desc}</p>
                       </div>
                     </div>
                   ))}
