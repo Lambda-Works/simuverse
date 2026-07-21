@@ -1,6 +1,6 @@
 import {
     ArrowRightLeft, BookOpen,
-    Bot, BotMessageSquare, Building, Building2, CalendarDays, ChartBar, ChartNoAxesCombined, Clapperboard, ClipboardList, FileChartColumnIncreasing, FilePlus, FileText, GraduationCap, HandHeart, LucideIcon, Play, ShieldCheck, Tags, UserCheck, UserRound, Users, Users2, Wrench
+    Bot, BotMessageSquare, Building, Building2, CalendarDays, ChartBar, ChartNoAxesCombined, Clapperboard, ClipboardList, FileChartColumnIncreasing, FilePlus, FileText, GraduationCap, HandHeart, Handshake, LucideIcon, Play, ShieldCheck, Tags, UserCheck, UserRound, Users, Users2, Wrench
 } from 'lucide-react';
 
 export interface AdminNavItem {
@@ -82,6 +82,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { id: 'companies', label: 'Empresas', icon: Building, permissionCode: 'companies.manage' },
       { id: 'foundation', label: 'Fundación', icon: HandHeart, permissionCode: 'foundation.manage' },
       { id: 'endorsers', label: 'Avaladores', icon: UserCheck, permissionCode: 'endorsers.manage' },
+      { id: 'sponsors', label: 'Sponsors', icon: Handshake, permissionCode: 'sponsors.manage' },
     ],
   },
 ];

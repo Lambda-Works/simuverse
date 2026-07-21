@@ -11,6 +11,7 @@ import { BarChart3, Calendar, CheckCircle2, Clock, Download, Filter, GraduationC
 import { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 
+import { getScoreBarColor, getScoreBg, getScoreText } from '@/lib/score-colors';
 import { apiClient } from '@/services/ApiClient';
 
 interface Evaluation {
@@ -42,15 +43,14 @@ interface StudentHistory {
 
 function KpiBar({ label, value }: { label: string; value: number }) {
   const pct = Math.min(100, Math.max(0, value));
-  const color = pct >= 85 ? 'bg-green-500' : pct >= 70 ? 'bg-yellow-500' : 'bg-red-500';
   return (
     <div className="mb-2">
       <div className="flex justify-between text-xs mb-1">
         <span className="text-gray-700 font-medium">{label}</span>
-        <span className={`font-bold ${pct >= 85 ? 'text-green-700' : pct >= 70 ? 'text-yellow-700' : 'text-red-700'}`}>{pct}%</span>
+        <span className={`font-bold ${getScoreText(pct)}`}>{pct}%</span>
       </div>
       <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full ${color} rounded-full`} style={{ width: `${pct}%` }} />
+        <div className={`h-full ${getScoreBarColor(pct)} rounded-full`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
@@ -58,9 +58,7 @@ function KpiBar({ label, value }: { label: string; value: number }) {
 
 function ScoreBadge({ score }: { score: number | string | null }) {
   const n = Number(score ?? 0);
-  const cls = n >= 85 ? 'bg-green-100 text-green-800 border-green-300' :
-    n >= 70 ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
-    'bg-red-100 text-red-800 border-red-300';
+  const cls = getScoreBg(n);
   const label = n >= 85 ? '✅ Aprobado' : n >= 70 ? '⚠️ Regular' : '❌ Desaprobado';
   return <span className={`text-xs font-semibold px-2 py-1 rounded border ${cls}`}>{n.toFixed(1)} — {label}</span>;
 }

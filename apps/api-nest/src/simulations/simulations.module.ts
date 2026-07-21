@@ -19,6 +19,7 @@ import { Trigger } from './triggers/trigger.interface';
 import { ConversationStateService } from './conversation-state.service';
 import { PracticesService } from './practices.service';
 import { PracticesController } from './practices.controller';
+import { AssetDispatcherService } from './assets/asset-dispatcher.service';
 
 @Module({
   imports: [CatalogModule, RbacModule],
@@ -41,6 +42,7 @@ import { PracticesController } from './practices.controller';
     PracticesService,
     EmailTrigger,
     CrisisTrigger,
+    AssetDispatcherService,
     {
       provide: TriggerService,
       useFactory: (
@@ -66,6 +68,7 @@ import { PracticesController } from './practices.controller';
     ConversationStateService,
     TriggerService,
     PracticesService,
+    AssetDispatcherService,
   ],
 })
 export class SimulationsModule {}

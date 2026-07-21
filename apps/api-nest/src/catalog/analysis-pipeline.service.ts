@@ -89,6 +89,15 @@ export class AnalysisPipelineService {
       pipelineOutput.step_7_coaching_prompt = coachResponse;
       await this.updateOutput(techSheetId, pipelineOutput);
 
+      // Step 8: Generate simulated emails (non-blocking, gated by email_simulado)
+      await this.runStep8(techSheetId, sheet.course_id, pipelineOutput, markdown, competencyResponse, kpiResponse);
+
+      // Step 9: Generate spreadsheet template (non-blocking, gated by hoja_calculo)
+      await this.runStep9(techSheetId, sheet.course_id, pipelineOutput, markdown, competencyResponse, kpiResponse);
+
+      // Step 10: Generate crisis scenarios (non-blocking, gated by crisis_engine)
+      await this.runStep10(techSheetId, sheet.course_id, pipelineOutput, markdown, competencyResponse, kpiResponse);
+
       // Mark as completed and populate extracted_data
       await this.prisma.techSheet.update({
         where: { id: techSheetId },
@@ -211,6 +220,134 @@ export class AnalysisPipelineService {
     if (!output.step_6_simulation_prompt) return 6;
     if (!output.step_7_coaching_prompt) return 7;
     return 0;
+  }
+
+  /**
+   * Normalize active_modules to string[] — handles both formats:
+   *   ["email_simulado", "hoja_calculo"]
+   *   [{id: "email_simulado", enabled: true}, ...]
+   * Falls back to Course.modules when CourseConfig.active_modules is null/empty.
+   */
+  private async normalizeActiveModules(courseConfig: any, courseId: string): Promise<string[]> {
+    const raw = courseConfig?.active_modules;
+    if (raw && Array.isArray(raw) && raw.length > 0) {
+      // Array of objects: extract ids of enabled modules
+      if (typeof raw[0] === 'object' && raw[0] !== null) {
+        return raw
+          .filter((m: any) => (m.enabled !== false))
+          .map((m: any) => m.id || m.moduleId || '');
+      }
+      // Array of strings
+      return raw.filter((m: unknown) => typeof m === 'string') as string[];
+    }
+
+    // active_modules is null/empty — fall back to Course.modules
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+      select: { modules: true },
+    });
+    const fallback = course?.modules;
+    if (!fallback || !Array.isArray(fallback) || fallback.length === 0) return [];
+    return fallback.filter((m: unknown) => typeof m === 'string') as string[];
+  }
+
+  /**
+   * Step 8: Generate simulated emails. Non-blocking — gated by email_simulado module.
+   */
+  private async runStep8(
+    techSheetId: number,
+    courseId: string | null,
+    pipelineOutput: Record<string, any>,
+    markdown: string,
+    competencies: string,
+    kpis: string,
+  ): Promise<void> {
+    if (!courseId) return;
+    try {
+      const courseConfig = await (this.prisma as any).courseConfig.findUnique({
+        where: { course_id: courseId },
+      });
+      const activeModules = await this.normalizeActiveModules(courseConfig, courseId!);
+      if (!activeModules.includes('email_simulado')) return;
+
+      await this.updateStatus(techSheetId, 'step_8');
+      const prompt = this.deepseek.buildEmailsPrompt(markdown, competencies, kpis);
+      const response = await this.deepseek.chat(prompt);
+      const parsed = this.safeParseJson(response);
+      pipelineOutput.step_8_emails = parsed?.emails || null;
+      await this.updateOutput(techSheetId, pipelineOutput);
+    } catch (error) {
+      this.logger.warn(`Step 8 (emails) failed for tech sheet ${techSheetId}: ${error}`);
+    }
+  }
+
+  /**
+   * Step 9: Generate spreadsheet template. Non-blocking — gated by hoja_calculo module.
+   * Retries once on JSON parse failure.
+   */
+  private async runStep9(
+    techSheetId: number,
+    courseId: string | null,
+    pipelineOutput: Record<string, any>,
+    markdown: string,
+    competencies: string,
+    kpis: string,
+  ): Promise<void> {
+    if (!courseId) return;
+    try {
+      const courseConfig = await (this.prisma as any).courseConfig.findUnique({
+        where: { course_id: courseId },
+      });
+      const activeModules = await this.normalizeActiveModules(courseConfig, courseId!);
+      if (!activeModules.includes('hoja_calculo')) return;
+
+      await this.updateStatus(techSheetId, 'step_9');
+      const prompt = this.deepseek.buildSpreadsheetPrompt(markdown, competencies, kpis);
+      let response = await this.deepseek.chat(prompt);
+      let parsed = this.safeParseJson(response);
+
+      // Retry once on parse failure
+      if (!parsed) {
+        this.logger.warn(`Step 9 parse failed, retrying for tech sheet ${techSheetId}`);
+        response = await this.deepseek.chat(prompt);
+        parsed = this.safeParseJson(response);
+      }
+
+      pipelineOutput.step_9_spreadsheet = parsed || null;
+      await this.updateOutput(techSheetId, pipelineOutput);
+    } catch (error) {
+      this.logger.warn(`Step 9 (spreadsheet) failed for tech sheet ${techSheetId}: ${error}`);
+    }
+  }
+
+  /**
+   * Step 10: Generate crisis scenarios. Non-blocking — gated by crisis_engine module.
+   */
+  private async runStep10(
+    techSheetId: number,
+    courseId: string | null,
+    pipelineOutput: Record<string, any>,
+    markdown: string,
+    competencies: string,
+    kpis: string,
+  ): Promise<void> {
+    if (!courseId) return;
+    try {
+      const courseConfig = await (this.prisma as any).courseConfig.findUnique({
+        where: { course_id: courseId },
+      });
+      const activeModules = await this.normalizeActiveModules(courseConfig, courseId!);
+      if (!activeModules.includes('crisis_engine')) return;
+
+      await this.updateStatus(techSheetId, 'step_10');
+      const prompt = this.deepseek.buildCrisisPrompt(markdown, competencies, kpis);
+      const response = await this.deepseek.chat(prompt);
+      const parsed = this.safeParseJson(response);
+      pipelineOutput.step_10_crisis = parsed?.escenarios || null;
+      await this.updateOutput(techSheetId, pipelineOutput);
+    } catch (error) {
+      this.logger.warn(`Step 10 (crisis) failed for tech sheet ${techSheetId}: ${error}`);
+    }
   }
 
   private getValidationPrompt(markdown: string): string {

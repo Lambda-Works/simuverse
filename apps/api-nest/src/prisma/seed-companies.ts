@@ -388,7 +388,6 @@ async function main() {
       where: { course_id: def.course_id },
       update: {
         modules: ['chat_ia', 'email_simulado', 'documentos', 'hoja_calculo', 'crisis_engine'],
-        simulated_company_id: c.id,
       },
       create: {
         id: def.courseId,
@@ -398,8 +397,13 @@ async function main() {
         category: def.category,
         modules: ['chat_ia', 'email_simulado', 'documentos', 'hoja_calculo', 'crisis_engine'],
         is_active: true,
-        simulated_company_id: c.id,
       },
+    });
+
+    await prisma.courseSimulatedCompany.upsert({
+      where: { course_id_simulated_company_id: { course_id: course.id, simulated_company_id: c.id } },
+      update: {},
+      create: { course_id: course.id, simulated_company_id: c.id },
     });
 
     await prisma.courseConfig.upsert({

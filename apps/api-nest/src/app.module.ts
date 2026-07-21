@@ -19,6 +19,7 @@ import { RbacModule } from './rbac/rbac.module';
 import { FilesModule } from './files/files.module';
 import { HealthModule } from './health/health.module';
 import { TermsModule } from './terms/terms.module';
+import { SponsorsModule } from './sponsors/sponsors.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
 @Module({
@@ -45,6 +46,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     FilesModule,
     HealthModule,
     TermsModule,
+    SponsorsModule,
   ],
   controllers: [],
   providers: [

@@ -36,7 +36,7 @@ async function main() {
       phone: '+54 341 555-0100',
       email: 'contacto@fepei.edu.ar',
       website: 'https://fepei.edu.ar',
-      ministry_aval: 'Disposición Nº 123/2024 — Ministerio de Educación de Santa Fe',
+      description: 'Disposición Nº 123/2024 — Ministerio de Educación de Santa Fe',
       is_active: true,
     },
   });
@@ -67,6 +67,35 @@ async function main() {
     if (!exists) {
       await prisma.courseEndorser.create({
         data: { course_id: c.id, endorser_id: pick.id },
+      });
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // 2b. SPONSORS + COURSE SPONSORS
+  // ═══════════════════════════════════════════════════════════════
+  console.log('💼 Sponsors...');
+  const sponsors = [
+    { name: 'TechCorp Argentina', website: 'https://techcorp.com.ar' },
+    { name: 'Banco del Litoral', website: 'https://bancodellitoral.com.ar' },
+    { name: 'Grupo Industrial Rosario', website: 'https://gir.com.ar' },
+  ];
+  for (const s of sponsors) {
+    const exists = await prisma.sponsor.findFirst({ where: { name: s.name } });
+    if (!exists) {
+      await prisma.sponsor.create({ data: s });
+    }
+  }
+
+  const realSponsors = await prisma.sponsor.findMany({ take: 3 });
+  for (const c of allCourses) {
+    const pick = realSponsors[allCourses.indexOf(c) % realSponsors.length];
+    const exists = await prisma.courseSponsor.findFirst({
+      where: { course_id: c.id, sponsor_id: pick.id },
+    });
+    if (!exists) {
+      await prisma.courseSponsor.create({
+        data: { course_id: c.id, sponsor_id: pick.id },
       });
     }
   }
@@ -181,6 +210,8 @@ async function main() {
     { name: 'manage_documents', code: 'documents.manage', description: 'Gestionar documentos', module: 'cursos', icon: 'FileText', route: '/admin/documents' },
     { name: 'manage_groups', code: 'teacher_groups.manage', description: 'Gestionar grupos profesor-alumno', module: 'usuarios', icon: 'Users', route: '/admin/groups' },
     { name: 'manage_sessions', code: 'sessions.manage', description: 'Ver sesiones de simulación', module: 'evaluaciones', icon: 'Monitor', route: '/admin/sessions' },
+    { name: 'hard_delete_users', code: 'users.hard-delete', description: 'Eliminar usuarios permanentemente', module: 'usuarios', icon: 'Trash2', route: '/admin/users' },
+    { name: 'manage_sponsors', code: 'sponsors.manage', description: 'Gestionar sponsors', module: 'admin', icon: 'Handshake', route: '/admin/sponsors' },
   ];
   for (const f of funcs) {
     const exists = await prisma.systemFunctionality.findFirst({ where: { name: f.name } });

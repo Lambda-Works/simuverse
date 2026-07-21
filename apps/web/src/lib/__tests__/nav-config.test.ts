@@ -35,7 +35,7 @@ describe('nav-config', () => {
   });
 
   describe('teacher sees cursos, sesiones, legajos', () => {
-    it('has 3 items without evaluaciones', () => {
+    it('has 3 items — no evaluaciones route', () => {
       expect(ROLE_NAV.teacher).toHaveLength(3);
       const hrefs = ROLE_NAV.teacher.map((i) => i.href);
       expect(hrefs).toContain('/profesor/cursos');
@@ -46,7 +46,7 @@ describe('nav-config', () => {
   });
 
   describe('admin sees cursos, sesiones, legajos', () => {
-    it('has 3 items without evaluaciones', () => {
+    it('has 3 items — no evaluaciones route', () => {
       expect(ROLE_NAV.admin).toHaveLength(3);
       const hrefs = ROLE_NAV.admin.map((i) => i.href);
       expect(hrefs).toContain('/admin/mis-cursos');
@@ -57,7 +57,7 @@ describe('nav-config', () => {
   });
 
   describe('ministerio sees 2 items', () => {
-    it('has 2 items without evaluaciones', () => {
+    it('has 2 items — no evaluaciones route', () => {
       expect(ROLE_NAV.ministerio).toHaveLength(2);
       const hrefs = ROLE_NAV.ministerio.map((i) => i.href);
       expect(hrefs).toContain('/ministerio');

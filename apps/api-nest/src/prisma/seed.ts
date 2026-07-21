@@ -215,7 +215,6 @@ async function main() {
     where: { course_id: 'OFI-BAS-001' },
     update: {
       modules: ["chat_ia", "email_simulado", "documentos", "hoja_calculo", "crisis_engine"],
-      simulated_company_id: company.id,
       password_hash: coursePassword,
     },
     create: {
@@ -226,9 +225,14 @@ async function main() {
       category: 'administracion',
       modules: ["chat_ia", "email_simulado", "documentos", "hoja_calculo", "crisis_engine"],
       is_active: true,
-      simulated_company_id: company.id,
       password_hash: coursePassword,
     },
+  });
+
+  await prisma.courseSimulatedCompany.upsert({
+    where: { course_id_simulated_company_id: { course_id: course.id, simulated_company_id: company.id } },
+    update: {},
+    create: { course_id: course.id, simulated_company_id: company.id },
   });
 
   await prisma.courseConfig.upsert({

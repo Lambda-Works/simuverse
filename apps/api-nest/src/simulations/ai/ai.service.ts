@@ -20,6 +20,8 @@ export interface PromptData {
   difficulty?: string;
   /** Summary of previous practice for continuity */
   prior_context?: string;
+  /** Domain boundary for off-topic guard */
+  subject_domain?: string;
 }
 
 /** Section identifiers for priority-based trimming (higher index = trimmed first). */
@@ -167,9 +169,32 @@ export class AIService {
       agent_key,
       difficulty,
       prior_context,
+      subject_domain,
     } = promptData;
 
     const sections: PromptSection[] = [];
+
+    // 0. OFF-TOPIC GUARD — absolute, highest priority, FIRST thing model reads
+    {
+      const domainBlock = subject_domain
+        ? `\nÁMBITO PERMITIDO: ${subject_domain}.`
+        : '';
+      sections.push({
+        id: 'offtopic_instructions',
+        header: 'RESTRICCIÓN ABSOLUTA DE CONTENIDO — LEE ESTO PRIMERO',
+        body: `REGLA INQUEBRANTABLE: Solo podés hablar sobre temas directamente relacionados con esta práctica y el curso. Cualquier otra cosa está PROHIBIDA.
+
+SI el estudiante pregunta sobre:
+- Programación, código, frameworks (React, Python, JavaScript, etc.)
+- Temas no relacionados con el curso
+- Cualquier tema fuera del ámbito de la práctica
+
+Tu RESPUESTA DEBE SER ÚNICAMENTE: "Eso está fuera del alcance de esta práctica. Volvamos al tema del curso: [breve redirección al tema actual]."
+
+NO des tutoriales, ejemplos de código, instrucciones paso a paso, ni ayuda de ningún tipo sobre temas externos.${domainBlock}`,
+        priority: 0,
+      });
+    }
 
     const employmentAxis = this.deepseek?.getEmploymentAxis?.() ?? '';
     if (employmentAxis) {
@@ -247,17 +272,7 @@ export class AIService {
       });
     }
 
-    // 6. Off-topic guard instruction
-    if (chatbot_humano_enabled) {
-      sections.push({
-        id: 'offtopic_instructions',
-        header: 'INSTRUCCIONES DE TEMAS NO RELACIONADOS',
-        body: 'Si el estudiante pregunta sobre temas no relacionados con el curso, redirige amablemente sin responder la pregunta. Mantén el foco en la simulación y el aprendizaje.',
-        priority: 5,
-      });
-    }
-
-    // 7. State-specific instruction (lowest priority — trimmed first)
+    // 6. State-specific instruction (lowest priority — trimmed first)
     if (chatbot_humano_enabled && current_state) {
       sections.push({
         id: 'state_instructions',

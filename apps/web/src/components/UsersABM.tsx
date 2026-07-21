@@ -8,11 +8,21 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Eye, EyeOff, Mail, Plus, Search, Settings, Trash2, Users } from 'lucide-react';
+import { Eye, EyeOff, Mail, RefreshCw, Search, Settings, Trash2, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -24,11 +34,10 @@ interface UserRow {
   name: string;
   email: string;
   role: string;
+  is_active: boolean;
   created_at: string;
   updated_at?: string;
 }
-
-const emptyForm = { name: '', email: '', password: '', role: 'student' };
 
 export function UsersABM() {
   const { readOnly } = useAdmin();
@@ -39,10 +48,11 @@ export function UsersABM() {
   const [filterRole, setFilterRole] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ ...emptyForm });
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'student' });
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [hardDeleteConfirm, setHardDeleteConfirm] = useState<string | null>(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -63,32 +73,22 @@ export function UsersABM() {
 
   useEffect(() => { fetchUsers(); fetchRoles(); }, []);
 
-  const handleOpen = (user?: UserRow) => {
-    if (user) {
-      setForm({ name: user.name, email: user.email, password: '', role: user.role });
-      setEditingId(user.id);
-    } else {
-      setForm({ ...emptyForm });
-      setEditingId(null);
-    }
+  const handleOpen = (user: UserRow) => {
+    setForm({ name: user.name, email: user.email, password: '', role: user.role });
+    setEditingId(user.id);
     setShowPassword(false);
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
+    if (!editingId) return;
     if (!form.name || !form.email) { toast.error('Nombre y email son obligatorios'); return; }
-    if (!editingId && !form.password) { toast.error('La contraseña es obligatoria para nuevos usuarios'); return; }
     setSaving(true);
     try {
-      if (editingId) {
-        const payload: any = { name: form.name, email: form.email, role: form.role };
-        if (form.password) payload.password = form.password;
-        await apiClient.put(`/users/${editingId}`, payload);
-        toast.success('Usuario actualizado');
-      } else {
-        await apiClient.post('/users/create', form);
-        toast.success('Usuario creado exitosamente');
-      }
+      const payload: any = { name: form.name, email: form.email, role: form.role };
+      if (form.password) payload.password = form.password;
+      await apiClient.put(`/users/${editingId}`, payload);
+      toast.success('Usuario actualizado');
       setDialogOpen(false);
       fetchUsers();
     } catch (e: any) {
@@ -115,6 +115,15 @@ export function UsersABM() {
     } catch { toast.error('Error al reactivar usuario'); }
   };
 
+  const handleHardDelete = async (id: string) => {
+    try {
+      await apiClient.delete(`/users/${id}/hard`);
+      toast.success('Usuario eliminado permanentemente');
+      setHardDeleteConfirm(null);
+      fetchUsers();
+    } catch (e: any) { toast.error(e.message || 'Error al eliminar usuario'); }
+  };
+
   const roleInfo = (role: string) => {
     const r = rolesList.find(x => x.name === role);
     return r ? { label: r.description || r.name, color: r.color } : { label: role, color: '#9CA3AF' };
@@ -133,11 +142,8 @@ export function UsersABM() {
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Users className="w-6 h-6 text-blue-600" /> Gestión de Usuarios
           </h2>
-          <p className="text-gray-500 mt-1">Alta, baja y modificación de usuarios del sistema.</p>
+          <p className="text-gray-500 mt-1">Baja y modificación de usuarios del sistema. El alta es por registro (email/Google).</p>
         </div>
-        {!readOnly && <Button onClick={() => handleOpen()} className="bg-blue-600 hover:bg-blue-700">
-          <Plus className="w-4 h-4 mr-2" /> Nuevo Usuario
-        </Button>}
       </div>
 
       {/* Filtros */}
@@ -230,7 +236,7 @@ export function UsersABM() {
                     >
                       {roleInfo(u.role).label}
                     </span>
-                    {(u as any).is_active === false && <Badge variant="secondary" className="text-xs bg-gray-400">Inactivo</Badge>}
+                    {u.is_active === false && <Badge variant="secondary" className="text-xs bg-gray-400">Inactivo</Badge>}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-500">
@@ -242,12 +248,18 @@ export function UsersABM() {
                         title="Editar usuario">
                         <Settings className="w-4 h-4" />
                       </Button>}
-                      {!readOnly && (u as any).is_active !== false && <Button size="sm" variant="destructive" onClick={() => setDeleteConfirm(u.id)}
+                      {!readOnly && u.is_active !== false && <Button size="sm" variant="destructive" onClick={() => setDeleteConfirm(u.id)}
                         title="Desactivar usuario">
                         <Trash2 className="w-4 h-4" />
                       </Button>}
-                      {!readOnly && (u as any).is_active === false && <Button size="sm" variant="outline" className="text-green-600 border-green-300" onClick={() => handleReactivateUser(u.id)}
-                        title="Reactivar usuario">🔄</Button>}
+                      {!readOnly && u.is_active === false && <Button size="sm" variant="outline" className="text-green-600 border-green-300" onClick={() => handleReactivateUser(u.id)}
+                        title="Reactivar usuario">
+                        <RefreshCw className="w-4 h-4" />
+                      </Button>}
+                      {!readOnly && u.is_active === false && <Button size="sm" variant="destructive" className="bg-red-800 hover:bg-red-900" onClick={() => setHardDeleteConfirm(u.id)}
+                        title="Eliminar permanentemente">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>}
                     </div>
                   </td>
                 </tr>
@@ -264,7 +276,7 @@ export function UsersABM() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Users className="w-5 h-5" />
-              {editingId ? 'Editar Usuario' : 'Nuevo Usuario'}
+              Editar Usuario
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-2">
@@ -279,13 +291,13 @@ export function UsersABM() {
                 placeholder="juan@ejemplo.com" />
             </div>
             <div className="space-y-1">
-              <Label>{editingId ? 'Nueva contraseña (dejar vacío para no cambiar)' : 'Contraseña *'}</Label>
+              <Label>Nueva contraseña (dejar vacío para no cambiar)</Label>
               <div className="relative">
                 <Input
                   type={showPassword ? 'text' : 'password'}
                   value={form.password}
                   onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-                  placeholder={editingId ? '(sin cambios)' : 'Mínimo 6 caracteres'}
+                  placeholder="(sin cambios)"
                 />
                 <button
                   type="button"
@@ -313,7 +325,7 @@ export function UsersABM() {
             </div>
             <div className="flex gap-2 pt-2">
               <Button className="flex-1" onClick={handleSave} disabled={saving}>
-                {saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear Usuario'}
+                {saving ? 'Guardando...' : 'Actualizar'}
               </Button>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             </div>
@@ -340,6 +352,27 @@ export function UsersABM() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Confirmación hard-delete */}
+      <AlertDialog open={!!hardDeleteConfirm} onOpenChange={o => { if (!o) setHardDeleteConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600">Eliminar usuario permanentemente</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción es irreversible. Se eliminará al usuario y todos sus datos (simulaciones, prácticas, cursos).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-800 hover:bg-red-900"
+              onClick={() => hardDeleteConfirm && handleHardDelete(hardDeleteConfirm)}
+            >
+              Sí, eliminar permanentemente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

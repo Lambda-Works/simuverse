@@ -111,6 +111,25 @@ describe('Auth (e2e)', () => {
         })
         .expect(401);
     });
+
+    it('should return 401 for a deactivated user with valid credentials', async () => {
+      const bcrypt = await import('bcrypt');
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: 'uuid-inactive',
+        email: 'inactive@example.com',
+        role: 'student',
+        password_hash: await bcrypt.hash('password123', 10),
+        is_active: false,
+      });
+
+      await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({
+          email: 'inactive@example.com',
+          password: 'password123',
+        })
+        .expect(401);
+    });
   });
 
   describe('GET /api/auth/me', () => {

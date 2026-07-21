@@ -47,6 +47,13 @@ describe('UsersController — RBAC Phase A (method-level)', () => {
     });
   });
 
+  describe('DELETE /:id/hard @Roles', () => {
+    it('has role admin on hardDelete', () => {
+      const roles = Reflect.getMetadata(ROLES_KEY, controller.hardDelete);
+      expect(roles).toEqual(['admin']);
+    });
+  });
+
   describe('GET /:id @Roles', () => {
     it('does NOT have @Roles on findOne (student self-check preserved)', () => {
       const roles = Reflect.getMetadata(ROLES_KEY, controller.findOne);

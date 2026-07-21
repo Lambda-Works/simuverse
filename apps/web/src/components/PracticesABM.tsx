@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { apiClient } from '@/services/ApiClient';
-import { Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -38,6 +38,12 @@ export function PracticesABM() {
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({
+    title: '',
+    description: '',
+    difficulty: 'medium' as 'very_low' | 'low' | 'medium',
+  });
+  const [editMode, setEditMode] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
     title: '',
     description: '',
     difficulty: 'medium' as 'very_low' | 'low' | 'medium',
@@ -92,6 +98,31 @@ export function PracticesABM() {
       await load(courseId);
     } catch {
       toast.error('Error al desactivar');
+    }
+  };
+
+  const startEdit = (p: Practice) => {
+    setEditForm({
+      title: p.title,
+      description: p.description || '',
+      difficulty: p.difficulty as 'very_low' | 'low' | 'medium',
+    });
+    setEditMode(p.id);
+  };
+
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editForm.title.trim()) {
+      toast.error('Título obligatorio');
+      return;
+    }
+    try {
+      await apiClient.put(`/practices/${editMode}`, editForm);
+      toast.success('Práctica actualizada');
+      setEditMode(null);
+      await load(courseId);
+    } catch {
+      toast.error('No se pudo actualizar la práctica');
     }
   };
 
@@ -165,6 +196,47 @@ export function PracticesABM() {
         </Card>
       )}
 
+      {editMode && (
+        <Card className="p-4 space-y-3">
+          <form onSubmit={saveEdit} className="space-y-3">
+            <Input
+              placeholder="Título"
+              value={editForm.title}
+              onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+              required
+            />
+            <Textarea
+              placeholder="Descripción / consignas"
+              value={editForm.description}
+              onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+              rows={3}
+            />
+            <select
+              className="w-full border rounded-md p-2"
+              value={editForm.difficulty}
+              onChange={(e) =>
+                setEditForm({
+                  ...editForm,
+                  difficulty: e.target.value as 'very_low' | 'low' | 'medium',
+                })
+              }
+            >
+              {DIFFICULTIES.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+            <div className="flex gap-2">
+              <Button type="submit">Guardar</Button>
+              <Button type="button" variant="outline" onClick={() => setEditMode(null)}>
+                Cancelar
+              </Button>
+            </div>
+          </form>
+        </Card>
+      )}
+
       {loading ? (
         <p>Cargando...</p>
       ) : (
@@ -186,14 +258,23 @@ export function PracticesABM() {
                 )}
               </div>
               {p.is_active !== false && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-red-600"
-                  onClick={() => deactivate(p.id)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => startEdit(p)}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-red-600"
+                    onClick={() => deactivate(p.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               )}
             </Card>
           ))}

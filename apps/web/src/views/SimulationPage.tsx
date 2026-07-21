@@ -387,6 +387,9 @@ const SimulationPage: React.FC = () => {
       });
       const aiMsg = { role: 'ai' as const, message: res.data.response, timestamp: new Date() };
       setChatMessages(prev => [...prev, aiMsg]);
+      if (res.data?.response?.includes('[NUEVO EMAIL GENERADO]')) {
+        loadModules(simId);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       // Respuesta en-rol cuando el backend no responde — el alumno no ve el error técnico

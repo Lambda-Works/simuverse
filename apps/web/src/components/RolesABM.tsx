@@ -15,14 +15,21 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+    BarChart3,
     CheckCircle2,
+    Gamepad2,
+    GraduationCap,
+    Landmark,
     LayoutGrid,
     Lock,
+    Pause,
     Plus,
+    RotateCw,
     Save,
     Settings,
     Shield,
     Trash2,
+    Wrench,
     XCircle
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -67,13 +74,22 @@ const MODULE_COLORS: Record<string, string> = {
   other: 'bg-gray-100 text-gray-700 border-gray-200',
 };
 
-const MODULE_LABELS: Record<string, string> = {
-  admin: '⚙️ Administración',
-  reports: '📊 Reportes',
-  simulation: '🎮 Simulación',
-  student: '🎓 Alumno',
-  ministry: '🏛️ Ministerio',
-  other: '🔧 Otros',
+const MODULE_LABELS: Record<string, React.ReactNode> = {
+  admin: <><Settings className="w-3.5 h-3.5 inline" /> Administración</>,
+  reports: <><BarChart3 className="w-3.5 h-3.5 inline" /> Reportes</>,
+  simulation: <><Gamepad2 className="w-3.5 h-3.5 inline" /> Simulación</>,
+  student: <><GraduationCap className="w-3.5 h-3.5 inline" /> Alumno</>,
+  ministry: <><Landmark className="w-3.5 h-3.5 inline" /> Ministerio</>,
+  other: <><Wrench className="w-3.5 h-3.5 inline" /> Otros</>,
+};
+
+const MODULE_LABELS_TEXT: Record<string, string> = {
+  admin: 'Administración',
+  reports: 'Reportes',
+  simulation: 'Simulación',
+  student: 'Alumno',
+  ministry: 'Ministerio',
+  other: 'Otros',
 };
 
 // ─── ABM de Roles ─────────────────────────────────────────────────────────────
@@ -152,7 +168,7 @@ function RolesTab({ roles, onRefresh }: { roles: Role[]; onRefresh: () => void }
                   <div className="flex items-center gap-2">
                     <span className="font-semibold">{role.name}</span>
                     <Badge variant="outline" className={`text-xs ${role.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {role.is_active ? '✅ Activo' : '⏸️ Inactivo'}
+                      {role.is_active ? <><CheckCircle2 className="w-4 h-4 inline text-green-500" /> Activo</> : <><Pause className="w-4 h-4 inline text-gray-400" /> Inactivo</>}
                     </Badge>
                   </div>
                   <p className="text-sm text-gray-500 mt-0.5">{role.description}</p>
@@ -168,7 +184,7 @@ function RolesTab({ roles, onRefresh }: { roles: Role[]; onRefresh: () => void }
                 </Button>
                 ) : (
                 <Button size="sm" variant="outline" className="text-green-600 border-green-300" onClick={() => handleReactivate(role.id)}>
-                  🔄 Reactivar
+                  <RotateCw className="w-4 h-4 mr-1" /> Reactivar
                 </Button>
                 )}
               </div>
@@ -340,7 +356,7 @@ function FunctionalitiesTab({ funcs, onRefresh }: { funcs: Functionality[]; onRe
               <Label>Módulo</Label>
               <select value={form.module} onChange={e => setForm(p => ({ ...p, module: e.target.value }))}
                 className="w-full border rounded-md px-3 py-2 text-sm mt-1">
-                {Object.entries(MODULE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                {Object.entries(MODULE_LABELS_TEXT).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
               <p className="text-[12px] text-gray-500 mt-1">Categoría bajo la cual se agrupará en el panel de permisos.</p>
             </div>

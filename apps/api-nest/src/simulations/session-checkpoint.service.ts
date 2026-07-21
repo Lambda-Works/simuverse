@@ -14,6 +14,8 @@ export interface SessionRuntimeState {
   last_checkpoint_at?: string;
   /** Preserved from practice start — not overwritten by checkpoint */
   prior_context?: string;
+  /** AI-generated summary of the closed session — preserved across checkpoints */
+  encore_summary?: string;
 }
 
 @Injectable()
@@ -92,6 +94,9 @@ export class SessionCheckpointService implements OnModuleDestroy {
       last_checkpoint_at: new Date().toISOString(),
       ...(existingState?.prior_context
         ? { prior_context: existingState.prior_context }
+        : {}),
+      ...(existingState?.encore_summary
+        ? { encore_summary: existingState.encore_summary }
         : {}),
     };
 

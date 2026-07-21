@@ -58,10 +58,6 @@ class CreateCourseDto {
   is_active?: boolean;
 
   @IsOptional()
-  @IsInt()
-  simulated_company_id?: number;
-
-  @IsOptional()
   @IsString()
   created_by?: string;
 
@@ -76,6 +72,26 @@ class CreateCourseDto {
   @IsOptional()
   @IsArray()
   teacher_ids?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  endorser_ids?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  company_ids?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  foundation_ids?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  sponsor_ids?: number[];
 }
 
 class UpdateCourseDto {
@@ -116,10 +132,6 @@ class UpdateCourseDto {
   is_active?: boolean;
 
   @IsOptional()
-  @IsInt()
-  simulated_company_id?: number;
-
-  @IsOptional()
   @IsString()
   created_by?: string;
 
@@ -138,6 +150,26 @@ class UpdateCourseDto {
   @IsOptional()
   @IsArray()
   teacher_ids?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  endorser_ids?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  company_ids?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  foundation_ids?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  sponsor_ids?: number[];
 }
 
 class EnrollDto {

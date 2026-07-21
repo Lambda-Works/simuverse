@@ -13,7 +13,6 @@ import { StudentAssignmentsController } from './student-assignments.controller';
 import {
   FoundationConfigController,
   EndorsersController,
-  CourseEndorsersController,
   LegajoController,
   SimulationSessionsController,
   CertificatesController,
@@ -34,7 +33,6 @@ import { RbacModule } from '../rbac/rbac.module';
     StudentAssignmentsController,
     FoundationConfigController,
     EndorsersController,
-    CourseEndorsersController,
     LegajoController,
     SimulationSessionsController,
     CertificatesController,
