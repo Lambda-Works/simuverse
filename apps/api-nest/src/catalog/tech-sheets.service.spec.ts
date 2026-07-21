@@ -34,18 +34,23 @@ describe('TechSheetsService', () => {
       techSheetCompetency: {
         count: jest.fn(),
         findMany: jest.fn(),
+        create: jest.fn(),
         createMany: jest.fn(),
+        update: jest.fn(),
         deleteMany: jest.fn(),
       },
       techSheetKPI: {
         findMany: jest.fn(),
         create: jest.fn(),
         createMany: jest.fn(),
+        update: jest.fn(),
         deleteMany: jest.fn(),
       },
       techSheetTask: {
         findMany: jest.fn(),
+        create: jest.fn(),
         createMany: jest.fn(),
+        update: jest.fn(),
         deleteMany: jest.fn(),
       },
       techSheetPrompt: {
@@ -61,6 +66,7 @@ describe('TechSheetsService', () => {
 
     analysisPipeline = {
       run: jest.fn(),
+      syncPracticesToCourse: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -179,15 +185,15 @@ describe('TechSheetsService', () => {
         prompts: { system_prompt: 'New system', coaching_prompt: 'New coach' },
       });
 
-      // Verify deleteMany called for all tables
-      expect(prismaService.techSheetCompetency.deleteMany).toHaveBeenCalledWith({ where: { tech_sheet_id: 1 } });
-      expect(prismaService.techSheetKPI.deleteMany).toHaveBeenCalledWith({ where: { tech_sheet_id: 1 } });
-      expect(prismaService.techSheetTask.deleteMany).toHaveBeenCalledWith({ where: { tech_sheet_id: 1 } });
+      // Verify findMany called to check existing entries
+      expect(prismaService.techSheetCompetency.findMany).toHaveBeenCalledWith({ where: { tech_sheet_id: 1 } });
+      expect(prismaService.techSheetKPI.findMany).toHaveBeenCalledWith({ where: { tech_sheet_id: 1 } });
+      expect(prismaService.techSheetTask.findMany).toHaveBeenCalledWith({ where: { tech_sheet_id: 1 } });
       expect(prismaService.techSheetPrompt.deleteMany).toHaveBeenCalledWith({ where: { tech_sheet_id: 1 } });
 
-      // Verify createMany for competencies
-      expect(prismaService.techSheetCompetency.createMany).toHaveBeenCalledWith({
-        data: [{ tech_sheet_id: 1, name: 'New Comp', description: '', level: 'basic', category: 'tecnica' }],
+      // Verify create for competencies
+      expect(prismaService.techSheetCompetency.create).toHaveBeenCalledWith({
+        data: { tech_sheet_id: 1, name: 'New Comp', description: '', level: 'basic', category: 'tecnica' },
       });
 
       // Verify KPI create

@@ -12,11 +12,15 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PracticesService } from './practices.service';
+import { AssetDispatcherService } from './assets/asset-dispatcher.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('practices')
 export class PracticesController {
-  constructor(private readonly practices: PracticesService) {}
+  constructor(
+    private readonly practices: PracticesService,
+    private readonly assetDispatcher: AssetDispatcherService,
+  ) {}
 
   @Get('course/:courseId')
   async list(@Param('courseId') courseId: string) {
@@ -70,7 +74,11 @@ export class PracticesController {
     @Param('courseId') courseId: string,
     @Body() body?: { scenario_id?: string },
   ) {
-    return this.practices.startNextPractice(userId, courseId, body?.scenario_id);
+    const result = await this.practices.startNextPractice(userId, courseId, body?.scenario_id);
+    if (result?.instance?.id && result?.practice?.id) {
+      await this.assetDispatcher.startPractice(result.instance.id, result.practice.id);
+    }
+    return result;
   }
 
   @Post('instances/:instanceId/complete')
@@ -78,6 +86,7 @@ export class PracticesController {
     @CurrentUser('id') userId: string,
     @Param('instanceId') instanceId: string,
   ) {
+    this.assetDispatcher.endPractice(instanceId);
     return this.practices.completePractice(userId, instanceId);
   }
 }

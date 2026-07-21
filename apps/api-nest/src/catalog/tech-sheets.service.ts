@@ -508,63 +508,142 @@ export class TechSheetsService {
 
     // Write to relational tables in a transaction
     await (this.prisma as any).$transaction(async (tx: any) => {
-      // Delete existing records
-      await tx.techSheetPrompt.deleteMany({ where: { tech_sheet_id: id } });
-      await tx.techSheetTask.deleteMany({ where: { tech_sheet_id: id } });
-      await tx.techSheetKPI.deleteMany({ where: { tech_sheet_id: id } });
-      await tx.techSheetCompetency.deleteMany({ where: { tech_sheet_id: id } });
+      // Sync Competencies
+      if (dto.competencies !== undefined) {
+        const existingComps =
+          (await tx.techSheetCompetency.findMany({
+            where: { tech_sheet_id: id },
+          })) || [];
+        const incomingCompIds = new Set(
+          (dto.competencies || []).map((c: any) => c.id).filter(Boolean),
+        );
+        const compsToDelete = existingComps
+          .filter((c: any) => !incomingCompIds.has(c.id))
+          .map((c: any) => c.id);
 
-      // Insert competencies
-      if (dto.competencies?.length) {
-        await tx.techSheetCompetency.createMany({
-          data: dto.competencies.map((c: any) => ({
+        if (compsToDelete.length > 0) {
+          await tx.techSheetCompetency.deleteMany({
+            where: { id: { in: compsToDelete } },
+          });
+        }
+
+        for (const c of dto.competencies || []) {
+          const compData = {
             tech_sheet_id: id,
             name: c.name || '',
             description: c.description || '',
             level: c.level || 'basic',
             category: c.category || 'tecnica',
-          })),
-        });
-      }
-
-      // Insert KPIs, collect IDs for task linking
-      const kpiIds: string[] = [];
-      if (dto.kpis?.length) {
-        for (const k of dto.kpis) {
-          const created = await tx.techSheetKPI.create({
-            data: {
-              tech_sheet_id: id,
-              name: k.name || '',
-              description: k.description || '',
-              category: k.category || 'desempeño',
-              weight: k.weight ?? 0,
-              target_value: k.target_value ?? 0,
-              minimum_pass_value: k.minimum_pass_value ?? 0,
-            },
-          });
-          kpiIds.push(created.id);
+          };
+          if (c.id && existingComps.some((e: any) => e.id === c.id)) {
+            await tx.techSheetCompetency.update({
+              where: { id: c.id },
+              data: compData,
+            });
+          } else {
+            await tx.techSheetCompetency.create({
+              data: c.id ? { ...compData, id: c.id } : compData,
+            });
+          }
         }
       }
 
-      // Insert tasks, link to first KPI if available
-      if (dto.tasks?.length) {
-        const firstKpiId = kpiIds[0] || null;
-        await tx.techSheetTask.createMany({
-          data: dto.tasks.map((t: any, i: number) => ({
+      // Sync KPIs
+      const kpiIds: string[] = [];
+      if (dto.kpis !== undefined) {
+        const existingKpis =
+          (await tx.techSheetKPI.findMany({
+            where: { tech_sheet_id: id },
+          })) || [];
+        const incomingKpiIds = new Set(
+          (dto.kpis || []).map((k: any) => k.id).filter(Boolean),
+        );
+        const kpisToDelete = existingKpis
+          .filter((k: any) => !incomingKpiIds.has(k.id))
+          .map((k: any) => k.id);
+
+        if (kpisToDelete.length > 0) {
+          await tx.techSheetKPI.deleteMany({
+            where: { id: { in: kpisToDelete } },
+          });
+        }
+
+        for (const k of dto.kpis || []) {
+          const kpiData = {
+            tech_sheet_id: id,
+            name: k.name || '',
+            description: k.description || '',
+            category: k.category || 'desempeño',
+            weight: k.weight ?? 0,
+            target_value: k.target_value ?? 0,
+            minimum_pass_value: k.minimum_pass_value ?? 0,
+          };
+          let kpiId = k.id;
+          if (k.id && existingKpis.some((e: any) => e.id === k.id)) {
+            const updated = await tx.techSheetKPI.update({
+              where: { id: k.id },
+              data: kpiData,
+            });
+            kpiId = updated.id;
+          } else {
+            const created = await tx.techSheetKPI.create({
+              data: k.id ? { ...kpiData, id: k.id } : kpiData,
+            });
+            kpiId = created?.id || k.id;
+          }
+          kpiIds.push(kpiId);
+        }
+      }
+
+      // Sync Tasks (Preserves UUIDs!)
+      if (dto.tasks !== undefined) {
+        const existingTasks =
+          (await tx.techSheetTask.findMany({
+            where: { tech_sheet_id: id },
+          })) || [];
+        const firstKpiId = kpiIds[0] || existingTasks[0]?.kpi_id || null;
+        const incomingTaskIds = new Set(
+          (dto.tasks || []).map((t: any) => t.id).filter(Boolean),
+        );
+        const tasksToDelete = existingTasks
+          .filter((t: any) => !incomingTaskIds.has(t.id))
+          .map((t: any) => t.id);
+
+        if (tasksToDelete.length > 0) {
+          await tx.techSheetTask.deleteMany({
+            where: { id: { in: tasksToDelete } },
+          });
+        }
+
+        for (let i = 0; i < (dto.tasks || []).length; i++) {
+          const t = dto.tasks[i];
+          const taskData = {
             tech_sheet_id: id,
             kpi_id: firstKpiId,
-            type: 'practice',
+            type: 'practice' as const,
             title: t.title || '',
             description: t.description || '',
             difficulty: this.mapDifficulty(t.difficulty || 'medium'),
             sequence: t.sequence || i + 1,
             expected_duration_minutes: t.expected_duration_minutes ?? 0,
-          })),
-        });
+          };
+
+          if (t.id && existingTasks.some((e: any) => e.id === t.id)) {
+            await tx.techSheetTask.update({
+              where: { id: t.id },
+              data: taskData,
+            });
+          } else {
+            await tx.techSheetTask.create({
+              data: t.id ? { ...taskData, id: t.id } : taskData,
+            });
+          }
+        }
       }
 
-      // Insert prompts (system + coaching only; evaluation removed from product)
+      // Sync Prompts
       if (dto.prompts) {
+        await tx.techSheetPrompt.deleteMany({ where: { tech_sheet_id: id } });
         const promptTypes = ['system', 'coaching'] as const;
         for (const type of promptTypes) {
           const key = type === 'system' ? 'system_prompt' : 'coaching_prompt';
