@@ -226,19 +226,21 @@ export class AnalysisPipelineService {
    * Normalize active_modules to string[] — handles both formats:
    *   ["email_simulado", "hoja_calculo"]
    *   [{id: "email_simulado", enabled: true}, ...]
+   * Falls back to `modules` when `active_modules` is null/empty.
    */
-  private normalizeActiveModules(raw: any): string[] {
-    if (!raw) return [];
-    if (!Array.isArray(raw)) return [];
-    if (raw.length === 0) return [];
+  private normalizeActiveModules(courseConfig: any): string[] {
+    const raw = courseConfig?.active_modules;
+    const fallback = courseConfig?.modules;
+    const source = (raw && Array.isArray(raw) && raw.length > 0) ? raw : fallback;
+    if (!source || !Array.isArray(source) || source.length === 0) return [];
     // Array of objects: extract ids of enabled modules
-    if (typeof raw[0] === 'object' && raw[0] !== null) {
-      return raw
-        .filter((m: any) => (m.enabled !== false)) // treat missing `enabled` as true
+    if (typeof source[0] === 'object' && source[0] !== null) {
+      return source
+        .filter((m: any) => (m.enabled !== false))
         .map((m: any) => m.id || m.moduleId || '');
     }
     // Array of strings
-    return raw.filter((m: unknown) => typeof m === 'string') as string[];
+    return source.filter((m: unknown) => typeof m === 'string') as string[];
   }
 
   /**
@@ -257,7 +259,7 @@ export class AnalysisPipelineService {
       const courseConfig = await (this.prisma as any).courseConfig.findUnique({
         where: { course_id: courseId },
       });
-      const activeModules = this.normalizeActiveModules(courseConfig?.active_modules);
+      const activeModules = this.normalizeActiveModules(courseConfig);
       if (!activeModules.includes('email_simulado')) return;
 
       await this.updateStatus(techSheetId, 'step_8');
@@ -288,7 +290,7 @@ export class AnalysisPipelineService {
       const courseConfig = await (this.prisma as any).courseConfig.findUnique({
         where: { course_id: courseId },
       });
-      const activeModules = this.normalizeActiveModules(courseConfig?.active_modules);
+      const activeModules = this.normalizeActiveModules(courseConfig);
       if (!activeModules.includes('hoja_calculo')) return;
 
       await this.updateStatus(techSheetId, 'step_9');
@@ -326,7 +328,7 @@ export class AnalysisPipelineService {
       const courseConfig = await (this.prisma as any).courseConfig.findUnique({
         where: { course_id: courseId },
       });
-      const activeModules = this.normalizeActiveModules(courseConfig?.active_modules);
+      const activeModules = this.normalizeActiveModules(courseConfig);
       if (!activeModules.includes('crisis_engine')) return;
 
       await this.updateStatus(techSheetId, 'step_10');

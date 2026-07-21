@@ -394,6 +394,35 @@ describe('AnalysisPipelineService', () => {
         // Only step 8 should run (email_simulado enabled), steps 9-10 skipped
         expect(deepseekService.chat).toHaveBeenCalledTimes(7);
       });
+
+      it('should fall back to modules when active_modules is null', async () => {
+        prismaService.courseConfig.findUnique.mockResolvedValue({
+          active_modules: null,
+          modules: ['email_simulado', 'hoja_calculo', 'crisis_engine'],
+        });
+        markitdownClient.convert.mockResolvedValue('# Doc');
+        deepseekService.chat
+          .mockResolvedValueOnce('VALIDADO')
+          .mockResolvedValueOnce('Comp')
+          .mockResolvedValueOnce('KPI')
+          .mockResolvedValueOnce('Preg')
+          .mockResolvedValueOnce('Sim')
+          .mockResolvedValueOnce('Coach')
+          .mockResolvedValueOnce(
+            JSON.stringify([{ subject: 'E', body: 'B', trigger_condition: 'start', timing_minutes: 0 }]),
+          )
+          .mockResolvedValueOnce(
+            JSON.stringify({ columnas: [{ encabezado: 'C', tipo: 'texto' }], datos_ejemplo: [] }),
+          )
+          .mockResolvedValueOnce(
+            JSON.stringify([{ detonante: 'X', descripcion: 'Y', opciones_resolucion: ['A'] }]),
+          );
+
+        await service.run(1);
+
+        // All 9 calls: steps 2-7 + 8-10
+        expect(deepseekService.chat).toHaveBeenCalledTimes(9);
+      });
     });
 
     describe('step 9 — spreadsheet generation (module gate + retry)', () => {
