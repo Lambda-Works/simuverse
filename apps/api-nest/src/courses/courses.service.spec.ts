@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import { CoursesService } from './courses.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -7,11 +8,18 @@ describe('CoursesService — association sync', () => {
 
   beforeEach(() => {
     prisma = {
-      course: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
+      course: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
       courseEndorser: { deleteMany: jest.fn(), createMany: jest.fn() },
       courseSimulatedCompany: { deleteMany: jest.fn(), createMany: jest.fn() },
       courseFoundationConfig: { deleteMany: jest.fn(), createMany: jest.fn() },
       courseSponsor: { deleteMany: jest.fn(), createMany: jest.fn() },
+      simulationInstance: { findMany: jest.fn().mockResolvedValue([]) },
+      simulation: { findMany: jest.fn().mockResolvedValue([]) },
+      simulationChatLog: { deleteMany: jest.fn() },
+      simulationEvaluation: { deleteMany: jest.fn() },
+      simulationAssignment: { deleteMany: jest.fn() },
+      courseDocument: { deleteMany: jest.fn() },
+      flowTemplate: { deleteMany: jest.fn() },
       $transaction: jest.fn((callback: any) => callback(prisma)),
     };
     service = new CoursesService(prisma as PrismaService);
@@ -107,6 +115,34 @@ describe('CoursesService — association sync', () => {
       expect(prisma.courseSimulatedCompany.deleteMany).not.toHaveBeenCalled();
       expect(prisma.courseFoundationConfig.deleteMany).not.toHaveBeenCalled();
       expect(prisma.courseSponsor.deleteMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('permanentDelete()', () => {
+    it('throws NotFoundException for a missing course', async () => {
+      prisma.course.findUnique.mockResolvedValue(null);
+      await expect(service.permanentDelete('nope')).rejects.toThrow(NotFoundException);
+      expect(prisma.course.delete).not.toHaveBeenCalled();
+    });
+
+    it('cleans FK-less tables then deletes the course', async () => {
+      prisma.course.findUnique.mockResolvedValue({ id: 'course-1' });
+      prisma.simulationInstance.findMany.mockResolvedValue([{ id: 'inst-1' }]);
+      prisma.simulation.findMany.mockResolvedValue([{ id: 'sim-1' }]);
+      prisma.course.delete.mockResolvedValue({ id: 'course-1' });
+
+      await service.permanentDelete('course-1');
+
+      expect(prisma.simulationChatLog.deleteMany).toHaveBeenCalledWith({
+        where: { simulation_instance_id: { in: ['inst-1'] } },
+      });
+      expect(prisma.simulationEvaluation.deleteMany).toHaveBeenCalledWith({
+        where: { simulation_id: { in: ['sim-1'] } },
+      });
+      expect(prisma.simulationAssignment.deleteMany).toHaveBeenCalledWith({ where: { course_id: 'course-1' } });
+      expect(prisma.courseDocument.deleteMany).toHaveBeenCalledWith({ where: { course_id: 'course-1' } });
+      expect(prisma.flowTemplate.deleteMany).toHaveBeenCalledWith({ where: { course_id: 'course-1' } });
+      expect(prisma.course.delete).toHaveBeenCalledWith({ where: { id: 'course-1' } });
     });
   });
 });

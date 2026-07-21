@@ -21,6 +21,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -31,7 +41,7 @@ import { UsersABM } from '@/components/UsersABM';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdmin } from '@/lib/admin-context';
 import { apiClient } from '@/services/ApiClient';
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Copy, Plus, Save, Settings, Shield, Trash2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Copy, Plus, Power, Save, Settings, Shield, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -130,6 +140,7 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
   const [showPromptConfigModal, setShowPromptConfigModal] = useState(false);
   const [selectedCourseForPromptConfig, setSelectedCourseForPromptConfig] = useState<any>(null);
   const [courseFilter, setCourseFilter] = useState<'all' | 'active' | 'inactive'>('all'); // Filtro de cursos
+  const [hardDeleteCourseId, setHardDeleteCourseId] = useState<string | null>(null);
   const [teachers, setTeachers] = useState<Array<{ id: string; name: string; email: string }>>([]);
   const [formErrors, setFormErrors] = useState<{
     course_id?: string;
@@ -326,6 +337,17 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
       fetchCourses();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Error al reactivar el curso');
+    }
+  };
+
+  const handlePermanentDelete = async (id: string) => {
+    try {
+      await apiClient.delete(`/courses/${id}/permanent`);
+      toast.success('Curso eliminado permanentemente');
+      setHardDeleteCourseId(null);
+      fetchCourses();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error al eliminar el curso');
     }
   };
 
@@ -949,13 +971,20 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
                         <Settings className="w-4 h-4" />
                       </Button>
                       {course.is_active ? (
-                        <Button variant="destructive" size="sm" onClick={() => handleDelete(course.id)} title="Desactivar curso">
-                          <Trash2 className="w-4 h-4" />
+                        <Button variant="outline" size="sm" className="text-amber-600 border-amber-300" onClick={() => handleDelete(course.id)} title="Desactivar curso">
+                          <Power className="w-4 h-4" />
                         </Button>
                       ) : (
-                        <Button variant="outline" size="sm" className="text-green-600 border-green-300" onClick={() => handleReactivate(course.id)} title="Reactivar curso">
-                          <CheckCircle2 className="w-4 h-4" />
-                        </Button>
+                        <>
+                          <Button variant="outline" size="sm" className="text-green-600 border-green-300" onClick={() => handleReactivate(course.id)} title="Reactivar curso">
+                            <CheckCircle2 className="w-4 h-4" />
+                          </Button>
+                          {hasRole('admin') && (
+                            <Button variant="destructive" size="sm" onClick={() => setHardDeleteCourseId(course.id)} title="Eliminar permanentemente">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </>
                       )}
                         </>
                       )}
@@ -1052,6 +1081,28 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
 
         {currentTab === 'sponsors' && <SponsorsABM />}
       </main>
+
+      {/* Confirmación de eliminación permanente de curso */}
+      <AlertDialog open={!!hardDeleteCourseId} onOpenChange={o => { if (!o) setHardDeleteCourseId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600">Eliminar curso permanentemente</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción es irreversible. Se eliminará el curso y todos sus datos asociados
+              (escenarios, prácticas, simulaciones, evaluaciones, configuración y documentos).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-700 hover:bg-red-800"
+              onClick={() => hardDeleteCourseId && handlePermanentDelete(hardDeleteCourseId)}
+            >
+              Sí, eliminar permanentemente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

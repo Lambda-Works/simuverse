@@ -190,8 +190,18 @@ export class CoursesController {
   }
 
   @Get('catalog')
-  async catalog(@Query('q') q?: string) {
-    return this.coursesService.catalog(q);
+  async catalog(
+    @Query('q') q?: string,
+    @Query('tag') tag?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.coursesService.catalog({
+      q,
+      tag,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
   }
 
   @Get(':courseId')
@@ -244,5 +254,14 @@ export class CoursesController {
   async remove(@Param('id') id: string) {
     await this.coursesService.remove(id);
     return { message: 'Course deactivated successfully' };
+  }
+
+  @Delete(':id/permanent')
+  @Roles('admin')
+  @Permissions('courses.manage')
+  @HttpCode(HttpStatus.OK)
+  async permanentDelete(@Param('id') id: string) {
+    await this.coursesService.permanentDelete(id);
+    return { message: 'Course permanently deleted' };
   }
 }

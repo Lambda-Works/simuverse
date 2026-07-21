@@ -346,7 +346,7 @@ model Scenario {
   created_at        DateTime   @default(now())
   updated_at        DateTime   @updatedAt
 
-  course    Course               @relation(fields: [course_id], references: [id])
+  course    Course               @relation(fields: [course_id], references: [id], onDelete: Cascade)
   instances SimulationInstance[]
   tasks     Task[]
 
@@ -371,7 +371,7 @@ model SimulationInstance {
   updated_at          DateTime                 @updatedAt
 
   student       User           @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  course        Course         @relation(fields: [course_id], references: [id])
+  course        Course         @relation(fields: [course_id], references: [id], onDelete: Cascade)
   scenario      Scenario       @relation(fields: [scenario_id], references: [id])
   logs          PracticeLogs[]
   notifications Notification[]
@@ -421,7 +421,7 @@ model PracticeLogs {
   docenter_notes         String?    @db.Text
 
   student             User                @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  course              Course              @relation(fields: [course_id], references: [id])
+  course              Course              @relation(fields: [course_id], references: [id], onDelete: Cascade)
   simulation_instance SimulationInstance? @relation(fields: [simulation_instance_id], references: [id])
 
   @@index([student_id, course_id])
@@ -790,7 +790,7 @@ model CourseConfig {
   created_at             DateTime             @default(now())
   updated_at             DateTime             @updatedAt
 
-  course          Course          @relation(fields: [course_id], references: [id])
+  course          Course          @relation(fields: [course_id], references: [id], onDelete: Cascade)
   tech_sheet      TechSheet?      @relation(fields: [tech_sheet_id], references: [id])
   prompt_template PromptTemplate? @relation(fields: [prompt_template_id], references: [id])
 

@@ -55,10 +55,15 @@ const Dashboard = () => {
     id: string;
     title: string;
     description: string | null;
+    tags?: string[];
     requires_password: boolean;
     teachers: Array<{ id: string; name: string; email: string }>;
   }>>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogTag, setCatalogTag] = useState('');
+  const [catalogPage, setCatalogPage] = useState(1);
+  const [catalogTotal, setCatalogTotal] = useState(0);
+  const CATALOG_LIMIT = 20;
   const [enrollPassword, setEnrollPassword] = useState('');
   const [enrollingId, setEnrollingId] = useState<string | null>(null);
   const [enrollError, setEnrollError] = useState('');
@@ -68,13 +73,21 @@ const Dashboard = () => {
     if (!loading && !isAuthenticated) router.push('/auth');
   }, [isAuthenticated, loading, router]);
 
-  const loadCatalog = async (q = '') => {
+  const loadCatalog = async (q = '', tag = catalogTag, page = 1) => {
     setCatalogLoading(true);
     try {
-      const res = await apiClient.get('/courses/catalog', { params: { q } });
-      setCatalog(Array.isArray(res.data) ? res.data : []);
+      const res = await apiClient.get('/courses/catalog', {
+        params: { q, tag: tag || undefined, page, limit: CATALOG_LIMIT },
+      });
+      const payload = res.data;
+      // Backward-compatible: accept either the paginated shape or a raw array
+      const list = Array.isArray(payload) ? payload : (payload?.data ?? []);
+      setCatalog(list);
+      setCatalogTotal(Array.isArray(payload) ? list.length : (payload?.total ?? list.length));
+      setCatalogPage(page);
     } catch {
       setCatalog([]);
+      setCatalogTotal(0);
     } finally {
       setCatalogLoading(false);
     }
@@ -265,6 +278,24 @@ const Dashboard = () => {
                               : 'Sin docente asignado'}
                             {c.requires_password ? ' · Requiere contraseña' : ' · Acceso libre'}
                           </p>
+                          {c.tags && c.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {c.tags.map((tag) => (
+                                <button
+                                  key={tag}
+                                  type="button"
+                                  onClick={() => { const next = catalogTag === tag ? '' : tag; setCatalogTag(next); loadCatalog(catalogQ, next, 1); }}
+                                >
+                                  <Badge
+                                    variant={catalogTag === tag ? 'default' : 'secondary'}
+                                    className="text-xs capitalize cursor-pointer"
+                                  >
+                                    {tag}
+                                  </Badge>
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         {c.requires_password && (
                           <Input
@@ -287,6 +318,30 @@ const Dashboard = () => {
                         </Button>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {!catalogLoading && catalogTotal > CATALOG_LIMIT && (
+                  <div className="flex items-center justify-between mt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={catalogPage <= 1}
+                      onClick={() => loadCatalog(catalogQ, catalogTag, catalogPage - 1)}
+                    >
+                      Anterior
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      Página {catalogPage} de {Math.max(1, Math.ceil(catalogTotal / CATALOG_LIMIT))}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={catalogPage >= Math.ceil(catalogTotal / CATALOG_LIMIT)}
+                      onClick={() => loadCatalog(catalogQ, catalogTag, catalogPage + 1)}
+                    >
+                      Siguiente
+                    </Button>
                   </div>
                 )}
               </CardContent>
