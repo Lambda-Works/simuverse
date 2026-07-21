@@ -140,3 +140,5 @@ prompts.md
 # AI Handoff files (local only, not pushed)
 # ============================================
 HANDOFF-*.md
+handoff-*.md
+SESSION-HANDOFF.md
