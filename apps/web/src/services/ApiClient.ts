@@ -61,6 +61,9 @@ class ApiClient {
     });
 
     this.client.interceptors.request.use(async (config) => {
+      if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+      }
       let token = sessionStorage.getItem('token');
       if (isFirebaseConfigured) {
         const fbToken = await getFirebaseIdToken(false);

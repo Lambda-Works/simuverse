@@ -46,9 +46,10 @@ export function LogoField({ urlValue, onUrlChange, file, onFileChange, label = '
         </div>
       </div>
       {mode === 'url' ? (
-        <Input value={urlValue} onChange={e => onUrlChange(e.target.value)} placeholder="https://.../logo.png" />
+        <Input key="url" value={urlValue} onChange={e => onUrlChange(e.target.value)} placeholder="https://.../logo.png" />
       ) : (
         <Input
+          key="file"
           type="file"
           accept="image/png,image/jpeg,image/webp"
           onChange={e => onFileChange(e.target.files?.[0] ?? null)}

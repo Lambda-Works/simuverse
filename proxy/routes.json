@@ -1,4 +1,10 @@
 {
   "defaultTarget": "http://api-nest:5001",
-  "routes": []
+  "routes": [
+    {
+      "path": "/logos",
+      "target": "http://api-nest:5001",
+      "active": true
+    }
+  ]
 }

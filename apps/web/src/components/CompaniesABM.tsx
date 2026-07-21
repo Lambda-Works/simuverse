@@ -104,7 +104,10 @@ export function CompaniesABM() {
       setLogoFile(null);
       setEditingId(null);
       fetchCompanies();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { 
+      const msg = e.response?.data?.message;
+      toast.error(msg ? (Array.isArray(msg) ? msg.join(', ') : msg) : e.message); 
+    }
     setSaving(false);
   };
 

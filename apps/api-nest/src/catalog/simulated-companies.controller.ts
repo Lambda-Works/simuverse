@@ -50,6 +50,9 @@ class CreateSimulatedCompanyDto {
   @IsOptional()
   @IsString()
   website?: string;
+
+  @IsOptional()
+  logo_file?: any;
 }
 
 class UpdateSimulatedCompanyDto {
@@ -89,6 +92,9 @@ class UpdateSimulatedCompanyDto {
   @IsOptional()
   @IsString()
   website?: string;
+
+  @IsOptional()
+  logo_file?: any;
 }
 
 @Controller('simulated-companies')
@@ -111,25 +117,35 @@ export class SimulatedCompaniesController {
   @Post()
   @UseInterceptors(FileInterceptor('logo_file', logoUploadOptions))
   async create(@Body() dto: CreateSimulatedCompanyDto, @UploadedFile() logo_file?: Express.Multer.File) {
+    const data = { ...dto } as any;
+    delete data.logo_file;
     return (this.prisma as any).simulatedCompany.create({
-      data: { ...dto, logo_url: resolveLogoUrl(logo_file, dto.logo_url) ?? null },
+      data: { ...data, logo_url: resolveLogoUrl(logo_file, dto.logo_url) ?? null },
     });
   }
 
   @Put(':id')
   @UseInterceptors(FileInterceptor('logo_file', logoUploadOptions))
   async update(@Param('id') id: string, @Body() dto: UpdateSimulatedCompanyDto, @UploadedFile() logo_file?: Express.Multer.File) {
+    console.log('Update called with id:', id);
+    console.log('UploadedFile:', logo_file ? logo_file.filename : 'undefined');
+    console.log('DTO:', dto);
+
     if (logo_file) {
       const existing = await (this.prisma as any).simulatedCompany.findUnique({ where: { id: Number(id) } });
       cleanupOldLogo(existing?.logo_url);
     }
 
     const data = { ...dto } as any;
+    delete data.logo_file;
     if (logo_file || dto.logo_url !== undefined) {
       data.logo_url = resolveLogoUrl(logo_file, dto.logo_url) ?? null;
+      console.log('Resolved logo_url:', data.logo_url);
     }
 
-    return (this.prisma as any).simulatedCompany.update({ where: { id: Number(id) }, data });
+    const result = await (this.prisma as any).simulatedCompany.update({ where: { id: Number(id) }, data });
+    console.log('Update result:', result);
+    return result;
   }
 
   @Delete(':id')

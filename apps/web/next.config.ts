@@ -36,6 +36,15 @@ const nextConfig: NextConfig = {
     }
     return config
   },
+  async rewrites() {
+    // Usamos el hostname interno de docker para que Next.js pueda proxyarlo correctamente
+    return [
+      {
+        source: '/logos/:path*',
+        destination: 'http://api-nest:5001/logos/:path*',
+      },
+    ]
+  },
 }
 
 export default nextConfig
