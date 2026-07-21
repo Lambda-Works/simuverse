@@ -22,13 +22,14 @@ import { Permissions } from '../common/decorators/permissions.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 import { AIService } from './ai/ai.service';
-import { CrisisEngine } from './engines/crisis-engine.service';
+import { CrisisEngine, mapPipelineCrisis } from './engines/crisis-engine.service';
 import { SessionMemoryService } from './session-memory.service';
 import { SessionCheckpointService } from './session-checkpoint.service';
 import { TriggerService } from './triggers/trigger.service';
 import { ConversationStateService } from './conversation-state.service';
 import { PracticesService } from './practices.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { AssetDispatcherService } from './assets/asset-dispatcher.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('simulations')
@@ -44,6 +45,7 @@ export class SimulationsController {
     private conversationState: ConversationStateService,
     private practices: PracticesService,
     private prisma: PrismaService,
+    private assetDispatcher: AssetDispatcherService,
   ) {}
 
   // ─── Lifecycle endpoints ───────────────────────────────────────────────
@@ -59,6 +61,9 @@ export class SimulationsController {
       dto.scenario_id,
     );
     await this.checkpoint.hydrateSession(result.session_id || result.id);
+    if (result?.id && result?.scenario_id) {
+      await this.assetDispatcher.startPractice(result.id, result.scenario_id);
+    }
     return result;
   }
 
@@ -156,6 +161,9 @@ export class SimulationsController {
       body.scenario_id,
     );
     await this.checkpoint.hydrateSession(result.instance.id);
+    if (result?.instance?.id && result?.practice?.id) {
+      await this.assetDispatcher.startPractice(result.instance.id, result.practice.id);
+    }
     return result.instance;
   }
 
@@ -164,7 +172,29 @@ export class SimulationsController {
     const scenario = await this.simulationsService.getSimulationScenario(id);
     const content = (scenario?.content as any) || {};
     // ScenariosABM historically saved as initial_emails; runtime/seeds use emails
-    return content.emails || content.initial_emails || [];
+    const staticEmails = content.emails || content.initial_emails || [];
+    
+    // Ensure active asset dispatcher session for this instance (lazy init if resumed/page refreshed)
+    let dynamicRaw = this.assetDispatcher.getDispatchedEmails(id);
+    if (dynamicRaw.length === 0 && !this.assetDispatcher.getSession(id)) {
+      const instance = await this.prisma.simulationInstance.findUnique({
+        where: { id },
+      });
+      if (instance?.scenario_id) {
+        await this.assetDispatcher.startPractice(id, instance.scenario_id);
+        dynamicRaw = this.assetDispatcher.getDispatchedEmails(id);
+      }
+    }
+
+    const dynamicEmails = dynamicRaw.map((e, idx) => ({
+      id: e.id || `dispatched-email-${idx}`,
+      from: e.sender || e.from || 'Sistema',
+      subject: e.subject || 'Sin Asunto',
+      body: e.body || e.content || '',
+      timestamp: new Date(),
+      unread: true,
+    }));
+    return [...staticEmails, ...dynamicEmails];
   }
 
   @Get(':id/documents')
@@ -268,6 +298,21 @@ export class SimulationsController {
     };
 
     const proactiveMessages: string[] = triggerResults.map((r) => r.message);
+
+    const dispatchedAssets = this.assetDispatcher.onMessage(id);
+    for (const asset of dispatchedAssets) {
+      if (asset.type === 'email') {
+        const emailMsg = `[NUEVO EMAIL GENERADO]\nAsunto: ${asset.data.subject}\n\n${asset.data.body}`;
+        proactiveMessages.push(emailMsg);
+        this.sessionMemory.append(id, { speaker: 'ai', message: emailMsg });
+      } else if (asset.type === 'crisis') {
+        const mapped = mapPipelineCrisis(asset.data);
+        this.crisisEngine.getOrCreateCrisis(id, 'custom', mapped);
+        const crisisMsg = `[NUEVA CRISIS DISPARADA]\n${asset.data.detonante || asset.data.trigger || asset.data.title}\n\n${asset.data.descripcion || asset.data.description}`;
+        proactiveMessages.push(crisisMsg);
+        this.sessionMemory.append(id, { speaker: 'ai', message: crisisMsg });
+      }
+    }
 
     const aiResponse = await this.aiService.sendMessage(
       dto.message,

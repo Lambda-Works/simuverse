@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { API_BASE, authFetch } from '@/lib/api';
 import { apiClient } from '@/services/ApiClient';
 import { BarChart3, Edit2, Mail, Package, Plus, ShieldAlert, Trash2, X } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -46,6 +47,10 @@ interface EmailConfig {
   body: string;
   trigger_condition: string;
   timing_minutes: number;
+  practice_id?: string;
+  practice_title?: string;
+  trigger_mode?: 'time' | 'messages';
+  trigger_value?: number;
 }
 
 interface SpreadsheetColumn {
@@ -57,12 +62,18 @@ interface SpreadsheetColumn {
 interface SpreadsheetConfig {
   columns: SpreadsheetColumn[];
   sample_data: unknown[];
+  practice_id?: string;
+  practice_title?: string;
 }
 
 interface CrisisScenario {
   trigger: string;
   description: string;
   resolution_options: string[];
+  practice_id?: string;
+  practice_title?: string;
+  trigger_mode?: 'time' | 'messages';
+  trigger_value?: number;
 }
 
 interface CrisisConfig {
@@ -111,6 +122,8 @@ function mapSpreadsheet(raw: any): SpreadsheetConfig {
       type: c.tipo || c.type || 'string',
     })),
     sample_data: raw.datos_ejemplo || raw.sample_data || [],
+    practice_id: raw.practice_id,
+    practice_title: raw.practice_title,
   };
 }
 
@@ -122,6 +135,10 @@ function mapCrisis(raw: any): CrisisConfig {
       trigger: s.detonante || s.trigger || '',
       description: s.descripcion || s.description || '',
       resolution_options: s.opciones_resolucion || s.resolution_options || [],
+      practice_id: s.practice_id,
+      practice_title: s.practice_title,
+      trigger_mode: s.trigger_mode,
+      trigger_value: s.trigger_value,
     })),
   };
 }
@@ -129,18 +146,33 @@ function mapCrisis(raw: any): CrisisConfig {
 /** Reverse-map AssetsConfig back to pipeline_output shape (Spanish keys). */
 function unmapAssets(assets: AssetsConfig): Record<string, any> {
   return {
-    step_8_emails: assets.emails,
+    step_8_emails: assets.emails.map((e) => ({
+      subject: e.subject,
+      body: e.body,
+      trigger_condition: e.trigger_condition,
+      timing_minutes: e.timing_minutes,
+      practice_id: e.practice_id,
+      practice_title: e.practice_title,
+      trigger_mode: e.trigger_mode,
+      trigger_value: e.trigger_value,
+    })),
     step_9_spreadsheet: {
       columnas: assets.spreadsheet.columns.map((c) => ({
         encabezado: c.header,
         tipo: c.type,
       })),
       datos_ejemplo: assets.spreadsheet.sample_data,
+      practice_id: assets.spreadsheet.practice_id,
+      practice_title: assets.spreadsheet.practice_title,
     },
     step_10_crisis: assets.crisis.scenarios.map((s) => ({
       detonante: s.trigger,
       descripcion: s.description,
       opciones_resolucion: s.resolution_options,
+      practice_id: s.practice_id,
+      practice_title: s.practice_title,
+      trigger_mode: s.trigger_mode,
+      trigger_value: s.trigger_value,
     })),
   };
 }
@@ -330,7 +362,7 @@ export function ConfigureTechSheetModal({
             <TabsTrigger value="kpis">KPIs</TabsTrigger>
             <TabsTrigger value="tasks">Tareas</TabsTrigger>
             <TabsTrigger value="prompts">Prompts</TabsTrigger>
-            <TabsTrigger value="contenido">Contenido</TabsTrigger>
+            <TabsTrigger value="assets">Contenido</TabsTrigger>
             <TabsTrigger value="summary">Resumen</TabsTrigger>
           </TabsList>
 
@@ -612,7 +644,7 @@ export function ConfigureTechSheetModal({
                           </span>
                         )}
                       </div>
-                      <p className="font-semibold">{task.title}</p>
+                      <p className="font-semibold text-sm line-clamp-2">{task.title}</p>
                       <p className="text-sm text-gray-600">{task.description}</p>
                       <p className="text-xs text-gray-500 mt-1">
                         {task.expected_duration_minutes} min | Secuencia: {task.sequence}
@@ -716,7 +748,7 @@ export function ConfigureTechSheetModal({
           </TabsContent>
 
           {/* CONTENIDO */}
-          <TabsContent value="contenido" className="space-y-4 mt-4">
+          <TabsContent value="assets" className="space-y-4 mt-4">
             <h3 className="font-semibold text-lg flex items-center gap-2">
               <Package className="w-5 h-5" />
               Contenido Generado por Pipeline
@@ -745,8 +777,94 @@ export function ConfigureTechSheetModal({
                   <div className="space-y-2 max-h-[55vh] overflow-auto">
                     {config.assets.emails.map((email, idx) => (
                       <Card key={idx} className="p-3">
+                        {/* Badge de estado de vinculacion */}
+                        {!email.practice_id ? (
+                          <Badge variant="destructive" className="mb-2">Sin vincular</Badge>
+                        ) : (
+                          <Badge variant="outline" className="mb-2 bg-blue-50 text-blue-700 border-blue-200">
+                            Practica: {email.practice_title || 'Vinculada'}
+                          </Badge>
+                        )}
                         {editing ? (
-                          <div className="space-y-2">
+                          <div className="space-y-2 mt-1">
+                            {/* Selector de practica */}
+                            <div>
+                              <label className="text-xs text-gray-500">Practica:</label>
+                              <Select
+                                value={email.practice_id || ''}
+                                onValueChange={(val) => {
+                                  const task = config.tasks.find((t) => t.id === val);
+                                  const newEmails = [...config.assets.emails];
+                                  newEmails[idx] = {
+                                    ...email,
+                                    practice_id: val,
+                                    practice_title: task?.title || '',
+                                  };
+                                  setConfig({ ...config, assets: { ...config.assets, emails: newEmails } });
+                                }}
+                              >
+                                <SelectTrigger className="text-xs h-auto min-h-[32px] py-1 max-w-full"><SelectValue placeholder="Seleccionar practica" /></SelectTrigger>
+                                <SelectContent className="w-[var(--radix-select-trigger-width)] max-h-[200px]">
+                                  {config.tasks.map((task) => (
+                                    <SelectItem key={task.id} value={task.id} className="text-xs py-1.5">
+                                      <span className="truncate block max-w-full">{task.title}</span>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {/* Trigger config */}
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-xs text-gray-500">Modo de disparo:</label>
+                                <div className="flex gap-2 mt-1">
+                                  <label className="flex items-center gap-1 text-xs cursor-pointer">
+                                    <input
+                                      type="radio"
+                                      name={`email-trigger-mode-${idx}`}
+                                      checked={email.trigger_mode !== 'messages'}
+                                      onChange={() => {
+                                        const newEmails = [...config.assets.emails];
+                                        newEmails[idx] = { ...email, trigger_mode: 'time' };
+                                        setConfig({ ...config, assets: { ...config.assets, emails: newEmails } });
+                                      }}
+                                    />
+                                    Tiempo
+                                  </label>
+                                  <label className="flex items-center gap-1 text-xs cursor-pointer">
+                                    <input
+                                      type="radio"
+                                      name={`email-trigger-mode-${idx}`}
+                                      checked={email.trigger_mode === 'messages'}
+                                      onChange={() => {
+                                        const newEmails = [...config.assets.emails];
+                                        newEmails[idx] = { ...email, trigger_mode: 'messages' };
+                                        setConfig({ ...config, assets: { ...config.assets, emails: newEmails } });
+                                      }}
+                                    />
+                                    Mensajes
+                                  </label>
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-xs text-gray-500">
+                                  {email.trigger_mode === 'messages' ? 'Cant. mensajes' : 'Minutos'}:
+                                </label>
+                                <Input
+                                  type="number"
+                                  value={email.trigger_value ?? email.timing_minutes ?? 0}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value) || 0;
+                                    const newEmails = [...config.assets.emails];
+                                    newEmails[idx] = { ...email, trigger_value: val, timing_minutes: val };
+                                    setConfig({ ...config, assets: { ...config.assets, emails: newEmails } });
+                                  }}
+                                  className="text-xs h-8"
+                                />
+                              </div>
+                            </div>
+
                             <Input
                               value={email.subject}
                               onChange={(e) => {
@@ -766,27 +884,6 @@ export function ConfigureTechSheetModal({
                               placeholder="Cuerpo del email"
                               rows={3}
                             />
-                            <div className="grid grid-cols-2 gap-2">
-                              <Input
-                                value={email.trigger_condition}
-                                onChange={(e) => {
-                                  const newEmails = [...config.assets.emails];
-                                  newEmails[idx] = { ...email, trigger_condition: e.target.value };
-                                  setConfig({ ...config, assets: { ...config.assets, emails: newEmails } });
-                                }}
-                                placeholder="Condicion de activacion"
-                              />
-                              <Input
-                                type="number"
-                                value={email.timing_minutes}
-                                onChange={(e) => {
-                                  const newEmails = [...config.assets.emails];
-                                  newEmails[idx] = { ...email, timing_minutes: parseInt(e.target.value) || 0 };
-                                  setConfig({ ...config, assets: { ...config.assets, emails: newEmails } });
-                                }}
-                                placeholder="Minutos"
-                              />
-                            </div>
                             <Button
                               variant="outline"
                               size="sm"
@@ -800,11 +897,11 @@ export function ConfigureTechSheetModal({
                             </Button>
                           </div>
                         ) : (
-                          <div>
+                          <div className="mt-1">
                             <p className="font-semibold text-sm">{email.subject}</p>
                             <p className="text-xs text-gray-600 mt-1 line-clamp-2">{email.body}</p>
                             <p className="text-xs text-gray-400 mt-1">
-                              Trigger: {email.trigger_condition} | Timing: {email.timing_minutes}min
+                              Disparo: {email.trigger_mode === 'messages' ? `${email.trigger_value || 0} msjs` : `${email.trigger_value || email.timing_minutes || 0} min`}
                             </p>
                           </div>
                         )}
@@ -818,11 +915,13 @@ export function ConfigureTechSheetModal({
                     size="sm"
                     className="mt-2"
                     onClick={() => {
-                      const newEmail = {
+                      const newEmail: EmailConfig = {
                         subject: 'Nuevo Email',
                         body: '',
-                        trigger_condition: '',
+                        trigger_condition: 'after_start',
                         timing_minutes: 0,
+                        trigger_mode: 'time',
+                        trigger_value: 0,
                       };
                       setConfig({
                         ...config,
@@ -842,65 +941,108 @@ export function ConfigureTechSheetModal({
                     No hay hoja de calculo generada. Ejecuta el pipeline con el modulo de calculo activado.
                   </Card>
                 ) : (
-                  <Card className="p-3 overflow-auto max-h-[55vh]">
-                    <div className="min-w-full">
-                      <div className="flex gap-2 border-b pb-2 mb-2">
-                        {config.assets.spreadsheet.columns.map((col, idx) => (
-                          <div key={idx} className="flex-1 min-w-[120px]">
-                            {editing ? (
-                              <Input
-                                value={col.header}
-                                onChange={(e) => {
-                                  const newCols = [...config.assets.spreadsheet.columns];
-                                  newCols[idx] = { ...col, header: e.target.value };
-                                  setConfig({
-                                    ...config,
-                                    assets: {
-                                      ...config.assets,
-                                      spreadsheet: { ...config.assets.spreadsheet, columns: newCols },
-                                    },
-                                  });
-                                }}
-                                className="text-xs"
-                              />
-                            ) : (
-                              <span className="text-xs font-semibold">{col.header}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      {config.assets.spreadsheet.sample_data.map((row: any, rowIdx) => (
-                        <div key={rowIdx} className="flex gap-2 py-1">
-                          {config.assets.spreadsheet.columns.map((col, colIdx) => (
-                            <div key={colIdx} className="flex-1 min-w-[120px] text-xs">
+                  <div className="space-y-3">
+                    <Card className="p-3">
+                      {!config.assets.spreadsheet.practice_id ? (
+                        <Badge variant="destructive" className="mb-2">Sin vincular</Badge>
+                      ) : (
+                        <Badge variant="outline" className="mb-2 bg-blue-50 text-blue-700 border-blue-200">
+                          Practica: {config.assets.spreadsheet.practice_title || 'Vinculada'}
+                        </Badge>
+                      )}
+                      {editing && (
+                        <div className="mt-1">
+                          <label className="text-xs text-gray-500">Practica vinculada:</label>
+                          <Select
+                            value={config.assets.spreadsheet.practice_id || ''}
+                            onValueChange={(val) => {
+                              const task = config.tasks.find((t) => t.id === val);
+                              setConfig({
+                                ...config,
+                                assets: {
+                                  ...config.assets,
+                                  spreadsheet: {
+                                    ...config.assets.spreadsheet,
+                                    practice_id: val,
+                                    practice_title: task?.title || '',
+                                  },
+                                },
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="text-xs h-auto min-h-[32px] py-1 max-w-full"><SelectValue placeholder="Seleccionar practica" /></SelectTrigger>
+                            <SelectContent className="w-[var(--radix-select-trigger-width)] max-h-[200px]">
+                              {config.tasks.map((task) => (
+                                <SelectItem key={task.id} value={task.id} className="text-xs py-1.5">
+                                  <span className="truncate block max-w-full">{task.title}</span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </Card>
+
+                    <Card className="p-3 overflow-auto max-h-[55vh]">
+                      <div className="min-w-full">
+                        <div className="flex gap-2 border-b pb-2 mb-2">
+                          {config.assets.spreadsheet.columns.map((col, idx) => (
+                            <div key={idx} className="flex-1 min-w-[120px]">
                               {editing ? (
                                 <Input
-                                  value={String((row as any)[col.header] || '')}
+                                  value={col.header}
                                   onChange={(e) => {
-                                    const newData = [...config.assets.spreadsheet.sample_data];
-                                    const prevRow = (typeof newData[rowIdx] === 'object' && newData[rowIdx] !== null)
-                                      ? newData[rowIdx] as Record<string, any>
-                                      : {};
-                                    newData[rowIdx] = { ...prevRow, [col.header]: e.target.value };
+                                    const newCols = [...config.assets.spreadsheet.columns];
+                                    newCols[idx] = { ...col, header: e.target.value };
                                     setConfig({
                                       ...config,
                                       assets: {
                                         ...config.assets,
-                                        spreadsheet: { ...config.assets.spreadsheet, sample_data: newData },
+                                        spreadsheet: { ...config.assets.spreadsheet, columns: newCols },
                                       },
                                     });
                                   }}
                                   className="text-xs"
                                 />
                               ) : (
-                                <span>{String((row as any)[col.header] || '')}</span>
+                                <span className="text-xs font-semibold">{col.header}</span>
                               )}
                             </div>
                           ))}
                         </div>
-                      ))}
-                    </div>
-                  </Card>
+                        {config.assets.spreadsheet.sample_data.map((row: any, rowIdx) => (
+                          <div key={rowIdx} className="flex gap-2 py-1">
+                            {config.assets.spreadsheet.columns.map((col, colIdx) => (
+                              <div key={colIdx} className="flex-1 min-w-[120px] text-xs">
+                                {editing ? (
+                                  <Input
+                                    value={String((row as any)[col.header] || '')}
+                                    onChange={(e) => {
+                                      const newData = [...config.assets.spreadsheet.sample_data];
+                                      const prevRow = (typeof newData[rowIdx] === 'object' && newData[rowIdx] !== null)
+                                        ? newData[rowIdx] as Record<string, any>
+                                        : {};
+                                      newData[rowIdx] = { ...prevRow, [col.header]: e.target.value };
+                                      setConfig({
+                                        ...config,
+                                        assets: {
+                                          ...config.assets,
+                                          spreadsheet: { ...config.assets.spreadsheet, sample_data: newData },
+                                        },
+                                      });
+                                    }}
+                                    className="text-xs"
+                                  />
+                                ) : (
+                                  <span>{String((row as any)[col.header] || '')}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  </div>
                 )}
               </TabsContent>
 
@@ -914,8 +1056,106 @@ export function ConfigureTechSheetModal({
                   <div className="space-y-2 max-h-[55vh] overflow-auto">
                     {config.assets.crisis.scenarios.map((scenario, idx) => (
                       <Card key={idx} className="p-3">
+                        {/* Badge de estado de vinculacion */}
+                        {!scenario.practice_id ? (
+                          <Badge variant="destructive" className="mb-2">Sin vincular</Badge>
+                        ) : (
+                          <Badge variant="outline" className="mb-2 bg-blue-50 text-blue-700 border-blue-200">
+                            Practica: {scenario.practice_title || 'Vinculada'}
+                          </Badge>
+                        )}
                         {editing ? (
-                          <div className="space-y-2">
+                          <div className="space-y-2 mt-1">
+                            {/* Selector de practica */}
+                            <div>
+                              <label className="text-xs text-gray-500">Practica:</label>
+                              <Select
+                                value={scenario.practice_id || ''}
+                                onValueChange={(val) => {
+                                  const task = config.tasks.find((t) => t.id === val);
+                                  const newScenarios = [...config.assets.crisis.scenarios];
+                                  newScenarios[idx] = {
+                                    ...scenario,
+                                    practice_id: val,
+                                    practice_title: task?.title || '',
+                                  };
+                                  setConfig({
+                                    ...config,
+                                    assets: { ...config.assets, crisis: { scenarios: newScenarios } },
+                                  });
+                                }}
+                              >
+                                <SelectTrigger className="text-xs h-auto min-h-[32px] py-1 max-w-full"><SelectValue placeholder="Seleccionar practica" /></SelectTrigger>
+                                <SelectContent className="w-[var(--radix-select-trigger-width)] max-h-[200px]">
+                                  {config.tasks.map((task) => (
+                                    <SelectItem key={task.id} value={task.id} className="text-xs py-1.5">
+                                      <span className="truncate block max-w-full">{task.title}</span>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {/* Trigger config */}
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-xs text-gray-500">Modo de disparo:</label>
+                                <div className="flex gap-2 mt-1">
+                                  <label className="flex items-center gap-1 text-xs cursor-pointer">
+                                    <input
+                                      type="radio"
+                                      name={`crisis-trigger-mode-${idx}`}
+                                      checked={scenario.trigger_mode !== 'messages'}
+                                      onChange={() => {
+                                        const newScenarios = [...config.assets.crisis.scenarios];
+                                        newScenarios[idx] = { ...scenario, trigger_mode: 'time' };
+                                        setConfig({
+                                          ...config,
+                                          assets: { ...config.assets, crisis: { scenarios: newScenarios } },
+                                        });
+                                      }}
+                                    />
+                                    Tiempo
+                                  </label>
+                                  <label className="flex items-center gap-1 text-xs cursor-pointer">
+                                    <input
+                                      type="radio"
+                                      name={`crisis-trigger-mode-${idx}`}
+                                      checked={scenario.trigger_mode === 'messages'}
+                                      onChange={() => {
+                                        const newScenarios = [...config.assets.crisis.scenarios];
+                                        newScenarios[idx] = { ...scenario, trigger_mode: 'messages' };
+                                        setConfig({
+                                          ...config,
+                                          assets: { ...config.assets, crisis: { scenarios: newScenarios } },
+                                        });
+                                      }}
+                                    />
+                                    Mensajes
+                                  </label>
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-xs text-gray-500">
+                                  {scenario.trigger_mode === 'messages' ? 'Cant. mensajes' : 'Minutos'}:
+                                </label>
+                                <Input
+                                  type="number"
+                                  value={scenario.trigger_value ?? 0}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value) || 0;
+                                    const newScenarios = [...config.assets.crisis.scenarios];
+                                    newScenarios[idx] = { ...scenario, trigger_value: val };
+                                    setConfig({
+                                      ...config,
+                                      assets: { ...config.assets, crisis: { scenarios: newScenarios } },
+                                    });
+                                  }}
+                                  className="text-xs h-8"
+                                />
+                              </div>
+                            </div>
+
                             <Input
                               value={scenario.trigger}
                               onChange={(e) => {
@@ -1012,9 +1252,12 @@ export function ConfigureTechSheetModal({
                             </Button>
                           </div>
                         ) : (
-                          <div>
+                          <div className="mt-1">
                             <p className="font-semibold text-sm">{scenario.trigger}</p>
                             <p className="text-xs text-gray-600 mt-1">{scenario.description}</p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              Disparo: {scenario.trigger_mode === 'messages' ? `${scenario.trigger_value || 0} msjs` : `${scenario.trigger_value || 0} min`}
+                            </p>
                             <div className="mt-1">
                               <span className="text-xs text-gray-400">Resoluciones:</span>
                               <ul className="text-xs text-gray-500 ml-4 list-disc">
