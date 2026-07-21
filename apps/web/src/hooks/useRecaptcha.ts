@@ -18,6 +18,7 @@ declare global {
 }
 
 const SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '';
+const IS_DEV = process.env.NODE_ENV === 'development';
 
 function ensureRecaptchaScript(): Promise<void> {
   if (typeof window === 'undefined') return Promise.resolve();
@@ -53,7 +54,7 @@ export function useRecaptcha() {
   const [ready, setReady] = useState(false);
 
   const tryRender = useCallback(async () => {
-    if (!SITE_KEY) {
+    if (!SITE_KEY || IS_DEV) {
       setReady(true);
       return;
     }
@@ -92,7 +93,7 @@ export function useRecaptcha() {
   );
 
   useEffect(() => {
-    if (!SITE_KEY) {
+    if (!SITE_KEY || IS_DEV) {
       setReady(true);
       return;
     }
@@ -108,9 +109,9 @@ export function useRecaptcha() {
 
   return {
     containerRef,
-    token: SITE_KEY ? token : 'dev-bypass',
+    token: SITE_KEY && !IS_DEV ? token : 'dev-bypass',
     ready,
     reset,
-    enabled: !!SITE_KEY,
+    enabled: !!SITE_KEY && !IS_DEV,
   };
 }
