@@ -38,6 +38,9 @@ describe('AnalysisPipelineService', () => {
       courseConfig: {
         findUnique: jest.fn().mockResolvedValue(null),
       },
+      course: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
       techSheetCompetency: {
         deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
         createMany: jest.fn().mockResolvedValue({ count: 0 }),
@@ -398,6 +401,8 @@ describe('AnalysisPipelineService', () => {
       it('should fall back to modules when active_modules is null', async () => {
         prismaService.courseConfig.findUnique.mockResolvedValue({
           active_modules: null,
+        });
+        prismaService.course.findUnique.mockResolvedValue({
           modules: ['email_simulado', 'hoja_calculo', 'crisis_engine'],
         });
         markitdownClient.convert.mockResolvedValue('# Doc');

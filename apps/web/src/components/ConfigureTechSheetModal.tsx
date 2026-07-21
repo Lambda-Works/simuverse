@@ -102,6 +102,49 @@ function normalizeDifficulty(raw: string | undefined): TaskConfig['difficulty'] 
   return 'medium';
 }
 
+/** Map pipeline spreadsheet (Spanish keys) to SpreadsheetConfig (English keys). */
+function mapSpreadsheet(raw: any): SpreadsheetConfig {
+  if (!raw || typeof raw !== 'object') return { columns: [], sample_data: [] };
+  return {
+    columns: (raw.columnas || raw.columns || []).map((c: any) => ({
+      header: c.encabezado || c.header || '',
+      type: c.tipo || c.type || 'string',
+    })),
+    sample_data: raw.datos_ejemplo || raw.sample_data || [],
+  };
+}
+
+/** Map pipeline crisis array (Spanish keys) to CrisisConfig. */
+function mapCrisis(raw: any): CrisisConfig {
+  const arr = Array.isArray(raw) ? raw : [];
+  return {
+    scenarios: arr.map((s: any) => ({
+      trigger: s.detonante || s.trigger || '',
+      description: s.descripcion || s.description || '',
+      resolution_options: s.opciones_resolucion || s.resolution_options || [],
+    })),
+  };
+}
+
+/** Reverse-map AssetsConfig back to pipeline_output shape (Spanish keys). */
+function unmapAssets(assets: AssetsConfig): Record<string, any> {
+  return {
+    step_8_emails: assets.emails,
+    step_9_spreadsheet: {
+      columnas: assets.spreadsheet.columns.map((c) => ({
+        encabezado: c.header,
+        tipo: c.type,
+      })),
+      datos_ejemplo: assets.spreadsheet.sample_data,
+    },
+    step_10_crisis: assets.crisis.scenarios.map((s) => ({
+      detonante: s.trigger,
+      descripcion: s.description,
+      opciones_resolucion: s.resolution_options,
+    })),
+  };
+}
+
 interface ConfigureTechSheetModalProps {
   techSheetId: number;
   courseId: string;
@@ -182,9 +225,9 @@ export function ConfigureTechSheetModal({
             coaching_prompt: data.prompts?.coaching_prompt || '',
           },
           assets: {
-            emails: data.assets?.emails || data.step_8_emails?.emails || [],
-            spreadsheet: data.assets?.spreadsheet || data.step_9_spreadsheet || { columns: [], sample_data: [] },
-            crisis: data.assets?.crisis || data.step_10_crisis || { scenarios: [] },
+            emails: data.assets?.emails || data.pipeline_output?.step_8_emails || [],
+            spreadsheet: data.assets?.spreadsheet || mapSpreadsheet(data.pipeline_output?.step_9_spreadsheet),
+            crisis: data.assets?.crisis || mapCrisis(data.pipeline_output?.step_10_crisis),
           },
         });
       }
@@ -206,7 +249,7 @@ export function ConfigureTechSheetModal({
           kpis: config.kpis,
           tasks: config.tasks,
           prompts: config.prompts,
-          assets: config.assets,
+          pipeline_output: unmapAssets(config.assets),
         }
       );
       setEditing(false);
@@ -821,10 +864,13 @@ export function ConfigureTechSheetModal({
                           <div key={colIdx} className="flex-1 min-w-[120px] text-xs">
                             {editing ? (
                               <Input
-                                value={row[col.header] || ''}
+                                value={String((row as any)[col.header] || '')}
                                 onChange={(e) => {
                                   const newData = [...config.assets.spreadsheet.sample_data];
-                                  newData[rowIdx] = { ...newData[rowIdx], [col.header]: e.target.value };
+                                  const prevRow = (typeof newData[rowIdx] === 'object' && newData[rowIdx] !== null)
+                                    ? newData[rowIdx] as Record<string, any>
+                                    : {};
+                                  newData[rowIdx] = { ...prevRow, [col.header]: e.target.value };
                                   setConfig({
                                     ...config,
                                     assets: {
@@ -836,7 +882,7 @@ export function ConfigureTechSheetModal({
                                 className="text-xs"
                               />
                             ) : (
-                              <span>{row[col.header] || ''}</span>
+                              <span>{String((row as any)[col.header] || '')}</span>
                             )}
                           </div>
                         ))}

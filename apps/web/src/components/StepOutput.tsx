@@ -16,6 +16,16 @@ const PIPELINE_STEPS = [
   { key: 'step_10', label: 'Crisis', field: 'step_10_crisis' as const },
 ];
 
+function renderStepValue(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
 interface StepOutputProps {
   output: PipelineOutput;
 }
@@ -38,7 +48,7 @@ export function StepOutput({ output }: StepOutputProps) {
           </summary>
           <div className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded text-xs max-h-48 overflow-auto">
             <pre className="whitespace-pre-wrap font-mono text-gray-700">
-              {String((output as any)[step.field])}
+              {renderStepValue((output as any)[step.field])}
             </pre>
           </div>
         </details>
