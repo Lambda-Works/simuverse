@@ -40,7 +40,7 @@ export class FirebaseStrategy extends PassportStrategy(Strategy, 'jwt') {
         };
         const user = await this.usersService.findById(payload.sub);
         if (!user || (user as any).is_active === false) {
-          throw new UnauthorizedException();
+          throw new UnauthorizedException('Cuenta desactivada. Contacte al administrador.');
         }
         return { sub: user.id, id: user.id, email: user.email, role: user.role };
       } catch {
@@ -56,7 +56,7 @@ export class FirebaseStrategy extends PassportStrategy(Strategy, 'jwt') {
         name: (decoded.name as string) || decoded.email?.split('@')[0] || 'Usuario',
       });
       if (!user.is_active) {
-        throw new UnauthorizedException('User is inactive');
+        throw new UnauthorizedException('Cuenta desactivada. Contacte al administrador.');
       }
       return { sub: user.id, id: user.id, email: user.email, role: user.role };
     } catch (err) {
