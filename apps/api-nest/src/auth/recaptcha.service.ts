@@ -12,8 +12,9 @@ export class RecaptchaService {
   async verify(token: string | undefined | null, remoteIp?: string): Promise<void> {
     const secret = process.env.RECAPTCHA_SECRET_KEY;
 
-    // Skip in test / when not configured (local unit tests)
-    if (!secret || process.env.AUTH_TEST_MODE === 'jwt' || process.env.NODE_ENV === 'test') {
+    // Skip in dev / test / when not configured
+    if (!secret || process.env.AUTH_TEST_MODE === 'jwt' || process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development') {
+      this.logger.debug('reCAPTCHA bypassed (dev/test/not configured)');
       return;
     }
 
