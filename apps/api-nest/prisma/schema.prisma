@@ -725,6 +725,7 @@ model FileUpload {
   course               Course?              @relation(fields: [course_id], references: [id], onDelete: SetNull)
   ministry_requirement MinistryRequirement? @relation(fields: [ministry_requirement_id], references: [id], onDelete: Cascade)
   simulation_instance  SimulationInstance?  @relation(fields: [simulation_instance_id], references: [id], onDelete: SetNull)
+  sponsors             Sponsor[]
 
   @@index([uploaded_by_id])
   @@index([course_id])
@@ -894,14 +895,16 @@ model CourseSponsor {
 }
 
 model Sponsor {
-  id         Int      @id @default(autoincrement())
-  name       String   @db.VarChar(255)
-  logo_url   String?  @db.VarChar(500)
-  website    String?  @db.VarChar(500)
-  is_active  Boolean  @default(true)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id           Int      @id @default(autoincrement())
+  name         String   @db.VarChar(255)
+  logo_url     String?  @db.VarChar(500)
+  logo_file_id String?  @db.VarChar(36)
+  website      String?  @db.VarChar(500)
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
 
+  logo_file       FileUpload?     @relation(fields: [logo_file_id], references: [id], onDelete: SetNull)
   course_sponsors CourseSponsor[]
 
   @@map("sponsors")
