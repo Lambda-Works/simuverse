@@ -12,6 +12,7 @@ describe('PracticesService', () => {
   let aiMock: { sendMessage: jest.Mock };
   let sessionMemoryMock: {
     getHistory: jest.Mock;
+    getRecentTurns: jest.Mock;
     invalidate: jest.Mock;
   };
   let checkpointMock: {
@@ -70,6 +71,10 @@ describe('PracticesService', () => {
     aiMock = { sendMessage: jest.fn() };
     sessionMemoryMock = {
       getHistory: jest.fn().mockResolvedValue([
+        { speaker: 'student', message: 'Hola' },
+        { speaker: 'ai', message: 'Bienvenido' },
+      ]),
+      getRecentTurns: jest.fn().mockReturnValue([
         { speaker: 'student', message: 'Hola' },
         { speaker: 'ai', message: 'Bienvenido' },
       ]),
@@ -281,6 +286,11 @@ describe('PracticesService', () => {
 
   describe('completePractice', () => {
     it('summarizes transcript and stores practice_summary', async () => {
+      prismaMock.scenario.findMany.mockResolvedValue(practices);
+      prismaMock.simulationInstance.findMany.mockResolvedValue([
+        { scenario_id: 'p1' },
+        { scenario_id: 'p2' },
+      ]);
       prismaMock.simulationInstance.findUnique.mockResolvedValue({
         id: 'inst-1',
         student_id: studentId,
@@ -311,7 +321,43 @@ describe('PracticesService', () => {
         }),
       );
       expect(result.summary).toBe('Resumen de la sesión sin calificación.');
+      expect(result.all_completed).toBe(true);
       expect(sessionMemoryMock.invalidate).toHaveBeenCalledWith('inst-1');
+    });
+
+    it('should write encore_summary to session_state on complete', async () => {
+      prismaMock.scenario.findMany.mockResolvedValue(practices);
+      prismaMock.simulationInstance.findMany.mockResolvedValue([
+        { scenario_id: 'p1' },
+      ]);
+      prismaMock.simulationInstance.findUnique.mockResolvedValue({
+        id: 'inst-1',
+        student_id: studentId,
+        course_id: courseId,
+        scenario: practices[0],
+        session_state: { prior_context: 'old' },
+      });
+      aiMock.sendMessage.mockResolvedValue({
+        response: JSON.stringify({
+          topics: ['liquidación'],
+          decisions: ['usar planilla'],
+          progress_note: 'buen avance',
+        }),
+      });
+      prismaMock.simulationInstance.update.mockResolvedValue({});
+
+      const result = await service.completePractice(studentId, 'inst-1');
+
+      expect(result.all_completed).toBe(false);
+      expect(prismaMock.simulationInstance.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            session_state: expect.objectContaining({
+              encore_summary: expect.stringContaining('liquidación'),
+            }),
+          }),
+        }),
+      );
     });
   });
 
@@ -336,6 +382,23 @@ describe('PracticesService', () => {
         difficulty: 'baja',
         prior_context: 'Contexto previo del alumno.',
       });
+    });
+
+    it('should blend encore_summary into prior_context when present', async () => {
+      prismaMock.simulationInstance.findUnique.mockResolvedValue({
+        id: 'inst-3',
+        student_id: studentId,
+        course_id: courseId,
+        session_state: {
+          encore_summary: '{"topics":["contabilidad"],"decisions":[],"progress_note":"avanzó"}',
+        },
+        scenario: practices[1],
+      });
+
+      const extras = await service.getPracticePromptExtras('inst-3');
+
+      expect(extras.prior_context).toContain('contabilidad');
+      expect(extras.prior_context).toContain('avanzó');
     });
   });
 });

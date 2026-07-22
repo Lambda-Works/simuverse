@@ -1,9 +1,16 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Permissions } from '../common/decorators/permissions.decorator';
 import { PromptTemplatesService } from './prompt-templates.service';
 import { PromptConfigService } from './prompt-config.service';
 
 @Controller('prompt-templates')
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@Roles('admin', 'teacher')
+@Permissions('templates.manage')
 export class PromptTemplatesCompatController {
   constructor(
     private promptTemplates: PromptTemplatesService,

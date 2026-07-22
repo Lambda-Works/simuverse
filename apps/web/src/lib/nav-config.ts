@@ -14,12 +14,12 @@ export const ROLE_NAV: Record<AppRole, NavItem[]> = {
   ],
   teacher: [
     { label: 'Mis Cursos', href: '/profesor/cursos', icon: Home },
-    { label: 'Sesiones', href: '/profesor/sesiones', icon: MessageSquare },
+    { label: 'Sesiones (general)', href: '/profesor/sesiones', icon: MessageSquare },
     { label: 'Legajos', href: '/profesor/legajos', icon: FileText },
   ],
   admin: [
     { label: 'Mis Cursos', href: '/admin/mis-cursos', icon: Home },
-    { label: 'Sesiones', href: '/admin/sesiones', icon: MessageSquare },
+    { label: 'Sesiones (general)', href: '/admin/sesiones', icon: MessageSquare },
     { label: 'Legajos', href: '/admin/legajos', icon: FileText },
   ],
   ministerio: [

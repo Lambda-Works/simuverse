@@ -297,6 +297,59 @@ export class PracticesService {
     return { instance, practice: next, resumed: false, prior_context: priorContext };
   }
 
+  /**
+   * Generate structured encore_summary for session recall.
+   * Writes to session_state.encore_summary. Non-blocking on failure.
+   */
+  async generateEncoreSummary(instanceId: string): Promise<void> {
+    const instance = await this.prisma.simulationInstance.findUnique({
+      where: { id: instanceId },
+    });
+    if (!instance) return;
+
+    const recentTurns = this.sessionMemory.getRecentTurns(instanceId, 20);
+    if (recentTurns.length < 2) return;
+
+    const turnsText = recentTurns
+      .map((t) => `${t.speaker}: ${t.message}`)
+      .join('\n');
+
+    let encoreSummary = '';
+    try {
+      const result = await this.ai.sendMessage(
+        `Resumí la sesión de práctica profesionalizante.\n\nTURNOS RECIENTES:\n${turnsText}`,
+        'Sos un asistente que resume sesiones de práctica profesionalizante. Devolvé SOLO un JSON con: topics[], decisions[], progress_note.',
+      );
+      encoreSummary = result.response;
+    } catch {
+      try {
+        const fallbackResult = await this.ai.sendMessage(
+          `Resumí la sesión de práctica profesionalizante.\n\nTURNOS RECIENTES:\n${turnsText}`,
+          'Sos un asistente que resume sesiones de práctica profesionalizante. Devolvé SOLO un JSON con: topics[], decisions[], progress_note.',
+          [],
+          undefined,
+          true,
+        );
+        encoreSummary = fallbackResult.response;
+      } catch {
+        // keep empty
+      }
+    }
+
+    if (encoreSummary) {
+      const existingState = (instance.session_state as Record<string, any>) || {};
+      await this.prisma.simulationInstance.update({
+        where: { id: instanceId },
+        data: {
+          session_state: {
+            ...existingState,
+            encore_summary: encoreSummary,
+          },
+        },
+      });
+    }
+  }
+
   async completePractice(studentId: string, instanceId: string) {
     const instance = await this.prisma.simulationInstance.findUnique({
       where: { id: instanceId },
@@ -326,6 +379,13 @@ export class PracticesService {
       // keep default summary
     }
 
+    // Generate structured encore_summary for session recall on resume
+    await this.generateEncoreSummary(instanceId);
+
+    // Re-read to get the encore_summary written by generateEncoreSummary
+    const refreshed = await this.prisma.simulationInstance.findUnique({
+      where: { id: instanceId },
+    });
     const updated = await this.prisma.simulationInstance.update({
       where: { id: instanceId },
       data: {
@@ -333,11 +393,18 @@ export class PracticesService {
         completed_at: new Date(),
         progress_percentage: 100,
         practice_summary: summary,
+        session_state: refreshed?.session_state ?? undefined,
       },
     });
 
     this.sessionMemory.invalidate(instanceId);
-    return { instance: updated, summary };
+
+    // Check if all practices are now completed
+    const practices = await this.listByCourse(instance.course_id);
+    const completedIds = await this.getCompletedScenarioIds(studentId, instance.course_id);
+    const allCompleted = practices.every((p) => completedIds.has(p.id));
+
+    return { instance: updated, summary, all_completed: allCompleted };
   }
 
   difficultyLabel(difficulty?: string | null): string {
@@ -348,6 +415,8 @@ export class PracticesService {
   async getPracticePromptExtras(instanceId: string): Promise<{
     agent_key?: string;
     difficulty?: string;
+    practice_title?: string;
+    practice_context?: string;
     prior_context?: string;
   }> {
     const instance = await this.prisma.simulationInstance.findUnique({
@@ -356,8 +425,14 @@ export class PracticesService {
     });
     if (!instance) return {};
 
-    const sessionState = instance.session_state as { prior_context?: string } | null;
+    const sessionState = instance.session_state as { prior_context?: string; encore_summary?: string } | null;
     let prior = sessionState?.prior_context || instance.scenario.prior_context || '';
+
+    // Blend encore_summary from previous session close into prior_context
+    const encoreSummary = sessionState?.encore_summary;
+    if (encoreSummary) {
+      prior = prior ? `${prior}\n\nResumen de la sesión anterior:\n${encoreSummary}` : `Resumen de la sesión anterior:\n${encoreSummary}`;
+    }
 
     if (!prior && instance.scenario.sequence_index > 1) {
       const prev = await this.prisma.scenario.findFirst({
@@ -382,6 +457,8 @@ export class PracticesService {
     return {
       agent_key: instance.scenario.agent_key || `practica-${instance.scenario.sequence_index}`,
       difficulty: this.difficultyLabel(instance.scenario.difficulty),
+      practice_title: instance.scenario.title,
+      practice_context: instance.scenario.description || (instance.scenario.content as any)?.system_prompt_excerpt || (instance.scenario.content as any)?.context || '',
       prior_context: prior || undefined,
     };
   }

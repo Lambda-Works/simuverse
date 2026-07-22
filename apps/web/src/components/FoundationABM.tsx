@@ -6,7 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { GraduationCap, Plus, Settings } from 'lucide-react';
+import { LogoField, useFilePreview } from '@/components/ui/logo-field';
+import { ClipboardList, GraduationCap, Globe, Mail, MapPin, Phone, Plus, RotateCw, Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -24,7 +25,7 @@ interface FoundationConfig {
   phone: string;
   email: string;
   website: string;
-  ministry_aval: string;
+  description: string;
   is_active: boolean;
 }
 
@@ -48,7 +49,7 @@ const emptyForm = (): Omit<FoundationConfig, 'id' | 'is_active'> => ({
   phone: '',
   email: '',
   website: '',
-  ministry_aval: '',
+  description: '',
 });
 
 export function FoundationABM() {
@@ -57,8 +58,10 @@ export function FoundationABM() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyForm());
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const filePreviewUrl = useFilePreview(logoFile);
 
   const fetchFoundations = async () => {
     try {
@@ -70,18 +73,31 @@ export function FoundationABM() {
 
   useEffect(() => { fetchFoundations(); }, []);
 
+  const buildPayload = (): FormData | typeof form => {
+    if (!logoFile) return form;
+    const fd = new FormData();
+    Object.entries(form).forEach(([key, value]) => {
+      if (key === 'logo_url') return; // uploaded file wins over the pasted URL
+      fd.append(key, value ?? '');
+    });
+    fd.append('logo_file', logoFile);
+    return fd;
+  };
+
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('El nombre es obligatorio'); return; }
     setSaving(true);
     try {
+      const payload = buildPayload();
       if (editingId) {
-        await apiClient.put(`/foundation-config/${editingId}`, form);
+        await apiClient.put(`/foundation-config/${editingId}`, payload);
       } else {
-        await apiClient.post('/foundation-config', form);
+        await apiClient.post('/foundation-config', payload);
       }
       toast.success(editingId ? 'Institución actualizada' : 'Institución creada');
       setDialogOpen(false);
       setForm(emptyForm());
+      setLogoFile(null);
       setEditingId(null);
       fetchFoundations();
     } catch (e: any) { toast.error(e?.response?.data?.message || 'Error al guardar'); }
@@ -93,8 +109,9 @@ export function FoundationABM() {
       name: f.name, short_name: f.short_name || '', logo_url: f.logo_url || '',
       address: f.address || '', city: f.city || 'Rosario', province: f.province || 'Santa Fe',
       country: f.country || 'Argentina', phone: f.phone || '', email: f.email || '',
-      website: f.website || '', ministry_aval: f.ministry_aval || '',
+      website: f.website || '', description: f.description || '',
     });
+    setLogoFile(null);
     setEditingId(f.id);
     setDialogOpen(true);
   };
@@ -135,10 +152,10 @@ export function FoundationABM() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">🎓 Fundación / Institución Educativa</h2>
+          <h2 className="text-2xl font-bold flex items-center gap-2"><GraduationCap className="w-6 h-6" /> Fundación / Institución Educativa</h2>
           <p className="text-gray-600 mt-1">Datos de la institución que avala y emite los certificados. Su logo aparece en los certificados.</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={o => { setDialogOpen(o); if (!o) { setForm(emptyForm()); setEditingId(null); } }}>
+        <Dialog open={dialogOpen} onOpenChange={o => { setDialogOpen(o); if (!o) { setForm(emptyForm()); setLogoFile(null); setEditingId(null); } }}>
 {!readOnly && <DialogTrigger asChild>
               <Button><Plus className="w-4 h-4 mr-2" /> Nueva Institución</Button>
             </DialogTrigger>}
@@ -149,8 +166,8 @@ export function FoundationABM() {
             <div className="space-y-4 mt-2">
               {/* Preview */}
               <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                {form.logo_url
-                  ? <img src={form.logo_url} alt="logo" className="w-16 h-16 rounded-full object-cover border-2 border-white shadow" onError={() => {}} />
+                {(filePreviewUrl || form.logo_url)
+                  ? <img src={filePreviewUrl || form.logo_url} alt="logo" className="w-16 h-16 rounded-full object-cover border-2 border-white shadow" onError={() => {}} />
                   : <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl shrink-0 ${form.name ? getColor(form.name) : 'bg-gray-400'} shadow`}>
                       {form.name ? getInitials(form.name) : '?'}
                     </div>
@@ -200,14 +217,19 @@ export function FoundationABM() {
                   <Input value={form.website} onChange={e => setForm(p => ({ ...p, website: e.target.value }))} placeholder="https://fundacion.org.ar" />
                 </div>
                 <div className="col-span-2 space-y-1.5">
-                  <Label>URL del Logo <span className="text-xs text-gray-400">(opcional — aparece en certificados)</span></Label>
-                  <Input value={form.logo_url} onChange={e => setForm(p => ({ ...p, logo_url: e.target.value }))} placeholder="https://fundacion.org/logo.png" />
+                  <LogoField
+                    label="Logo institucional"
+                    urlValue={form.logo_url}
+                    onUrlChange={v => setForm(p => ({ ...p, logo_url: v }))}
+                    file={logoFile}
+                    onFileChange={setLogoFile}
+                  />
                 </div>
                 <div className="col-span-2 space-y-1.5">
-                  <Label>Aval ministerial</Label>
+                  <Label>Descripción</Label>
                   <Textarea
-                    value={form.ministry_aval}
-                    onChange={e => setForm(p => ({ ...p, ministry_aval: e.target.value }))}
+                    value={form.description}
+                    onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
                     placeholder="Ministerio de Educación de la Provincia de Santa Fe — Dirección de Educación Técnica, Producción y Trabajo"
                     rows={2}
                   />
@@ -237,14 +259,14 @@ export function FoundationABM() {
               </div>
             </CardHeader>
             <CardContent className="p-4 space-y-2 text-sm">
-              {f.address && <p className="text-gray-600">📍 {f.address}, {f.city}, {f.province}</p>}
-              {f.phone && <p className="text-gray-600">📞 {f.phone}</p>}
-              {f.email && <p className="text-gray-600">✉️ {f.email}</p>}
-              {f.website && <a href={f.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline block truncate">🌐 {f.website}</a>}
-              {f.ministry_aval && (
+              {f.address && <p className="text-gray-600 flex items-center gap-1"><MapPin className="w-4 h-4 shrink-0" /> {f.address}, {f.city}, {f.province}</p>}
+              {f.phone && <p className="text-gray-600 flex items-center gap-1"><Phone className="w-4 h-4 shrink-0" /> {f.phone}</p>}
+              {f.email && <p className="text-gray-600 flex items-center gap-1"><Mail className="w-4 h-4 shrink-0" /> {f.email}</p>}
+              {f.website && <a href={f.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline block truncate flex items-center gap-1"><Globe className="w-4 h-4 shrink-0" /> {f.website}</a>}
+              {f.description && (
                 <div className="mt-2 p-2 bg-purple-50 rounded border border-purple-200">
-                  <p className="text-xs text-purple-700 font-medium">📋 Aval ministerial:</p>
-                  <p className="text-xs text-purple-600 mt-0.5">{f.ministry_aval}</p>
+                  <p className="text-xs text-purple-700 font-medium flex items-center gap-1"><ClipboardList className="w-3.5 h-3.5" /> Descripción:</p>
+                  <p className="text-xs text-purple-600 mt-0.5">{f.description}</p>
                 </div>
               )}
               <div className="flex justify-end mt-3 gap-2">
@@ -255,7 +277,7 @@ export function FoundationABM() {
                   Desactivar
                 </Button>}
                 {!readOnly && f.is_active === false && <Button variant="outline" size="sm" className="text-green-600 border-green-300" onClick={() => handleReactivate(f.id)}>
-                  🔄 Reactivar
+                  <RotateCw className="w-4 h-4 mr-1" /> Reactivar
                 </Button>}
               </div>
             </CardContent>

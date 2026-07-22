@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import React, { useEffect } from 'react';
 
-export type AppRole = 'student' | 'teacher' | 'admin' | 'ministerio';
+export type AppRole = string;
 
 interface RoleGuardProps {
   children: React.ReactNode;
@@ -27,9 +27,10 @@ export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
       // Si no tiene el rol permitido, enviarlo a la ruta que le corresponde a su rol
       switch (user.role) {
         case 'admin':
-          router.replace('/admin/courses'); // o /admin/mis-cursos
+          router.replace('/admin/courses');
           break;
         case 'teacher':
+        case 'supervisor':
           router.replace('/profesor/cursos');
           break;
         case 'student':
@@ -39,7 +40,8 @@ export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
           router.replace('/ministerio');
           break;
         default:
-          router.replace('/auth');
+          // Rol desconocido — redirigir a una ruta por defecto en vez de logout
+          router.replace('/profesor/cursos');
       }
     }
   }, [user, loading, isAuthenticated, allowedRoles, router]);

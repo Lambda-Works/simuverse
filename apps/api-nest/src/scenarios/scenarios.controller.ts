@@ -15,8 +15,15 @@ import { ScenariosService } from './scenarios.service';
 import { CreateScenarioDto } from './dto/create-scenario.dto';
 import { UpdateScenarioDto } from './dto/update-scenario.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Permissions } from '../common/decorators/permissions.decorator';
 
 @Controller('scenarios')
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@Roles('admin', 'teacher')
+@Permissions('scenarios.read')
 export class ScenariosController {
   constructor(private scenariosService: ScenariosService) {}
 
@@ -41,11 +48,13 @@ export class ScenariosController {
   }
 
   @Post()
+  @Permissions('scenarios.manage')
   async create(@Body() dto: CreateScenarioDto) {
     return this.scenariosService.create(dto);
   }
 
   @Put(':id')
+  @Permissions('scenarios.manage')
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateScenarioDto,
@@ -55,6 +64,7 @@ export class ScenariosController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
+  @Permissions('scenarios.manage')
   async remove(@Param('id') id: string) {
     await this.scenariosService.remove(id);
     return { message: 'Scenario deactivated successfully' };

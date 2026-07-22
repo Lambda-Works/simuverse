@@ -11,6 +11,7 @@ import { PromptTemplatesABM } from '@/components/PromptTemplatesABM';
 import { ReportsABM } from '@/components/ReportsABM';
 import { RolesABM } from '@/components/RolesABM';
 import { ScenariosABM } from '@/components/ScenariosABM';
+import { SponsorsABM } from '@/components/SponsorsABM';
 import { SimulationCalendar } from '@/components/SimulationCalendar';
 import TeacherSessionsPage from '@/views/TeacherSessionsPage';
 import { TeacherGroupsABM } from '@/components/TeacherGroupsABM';
@@ -20,16 +21,27 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { UsersABM } from '@/components/UsersABM';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdmin } from '@/lib/admin-context';
 import { apiClient } from '@/services/ApiClient';
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Copy, Plus, Save, Settings, Shield, Trash2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Copy, Plus, Power, Save, Settings, Shield, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -63,7 +75,10 @@ interface CourseForm {
   crisis_events: CrisisEventConfig[];
   is_active: boolean;
   categories: string[];
-  simulated_company_id: number | null;
+  endorser_ids: number[];
+  company_ids: number[];
+  foundation_ids: number[];
+  sponsor_ids: number[];
   password: string;
   clear_password: boolean;
   drive_folder_url: string;
@@ -80,7 +95,10 @@ const emptyForm: CourseForm = {
   crisis_events: [],
   is_active: true,
   categories: [],
-  simulated_company_id: null,
+  endorser_ids: [],
+  company_ids: [],
+  foundation_ids: [],
+  sponsor_ids: [],
   password: '',
   clear_password: false,
   drive_folder_url: '',
@@ -94,6 +112,9 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
   const [dbCategories, setDbCategories] = useState<Array<{ id: number; name: string; code: string }>>([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [simCompanies, setSimCompanies] = useState<Array<{ id: number; name: string; short_name?: string }>>([]);
+  const [endorsersList, setEndorsersList] = useState<Array<{ id: number; name: string }>>([]);
+  const [foundationsList, setFoundationsList] = useState<Array<{ id: number; name: string }>>([]);
+  const [sponsorsList, setSponsorsList] = useState<Array<{ id: number; name: string }>>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<CourseForm>({ ...emptyForm });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -119,6 +140,7 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
   const [showPromptConfigModal, setShowPromptConfigModal] = useState(false);
   const [selectedCourseForPromptConfig, setSelectedCourseForPromptConfig] = useState<any>(null);
   const [courseFilter, setCourseFilter] = useState<'all' | 'active' | 'inactive'>('all'); // Filtro de cursos
+  const [hardDeleteCourseId, setHardDeleteCourseId] = useState<string | null>(null);
   const [teachers, setTeachers] = useState<Array<{ id: string; name: string; email: string }>>([]);
   const [formErrors, setFormErrors] = useState<{
     course_id?: string;
@@ -156,6 +178,15 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
         .then(r => r.data)
         .then(d => setSimCompanies(Array.isArray(d) ? d.map((c: any) => ({ id: c.id, name: c.name, short_name: c.short_name })) : []))
         .catch(() => {});
+      apiClient.get('/endorsers')
+        .then(r => setEndorsersList(Array.isArray(r.data) ? r.data.map((e: any) => ({ id: e.id, name: e.name })) : []))
+        .catch(() => {});
+      apiClient.get('/foundation-config')
+        .then(r => setFoundationsList(Array.isArray(r.data) ? r.data.map((f: any) => ({ id: f.id, name: f.name })) : []))
+        .catch(() => {});
+      apiClient.get('/sponsors')
+        .then(r => setSponsorsList(Array.isArray(r.data) ? r.data.map((s: any) => ({ id: s.id, name: s.name })) : []))
+        .catch(() => {});
       apiClient.get('/users?role=teacher')
         .then(r => setTeachers(Array.isArray(r.data) ? r.data : []))
         .catch(() => {});
@@ -187,7 +218,10 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
       eval_criteria: form.eval_criteria as any,
       crisis_events: form.crisis_events as any,
       is_active: form.is_active,
-      simulated_company_id: form.simulated_company_id || null,
+      endorser_ids: form.endorser_ids,
+      company_ids: form.company_ids,
+      foundation_ids: form.foundation_ids,
+      sponsor_ids: form.sponsor_ids,
       created_by: user!.id,
       teacher_ids: form.teacher_ids,
       drive_folder_url: form.drive_folder_url.trim() || null,
@@ -231,7 +265,10 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
       eval_criteria: course.eval_criteria || [],
       crisis_events: course.crisis_events || [],
       is_active: course.is_active,
-      simulated_company_id: course.simulated_company_id || null,
+      endorser_ids: Array.isArray(course.course_endorsers) ? course.course_endorsers.map((ce: any) => ce.endorser_id) : [],
+      company_ids: Array.isArray(course.course_simulated_companies) ? course.course_simulated_companies.map((c: any) => c.simulated_company_id) : [],
+      foundation_ids: Array.isArray(course.course_foundation_configs) ? course.course_foundation_configs.map((f: any) => f.foundation_config_id) : [],
+      sponsor_ids: Array.isArray(course.course_sponsors) ? course.course_sponsors.map((s: any) => s.sponsor_id) : [],
       password: '',
       clear_password: false,
       drive_folder_url: course.drive_folder_url || '',
@@ -303,6 +340,17 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
     }
   };
 
+  const handlePermanentDelete = async (id: string) => {
+    try {
+      await apiClient.delete(`/courses/${id}/permanent`);
+      toast.success('Curso eliminado permanentemente');
+      setHardDeleteCourseId(null);
+      fetchCourses();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error al eliminar el curso');
+    }
+  };
+
   const handleDuplicate = async (course: any) => {
     // Generar ID único con timestamp + random para permitir duplicados múltiples
     const random = Math.random().toString(36).substring(2, 8);
@@ -319,7 +367,10 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
       eval_criteria: course.eval_criteria || [],
       crisis_events: course.crisis_events || [],
       is_active: false, // Las copias comienzan como inactivas
-      simulated_company_id: course.simulated_company_id || null,
+      endorser_ids: Array.isArray(course.course_endorsers) ? course.course_endorsers.map((ce: any) => ce.endorser_id) : [],
+      company_ids: Array.isArray(course.course_simulated_companies) ? course.course_simulated_companies.map((c: any) => c.simulated_company_id) : [],
+      foundation_ids: Array.isArray(course.course_foundation_configs) ? course.course_foundation_configs.map((f: any) => f.foundation_config_id) : [],
+      sponsor_ids: Array.isArray(course.course_sponsors) ? course.course_sponsors.map((s: any) => s.sponsor_id) : [],
       created_by: user!.id,
     };
     try {
@@ -675,28 +726,46 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
                       </div>
                     )}
 
-                    {/* Empresa Simulada */}
-                    {simCompanies.length > 0 && (
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold">🏢 Empresa Simulada <span className="text-gray-400 font-normal">(opcional)</span></Label>
-                        <Select
-                          value={form.simulated_company_id?.toString() || 'none'}
-                          onValueChange={v => setForm(p => ({ ...p, simulated_company_id: v === 'none' ? null : parseInt(v) }))}
-                        >
-                          <SelectTrigger className="text-sm">
-                            <SelectValue placeholder="Sin empresa simulada" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">Sin empresa simulada</SelectItem>
-                            {simCompanies.map(c => (
-                              <SelectItem key={c.id} value={c.id.toString()}>
-                                {c.short_name ? `${c.short_name} — ` : ''}{c.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
+                    {/* Asociaciones N a N */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold">🏢 Empresas Simuladas <span className="text-gray-400 font-normal">(opcional)</span></Label>
+                      <MultiSelect
+                        items={simCompanies}
+                        selected={form.company_ids}
+                        onChange={ids => setForm(p => ({ ...p, company_ids: ids }))}
+                        placeholder="Sin empresas simuladas"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold">🤝 Avaladores <span className="text-gray-400 font-normal">(opcional)</span></Label>
+                      <MultiSelect
+                        items={endorsersList}
+                        selected={form.endorser_ids}
+                        onChange={ids => setForm(p => ({ ...p, endorser_ids: ids }))}
+                        placeholder="Sin avaladores"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold">🎓 Fundaciones <span className="text-gray-400 font-normal">(opcional)</span></Label>
+                      <MultiSelect
+                        items={foundationsList}
+                        selected={form.foundation_ids}
+                        onChange={ids => setForm(p => ({ ...p, foundation_ids: ids }))}
+                        placeholder="Sin fundaciones"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold">💼 Sponsors <span className="text-gray-400 font-normal">(opcional)</span></Label>
+                      <MultiSelect
+                        items={sponsorsList}
+                        selected={form.sponsor_ids}
+                        onChange={ids => setForm(p => ({ ...p, sponsor_ids: ids }))}
+                        placeholder="Sin sponsors"
+                      />
+                    </div>
 
                     <div className="space-y-2">
                       <Label>Link de Drive (archivos &gt; 5 MB)</Label>
@@ -902,13 +971,20 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
                         <Settings className="w-4 h-4" />
                       </Button>
                       {course.is_active ? (
-                        <Button variant="destructive" size="sm" onClick={() => handleDelete(course.id)} title="Desactivar curso">
-                          <Trash2 className="w-4 h-4" />
+                        <Button variant="outline" size="sm" className="text-amber-600 border-amber-300" onClick={() => handleDelete(course.id)} title="Desactivar curso">
+                          <Power className="w-4 h-4" />
                         </Button>
                       ) : (
-                        <Button variant="outline" size="sm" className="text-green-600 border-green-300" onClick={() => handleReactivate(course.id)} title="Reactivar curso">
-                          <CheckCircle2 className="w-4 h-4" />
-                        </Button>
+                        <>
+                          <Button variant="outline" size="sm" className="text-green-600 border-green-300" onClick={() => handleReactivate(course.id)} title="Reactivar curso">
+                            <CheckCircle2 className="w-4 h-4" />
+                          </Button>
+                          {hasRole('admin') && (
+                            <Button variant="destructive" size="sm" onClick={() => setHardDeleteCourseId(course.id)} title="Eliminar permanentemente">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </>
                       )}
                         </>
                       )}
@@ -1002,7 +1078,31 @@ const AdminPanel = ({ tabId }: { tabId?: string }) => {
 
         {/* Endorsers Tab */}
         {currentTab === 'endorsers' && <EndorsersABM />}
+
+        {currentTab === 'sponsors' && <SponsorsABM />}
       </main>
+
+      {/* Confirmación de eliminación permanente de curso */}
+      <AlertDialog open={!!hardDeleteCourseId} onOpenChange={o => { if (!o) setHardDeleteCourseId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600">Eliminar curso permanentemente</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción es irreversible. Se eliminará el curso y todos sus datos asociados
+              (escenarios, prácticas, simulaciones, evaluaciones, configuración y documentos).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-700 hover:bg-red-800"
+              onClick={() => hardDeleteCourseId && handlePermanentDelete(hardDeleteCourseId)}
+            >
+              Sí, eliminar permanentemente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

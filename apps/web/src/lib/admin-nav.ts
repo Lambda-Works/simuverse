@@ -1,12 +1,14 @@
 import {
     ArrowRightLeft, BookOpen,
-    Bot, BotMessageSquare, Building, Building2, CalendarDays, ChartBar, ChartNoAxesCombined, Clapperboard, ClipboardList, FileChartColumnIncreasing, FilePlus, FileText, GraduationCap, HandHeart, LucideIcon, Play, ShieldCheck, Tags, UserCheck, UserRound, Users, Users2, Wrench
+    Bot, BotMessageSquare, Building, Building2, CalendarDays, ChartBar, ChartNoAxesCombined, Clapperboard, ClipboardList, FileChartColumnIncreasing, FilePlus, FileText, GraduationCap, HandHeart, Handshake, LucideIcon, Play, ShieldCheck, Tags, UserCheck, UserRound, Users, Users2, Wrench
 } from 'lucide-react';
 
 export interface AdminNavItem {
   id: string;
   label: string;
   icon: LucideIcon;
+  /** Permission code required to see this item (from system_functionalities.code). If undefined, shown to admin only. */
+  permissionCode?: string;
   excludeRoles?: string[];
 }
 
@@ -15,6 +17,7 @@ export interface AdminNavGroup {
   label: string;
   icon: LucideIcon;
   items: AdminNavItem[];
+  permissionCode?: string;
   excludeRoles?: string[];
 }
 
@@ -24,12 +27,12 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     label: 'Contenido y Configuración',
     icon: BookOpen,
     items: [
-      { id: 'courses', label: 'Cursos', icon: GraduationCap },
+      { id: 'courses', label: 'Cursos', icon: GraduationCap, permissionCode: 'courses.read' },
       { id: 'categories', label: 'Categorías', icon: Tags },
-      { id: 'scenarios', label: 'Escenarios', icon: Clapperboard },
+      { id: 'scenarios', label: 'Escenarios', icon: Clapperboard, permissionCode: 'scenarios.read' },
       { id: 'practices', label: 'Prácticas', icon: Play },
-      { id: 'documents', label: 'Documentos', icon: FilePlus },
-      { id: 'techsheets', label: 'Fichas Técnicas', icon: ClipboardList },
+      { id: 'documents', label: 'Documentos', icon: FilePlus, permissionCode: 'documents.read' },
+      { id: 'techsheets', label: 'Fichas Técnicas', icon: ClipboardList, permissionCode: 'techsheets.manage' },
     ],
   },
   {
@@ -37,8 +40,8 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     label: 'IA y Simulación',
     icon: Bot,
     items: [
-      { id: 'prompt-templates', label: 'Prompts por curso', icon: BotMessageSquare },
-      { id: 'sessions', label: 'Sesiones', icon: Play },
+      { id: 'prompt-templates', label: 'Prompts por curso', icon: BotMessageSquare, permissionCode: 'templates.prompts' },
+      { id: 'sessions', label: 'Sesiones del curso', icon: Play, permissionCode: 'sessions.manage' },
     ],
   },
   {
@@ -46,9 +49,9 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     label: 'Usuarios y Acceso',
     icon: Users,
     items: [
-      { id: 'users', label: 'Usuarios', icon: UserRound },
-      { id: 'roles', label: 'Roles y Permisos', icon: ShieldCheck, excludeRoles: ['ministerio'] },
-      { id: 'groups', label: 'Grupos', icon: Users2 },
+      { id: 'users', label: 'Usuarios', icon: UserRound, permissionCode: 'users.read' },
+      { id: 'roles', label: 'Roles y Permisos', icon: ShieldCheck, permissionCode: 'rbac.manage', excludeRoles: ['ministerio'] },
+      { id: 'groups', label: 'Grupos', icon: Users2, permissionCode: 'teacher_groups.manage' },
       { id: 'terms', label: 'Términos', icon: FileText, excludeRoles: ['ministerio'] },
     ],
   },
@@ -58,7 +61,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     icon: Wrench,
     excludeRoles: ['ministerio'],
     items: [
-      { id: 'assignments', label: 'Asignaciones', icon: ArrowRightLeft },
+      { id: 'assignments', label: 'Asignaciones', icon: ArrowRightLeft, permissionCode: 'assignments.read' },
       { id: 'calendar', label: 'Calendario', icon: CalendarDays },
     ],
   },
@@ -67,8 +70,8 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     label: 'Análisis',
     icon: ChartNoAxesCombined,
     items: [
-      { id: 'reports', label: 'Reportes', icon: FileChartColumnIncreasing },
-      { id: 'stats', label: 'Estadísticas', icon: ChartBar },
+      { id: 'reports', label: 'Reportes', icon: FileChartColumnIncreasing, permissionCode: 'reports.read' },
+      { id: 'stats', label: 'Estadísticas', icon: ChartBar, permissionCode: 'reports.read_stats' },
     ],
   },
   {
@@ -76,9 +79,10 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     label: 'Organización',
     icon: Building2,
     items: [
-      { id: 'companies', label: 'Empresas', icon: Building },
-      { id: 'foundation', label: 'Fundación', icon: HandHeart },
-      { id: 'endorsers', label: 'Avaladores', icon: UserCheck },
+      { id: 'companies', label: 'Empresas', icon: Building, permissionCode: 'companies.manage' },
+      { id: 'foundation', label: 'Fundación', icon: HandHeart, permissionCode: 'foundation.manage' },
+      { id: 'endorsers', label: 'Avaladores', icon: UserCheck, permissionCode: 'endorsers.manage' },
+      { id: 'sponsors', label: 'Sponsors', icon: Handshake, permissionCode: 'sponsors.manage' },
     ],
   },
 ];

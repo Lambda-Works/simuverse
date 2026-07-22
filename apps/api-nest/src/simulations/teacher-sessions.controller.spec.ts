@@ -24,6 +24,9 @@ describe('TeacherSessionsController', () => {
         count: jest.fn(),
         findMany: jest.fn(),
       },
+      fileUpload: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -63,6 +66,7 @@ describe('TeacherSessionsController', () => {
           where: {
             course_id: 'course-1',
             student_id: { in: ['student-a', 'student-b'] },
+            student: { role: 'student' },
           },
         }),
       );
@@ -108,7 +112,7 @@ describe('TeacherSessionsController', () => {
       expect(prismaMock.teacherGroup.findMany).not.toHaveBeenCalled();
       expect(prismaMock.simulationInstance.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { course_id: 'course-1', student_id: 'student-a' },
+          where: { course_id: 'course-1', student_id: 'student-a', student: { role: 'student' } },
         }),
       );
       expect(result).toHaveLength(1);

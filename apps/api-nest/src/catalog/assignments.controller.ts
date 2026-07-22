@@ -16,12 +16,21 @@ import { AssignmentsService } from './assignments.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Permissions } from '../common/decorators/permissions.decorator';
 
 @Controller()
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@Roles('admin', 'teacher')
+@Permissions('assignments.manage')
 export class AssignmentsController {
   constructor(private assignmentsService: AssignmentsService) {}
 
   @Get('assignments')
+  @Roles('admin', 'teacher', 'student')
+  @Permissions('assignments.read')
   async findAll(
     @Query('student_id') studentId?: string,
     @Query('course_id') courseId?: string,
@@ -35,16 +44,22 @@ export class AssignmentsController {
   }
 
   @Get('assignments/student/:studentId')
+  @Roles('admin', 'teacher', 'student')
+  @Permissions('assignments.read')
   async findByStudent(@Param('studentId') studentId: string) {
     return this.assignmentsService.findByStudent(studentId);
   }
 
   @Get('assignments/course/:courseId')
+  @Roles('admin', 'teacher', 'student')
+  @Permissions('assignments.read')
   async findByCourse(@Param('courseId') courseId: string) {
     return this.assignmentsService.findByCourse(courseId);
   }
 
   @Get('assignments/:id')
+  @Roles('admin', 'teacher', 'student')
+  @Permissions('assignments.read')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.assignmentsService.findOne(id);
   }

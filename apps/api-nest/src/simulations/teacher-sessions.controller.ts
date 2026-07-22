@@ -32,6 +32,9 @@ export class TeacherSessionsController {
     const where: any = {};
     if (courseId) where.course_id = courseId;
     if (studentId) where.student_id = studentId;
+    // Only surface sessions run by actual students — teachers/admins testing a
+    // simulation should not show up in the "Alumno" filter.
+    where.student = { role: 'student' };
 
     if (user?.role === 'teacher') {
       const links = await this.prisma.teacherGroup.findMany({

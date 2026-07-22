@@ -11,6 +11,9 @@ export type PipelineStatus =
   | 'step_5'
   | 'step_6'
   | 'step_7'
+  | 'step_8'
+  | 'step_9'
+  | 'step_10'
   | 'completed'
   | 'failed'
   | 'validation_rejected'
@@ -24,6 +27,25 @@ export interface PipelineOutput {
   step_5_questions?: string;
   step_6_simulation_prompt?: string;
   step_7_coaching_prompt?: string;
+  step_8_emails?: {
+    emails: Array<{
+      subject: string;
+      body: string;
+      trigger_condition: string;
+      timing_minutes: number;
+    }>;
+  };
+  step_9_spreadsheet?: {
+    columns: Array<{ header: string; type: string; formula?: string }>;
+    sample_data: unknown[];
+  };
+  step_10_crisis?: {
+    scenarios: Array<{
+      trigger: string;
+      description: string;
+      resolution_options: string[];
+    }>;
+  };
   error_step?: number;
   error_message?: string;
 }

@@ -4,8 +4,10 @@ import { PromptTemplatesCompatController, PromptConfigCompatController } from '.
 import { FlowTemplatesService } from './flow-templates.service';
 import { PromptTemplatesService } from './prompt-templates.service';
 import { PromptConfigService } from './prompt-config.service';
+import { RbacModule } from '../rbac/rbac.module';
 
 @Module({
+  imports: [RbacModule],
   controllers: [TemplatesController, PromptTemplatesCompatController, PromptConfigCompatController],
   providers: [FlowTemplatesService, PromptTemplatesService, PromptConfigService],
   exports: [FlowTemplatesService, PromptTemplatesService, PromptConfigService],

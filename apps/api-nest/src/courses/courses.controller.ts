@@ -15,8 +15,11 @@ import { IsString, IsOptional, IsBoolean, IsArray, IsInt, MinLength } from 'clas
 import { CoursesService } from './courses.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { Permissions } from '../common/decorators/permissions.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Public } from '../common/decorators/public.decorator';
 
 class CreateCourseDto {
   @IsString()
@@ -56,10 +59,6 @@ class CreateCourseDto {
   is_active?: boolean;
 
   @IsOptional()
-  @IsInt()
-  simulated_company_id?: number;
-
-  @IsOptional()
   @IsString()
   created_by?: string;
 
@@ -74,6 +73,26 @@ class CreateCourseDto {
   @IsOptional()
   @IsArray()
   teacher_ids?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  endorser_ids?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  company_ids?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  foundation_ids?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  sponsor_ids?: number[];
 }
 
 class UpdateCourseDto {
@@ -114,10 +133,6 @@ class UpdateCourseDto {
   is_active?: boolean;
 
   @IsOptional()
-  @IsInt()
-  simulated_company_id?: number;
-
-  @IsOptional()
   @IsString()
   created_by?: string;
 
@@ -136,6 +151,26 @@ class UpdateCourseDto {
   @IsOptional()
   @IsArray()
   teacher_ids?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  endorser_ids?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  company_ids?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  foundation_ids?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  sponsor_ids?: number[];
 }
 
 class EnrollDto {
@@ -145,7 +180,7 @@ class EnrollDto {
 }
 
 @Controller('courses')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 export class CoursesController {
   constructor(private coursesService: CoursesService) {}
 
@@ -156,8 +191,18 @@ export class CoursesController {
   }
 
   @Get('catalog')
-  async catalog(@Query('q') q?: string) {
-    return this.coursesService.catalog(q);
+  async catalog(
+    @Query('q') q?: string,
+    @Query('tag') tag?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.coursesService.catalog({
+      q,
+      tag,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
   }
 
   @Get(':courseId')
@@ -165,24 +210,36 @@ export class CoursesController {
     return this.coursesService.findById(courseId);
   }
 
+  @Get(':id/sponsors')
+  @Public()
+  @Roles()
+  @Permissions()
+  async getCourseSponsors(@Param('id') id: string) {
+    return this.coursesService.findCourseSponsors(id);
+  }
+
   @Post()
   @Roles('admin')
+  @Permissions('courses.manage')
   async create(@Body() dto: CreateCourseDto) {
     return this.coursesService.create(dto);
   }
 
   @Put(':id')
   @Roles('admin', 'teacher')
+  @Permissions('courses.manage')
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateCourseDto,
     @CurrentUser() user: { id: string; role: string },
   ) {
+    console.log('Update payload received in API:', JSON.stringify(dto, null, 2));
     return this.coursesService.update(id, dto, user);
   }
 
   @Post(':id/regenerate-password')
   @Roles('admin', 'teacher')
+  @Permissions('courses.manage')
   async regeneratePassword(
     @Param('id') id: string,
     @CurrentUser() user: { id: string; role: string },
@@ -202,9 +259,19 @@ export class CoursesController {
 
   @Delete(':id')
   @Roles('admin')
+  @Permissions('courses.manage')
   @HttpCode(HttpStatus.OK)
   async remove(@Param('id') id: string) {
     await this.coursesService.remove(id);
     return { message: 'Course deactivated successfully' };
+  }
+
+  @Delete(':id/permanent')
+  @Roles('admin')
+  @Permissions('courses.manage')
+  @HttpCode(HttpStatus.OK)
+  async permanentDelete(@Param('id') id: string) {
+    await this.coursesService.permanentDelete(id);
+    return { message: 'Course permanently deleted' };
   }
 }

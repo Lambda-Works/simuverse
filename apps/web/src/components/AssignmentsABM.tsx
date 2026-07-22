@@ -340,7 +340,7 @@ export function AssignmentsABM() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-medium">{s.title}</span>
                             <span className={`text-xs px-1.5 py-0.5 rounded ${isEval ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                              {isEval ? '🎯 EVALUACIÓN' : '📚 PRÁCTICA'}
+                              {isEval ? '🎯 SIMULACIÓN' : '📚 PRÁCTICA'}
                             </span>
                             <span className="text-xs text-gray-400">{s.difficulty}</span>
                             {s.categories && s.categories.length > 0 && s.categories.map(cat => (

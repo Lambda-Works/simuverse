@@ -43,13 +43,29 @@ export class UpdateCourseDto {
 
   @IsOptional()
   @IsInt()
-  simulated_company_id?: number;
-
-  @IsOptional()
-  @IsInt()
   tech_sheet_id?: number;
 
   @IsOptional()
   @IsString()
   created_by?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  endorser_ids?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  company_ids?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  foundation_ids?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  sponsor_ids?: number[];
 }

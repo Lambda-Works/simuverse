@@ -33,7 +33,7 @@ const EvaluationsPage = () => {
   const [evaluations, setEvaluations] = useState<Record<string, any>>({});
 
   useEffect(() => {
-    if (!loading && (!user || (!hasRole('teacher') && !hasRole('admin') && !hasRole('ministerio')))) {
+    if (!loading && (!user || (!hasRole('teacher') && !hasRole('admin') && !hasRole('ministerio') && !hasRole('supervisor')))) {
       router.push('/auth');
     }
   }, [user, loading, hasRole, router]);

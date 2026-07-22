@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -234,5 +234,13 @@ export class UsersService {
       if (error.code === 'P2025') throw new NotFoundException('User not found');
       throw error;
     }
+  }
+
+  async hardDelete(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    if (user.is_active) throw new BadRequestException('Solo se pueden eliminar usuarios desactivados');
+
+    return this.prisma.user.delete({ where: { id } });
   }
 }

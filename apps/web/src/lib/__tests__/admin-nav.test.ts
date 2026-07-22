@@ -55,7 +55,7 @@ describe('admin-nav', () => {
     it('has Content & Config group with 6 items', () => {
       const group = ADMIN_NAV_GROUPS.find((g) => g.id === 'contenido');
       expect(group).toBeDefined();
-      expect(group!.items).toHaveLength(7);
+      expect(group!.items).toHaveLength(6);
     });
 
     it('has AI & Simulation group with 2 items', () => {
@@ -82,10 +82,10 @@ describe('admin-nav', () => {
       expect(group!.items).toHaveLength(2);
     });
 
-    it('has Organization group with 3 items', () => {
+    it('has Organization group with 4 items', () => {
       const group = ADMIN_NAV_GROUPS.find((g) => g.id === 'organizacion');
       expect(group).toBeDefined();
-      expect(group!.items).toHaveLength(3);
+      expect(group!.items).toHaveLength(4);
     });
   });
 });

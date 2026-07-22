@@ -13,7 +13,6 @@ import { StudentAssignmentsController } from './student-assignments.controller';
 import {
   FoundationConfigController,
   EndorsersController,
-  CourseEndorsersController,
   LegajoController,
   SimulationSessionsController,
   CertificatesController,
@@ -21,8 +20,10 @@ import {
 import { MarkitdownClient } from './markitdown-client.service';
 import { DeepSeekService } from './deepseek.service';
 import { AnalysisPipelineService } from './analysis-pipeline.service';
+import { RbacModule } from '../rbac/rbac.module';
 
 @Module({
+  imports: [RbacModule],
   controllers: [
     CatalogController,
     DocumentsController,
@@ -32,7 +33,6 @@ import { AnalysisPipelineService } from './analysis-pipeline.service';
     StudentAssignmentsController,
     FoundationConfigController,
     EndorsersController,
-    CourseEndorsersController,
     LegajoController,
     SimulationSessionsController,
     CertificatesController,

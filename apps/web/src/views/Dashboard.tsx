@@ -10,6 +10,7 @@ import { apiClient } from '@/services/ApiClient';
 import { Award, BookOpen, CalendarDays, CheckCircle2, Clock, Eye, GraduationCap, HelpCircle, Lock, MessageSquare, Play, Settings, Shield } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 interface Course {
   id: string;
@@ -54,25 +55,40 @@ const Dashboard = () => {
     id: string;
     title: string;
     description: string | null;
+    tags?: string[];
     requires_password: boolean;
     teachers: Array<{ id: string; name: string; email: string }>;
   }>>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
-  const [enrollPassword, setEnrollPassword] = useState('');
+  const [catalogTag, setCatalogTag] = useState('');
+  const [catalogPage, setCatalogPage] = useState(1);
+  const [catalogTotal, setCatalogTotal] = useState(0);
+  const CATALOG_LIMIT = 20;
+  const [enrollPasswords, setEnrollPasswords] = useState<Record<string, string>>({});
   const [enrollingId, setEnrollingId] = useState<string | null>(null);
   const [enrollError, setEnrollError] = useState('');
+  const [enrollErrorCourseId, setEnrollErrorCourseId] = useState<string | null>(null);
+  const [showCatalog, setShowCatalog] = useState(false);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) router.push('/auth');
   }, [isAuthenticated, loading, router]);
 
-  const loadCatalog = async (q = '') => {
+  const loadCatalog = async (q = '', tag = catalogTag, page = 1) => {
     setCatalogLoading(true);
     try {
-      const res = await apiClient.get('/courses/catalog', { params: { q } });
-      setCatalog(Array.isArray(res.data) ? res.data : []);
+      const res = await apiClient.get('/courses/catalog', {
+        params: { q, tag: tag || undefined, page, limit: CATALOG_LIMIT },
+      });
+      const payload = res.data;
+      // Backward-compatible: accept either the paginated shape or a raw array
+      const list = Array.isArray(payload) ? payload : (payload?.data ?? []);
+      setCatalog(list);
+      setCatalogTotal(Array.isArray(payload) ? list.length : (payload?.total ?? list.length));
+      setCatalogPage(page);
     } catch {
       setCatalog([]);
+      setCatalogTotal(0);
     } finally {
       setCatalogLoading(false);
     }
@@ -80,12 +96,13 @@ const Dashboard = () => {
 
   const handleEnroll = async (courseId: string, requiresPassword: boolean) => {
     setEnrollError('');
+    setEnrollErrorCourseId(null);
     setEnrollingId(courseId);
     try {
       await apiClient.post(`/courses/${courseId}/enroll`, {
-        password: requiresPassword ? enrollPassword : undefined,
+        password: requiresPassword ? enrollPasswords[courseId] : undefined,
       });
-      setEnrollPassword('');
+      setEnrollPasswords((prev) => ({ ...prev, [courseId]: '' }));
       // refresh assignments
       if (user) {
         const assignRes = await apiClient.get(`/assignments?student_id=${user.id}`);
@@ -95,11 +112,15 @@ const Dashboard = () => {
         const allCourses: Course[] = coursesRes.data || [];
         const assignedCourseIds = new Set(assignList.map((a: Assignment) => a.course_id));
         setCourses(allCourses.filter((c) => assignedCourseIds.has(c.id)));
+        
+        setShowCatalog(false);
+        toast.success('¡Inscripción exitosa!');
       }
     } catch (err: any) {
-      setEnrollError(
-        err.response?.data?.message || err.message || 'No se pudo inscribir al curso',
-      );
+      const msg = err.response?.data?.message || err.message || 'No se pudo inscribir al curso';
+      setEnrollError(msg);
+      setEnrollErrorCourseId(courseId);
+      toast.error(msg);
     } finally {
       setEnrollingId(null);
     }
@@ -111,7 +132,7 @@ const Dashboard = () => {
     const fetchData = async () => {
       try {
         // Admin, docentes y ministerio ven todos los cursos directamente
-        if (hasRole('admin') || hasRole('teacher') || hasRole('ministerio')) {
+        if (hasRole('admin') || hasRole('teacher') || hasRole('ministerio') || hasRole('supervisor')) {
           const response = await apiClient.get('/courses');
           setCourses(response.data);
           setAssignmentsLoaded(true);
@@ -190,8 +211,9 @@ const Dashboard = () => {
     ministerio: { label: 'Ministerio', icon: <Shield className="w-3 h-3" />, color: 'bg-warning/10 text-warning' },
   };
 
-  const isStudentOnly = hasRole('student') && !hasRole('teacher') && !hasRole('admin');
+  const isStudentOnly = hasRole('student') && !hasRole('teacher') && !hasRole('admin') && !hasRole('supervisor');
   const hasNoAssignments = isStudentOnly && assignments.length === 0;
+  const displayCatalog = hasNoAssignments || showCatalog;
 
   return (
     <div className="min-h-screen bg-background">
@@ -199,14 +221,23 @@ const Dashboard = () => {
       <main className="container mx-auto px-4 py-8">
 
         {/* ── CASO: alumno sin cursos → buscar e inscribirse ── */}
-        {hasNoAssignments ? (
+        {displayCatalog ? (
           <div className="max-w-2xl mx-auto">
+            {showCatalog && !hasNoAssignments && (
+              <Button 
+                variant="ghost" 
+                className="mb-4 text-muted-foreground"
+                onClick={() => setShowCatalog(false)}
+              >
+                ← Volver a mis cursos
+              </Button>
+            )}
             <div className="text-center mb-8">
               <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <GraduationCap className="w-10 h-10 text-primary" />
               </div>
               <h1 className="text-3xl font-bold text-foreground">
-                ¡Bienvenido/a, {user?.name}!
+                {showCatalog && !hasNoAssignments ? 'Inscribirse a un nuevo curso' : `¡Bienvenido/a, ${user?.name}!`}
               </h1>
               <p className="text-muted-foreground mt-2 text-lg">
                 Buscá un curso por nombre o docente e inscribite para comenzar.
@@ -261,13 +292,35 @@ const Dashboard = () => {
                               : 'Sin docente asignado'}
                             {c.requires_password ? ' · Requiere contraseña' : ' · Acceso libre'}
                           </p>
+                          {c.tags && c.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {Array.from(new Set(c.tags)).map((tag, index) => (
+                                <button
+                                  key={`${tag}-${index}`}
+                                  type="button"
+                                  onClick={() => { const next = catalogTag === tag ? '' : tag; setCatalogTag(next); loadCatalog(catalogQ, next, 1); }}
+                                >
+                                  <Badge
+                                    variant={catalogTag === tag ? 'default' : 'secondary'}
+                                    className="text-xs capitalize cursor-pointer"
+                                  >
+                                    {tag}
+                                  </Badge>
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         {c.requires_password && (
                           <Input
                             type="password"
                             placeholder="Contraseña del curso"
-                            value={enrollingId === c.id || !enrollingId ? enrollPassword : ''}
-                            onChange={(e) => setEnrollPassword(e.target.value)}
+                            value={enrollPasswords[c.id] || ''}
+                            onChange={(e) => {
+                              setEnrollPasswords((prev) => ({ ...prev, [c.id]: e.target.value }));
+                              if (enrollErrorCourseId === c.id) { setEnrollError(''); setEnrollErrorCourseId(null); }
+                            }}
+                            className={enrollErrorCourseId === c.id ? 'border-red-500 focus-visible:ring-red-500' : ''}
                           />
                         )}
                         <Button
@@ -281,6 +334,30 @@ const Dashboard = () => {
                     ))}
                   </div>
                 )}
+
+                {!catalogLoading && catalogTotal > CATALOG_LIMIT && (
+                  <div className="flex items-center justify-between mt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={catalogPage <= 1}
+                      onClick={() => loadCatalog(catalogQ, catalogTag, catalogPage - 1)}
+                    >
+                      Anterior
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      Página {catalogPage} de {Math.max(1, Math.ceil(catalogTotal / CATALOG_LIMIT))}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={catalogPage >= Math.ceil(catalogTotal / CATALOG_LIMIT)}
+                      onClick={() => loadCatalog(catalogQ, catalogTag, catalogPage + 1)}
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -288,19 +365,24 @@ const Dashboard = () => {
         ) : (
           /* ── CASO NORMAL: mostrar cursos ──────────────────────────────────── */
           <>
-            <div className="mb-6 sm:mb-8">
-              <h1 className="text-2xl sm:text-3xl font-bold">
-                {isStudentOnly
-                  ? `Bienvenido, ${user?.name || 'Estudiante'}`
-                  : 'Panel de Control'}
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                {isStudentOnly
-                  ? courses.length > 0
-                    ? `Tenés ${courses.length} simulación${courses.length !== 1 ? 'es' : ''} asignada${courses.length !== 1 ? 's' : ''}. Hacé click en "Iniciar" para comenzar.`
-                    : 'Aquí verás tus simulaciones asignadas.'
-                  : 'Gestione cursos y simulaciones'}
-              </p>
+            <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold">
+                  {isStudentOnly
+                    ? `Bienvenido, ${user?.name || 'Estudiante'}`
+                    : 'Panel de Control'}
+                </h1>
+                <p className="text-muted-foreground mt-1">
+                  {isStudentOnly
+                    ? courses.length > 0
+                      ? `Tenés ${courses.length} simulación${courses.length !== 1 ? 'es' : ''} asignada${courses.length !== 1 ? 's' : ''}. Hacé click en "Iniciar" para comenzar.`
+                      : 'Aquí verás tus simulaciones asignadas.'
+                    : 'Gestione cursos y simulaciones'}
+                </p>
+              </div>
+              <Button onClick={() => setShowCatalog(true)}>
+                <GraduationCap className="w-4 h-4 mr-2" /> Inscribirse a un nuevo curso
+              </Button>
             </div>
 
             {/* ── Guía paso a paso para alumnos ───────────────────────────────── */}
@@ -309,22 +391,22 @@ const Dashboard = () => {
                 <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-3 flex items-center gap-2 text-sm">
                   <HelpCircle className="w-4 h-4" /> ¿Cómo usar el simulador?
                 </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {[
                     { icon: BookOpen, title: 'Elegí tu simulación', desc: 'Hacé click en una tarjeta para ver los detalles del escenario asignado.' },
                     { icon: Play, title: 'Iniciá', desc: 'Presioná "Iniciar". El sistema te presentará el contexto del caso a resolver.' },
                     { icon: MessageSquare, title: 'Interactuá', desc: 'Usá el chat con tu asesor, revisá emails y documentos del escenario.' },
                     { icon: Award, title: 'Finalizá', desc: 'Al terminar, el sistema evalúa tu desempeño y genera tu puntaje y certificado.' },
                   ].map(({ icon: Icon, title, desc }, i) => (
-                    <div key={i} className="flex items-start gap-2.5">
-                      <div className="bg-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                    <div key={i} className="flex items-start gap-3">
+                      <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shrink-0 mt-0.5">
                         {i + 1}
                       </div>
                       <div>
-                        <p className="text-xs font-semibold text-blue-900 dark:text-blue-200 flex items-center gap-1">
-                          <Icon className="w-3 h-3" /> {title}
+                        <p className="text-sm font-semibold text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
+                          <Icon className="w-4 h-4" /> {title}
                         </p>
-                        <p className="text-xs text-blue-700 dark:text-blue-400 mt-0.5 leading-snug">{desc}</p>
+                        <p className="text-sm text-blue-700 dark:text-blue-400 mt-0.5 leading-snug">{desc}</p>
                       </div>
                     </div>
                   ))}
@@ -422,7 +504,7 @@ const Dashboard = () => {
                         {/* Info de intentos / score */}
                         {enriched && (
                           <div className="flex items-center justify-between text-xs text-muted-foreground mb-3 bg-muted/40 rounded-md px-2 py-1.5">
-                            {attemptsLeft !== null && (
+                            {attemptsLeft !== null && calStatus !== 'completed' && (
                               <span className={`flex items-center gap-1 ${attemptsLeft === 0 ? 'text-red-600 font-semibold' : ''}`}>
                                 <Clock className="w-3 h-3" />
                                 {attemptsLeft > 0 ? `${attemptsLeft} intento${attemptsLeft !== 1 ? 's' : ''} restante${attemptsLeft !== 1 ? 's' : ''}` : 'Sin intentos'}

@@ -36,7 +36,7 @@ async function main() {
       phone: '+54 341 555-0100',
       email: 'contacto@fepei.edu.ar',
       website: 'https://fepei.edu.ar',
-      ministry_aval: 'Disposición Nº 123/2024 — Ministerio de Educación de Santa Fe',
+      description: 'Disposición Nº 123/2024 — Ministerio de Educación de Santa Fe',
       is_active: true,
     },
   });
@@ -67,6 +67,35 @@ async function main() {
     if (!exists) {
       await prisma.courseEndorser.create({
         data: { course_id: c.id, endorser_id: pick.id },
+      });
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // 2b. SPONSORS + COURSE SPONSORS
+  // ═══════════════════════════════════════════════════════════════
+  console.log('💼 Sponsors...');
+  const sponsors = [
+    { name: 'TechCorp Argentina', website: 'https://techcorp.com.ar' },
+    { name: 'Banco del Litoral', website: 'https://bancodellitoral.com.ar' },
+    { name: 'Grupo Industrial Rosario', website: 'https://gir.com.ar' },
+  ];
+  for (const s of sponsors) {
+    const exists = await prisma.sponsor.findFirst({ where: { name: s.name } });
+    if (!exists) {
+      await prisma.sponsor.create({ data: s });
+    }
+  }
+
+  const realSponsors = await prisma.sponsor.findMany({ take: 3 });
+  for (const c of allCourses) {
+    const pick = realSponsors[allCourses.indexOf(c) % realSponsors.length];
+    const exists = await prisma.courseSponsor.findFirst({
+      where: { course_id: c.id, sponsor_id: pick.id },
+    });
+    if (!exists) {
+      await prisma.courseSponsor.create({
+        data: { course_id: c.id, sponsor_id: pick.id },
       });
     }
   }
@@ -163,24 +192,26 @@ async function main() {
 
   console.log('⚙️  Funcionalidades...');
   const funcs = [
-    { name: 'manage_courses', description: 'Gestionar cursos', module: 'cursos', icon: 'BookOpen', route: '/admin/courses' },
-    { name: 'manage_users', description: 'Gestionar usuarios', module: 'usuarios', icon: 'Users', route: '/admin/users' },
-    { name: 'view_evaluations', description: 'Ver evaluaciones', module: 'evaluaciones', icon: 'ClipboardCheck', route: '/evaluations' },
-    { name: 'view_legajos', description: 'Ver legajos de alumnos', module: 'legajos', icon: 'FolderOpen', route: '/legajos' },
-    { name: 'manage_roles', description: 'Gestionar roles y permisos', module: 'admin', icon: 'Shield', route: '/admin/roles' },
-    { name: 'manage_scenarios', description: 'Gestionar escenarios', module: 'cursos', icon: 'Play', route: '/admin/scenarios' },
-    { name: 'manage_assignments', description: 'Asignar cursos a alumnos', module: 'cursos', icon: 'UserPlus', route: '/admin/assignments' },
-    { name: 'manage_companies', description: 'Gestionar empresas simuladas', module: 'admin', icon: 'Building2', route: '/admin/companies' },
-    { name: 'view_stats', description: 'Ver estadísticas globales', module: 'admin', icon: 'BarChart3', route: '/admin/stats' },
-    { name: 'manage_foundation', description: 'Configurar fundación', module: 'admin', icon: 'Home', route: '/admin/foundation' },
-    { name: 'manage_endorsers', description: 'Gestionar avaladores', module: 'admin', icon: 'Award', route: '/admin/endorsers' },
-    { name: 'manage_templates', description: 'Gestionar plantillas de flujo', module: 'admin', icon: 'LayoutTemplate', route: '/admin/templates' },
-    { name: 'manage_prompts', description: 'Gestionar prompts IA', module: 'admin', icon: 'MessageSquare', route: '/admin/prompts' },
-    { name: 'manage_techsheets', description: 'Gestionar fichas técnicas', module: 'admin', icon: 'FileText', route: '/admin/techsheets' },
-    { name: 'manage_categories', description: 'Gestionar categorías', module: 'admin', icon: 'Tags', route: '/admin/categories' },
-    { name: 'manage_documents', description: 'Gestionar documentos', module: 'cursos', icon: 'FileText', route: '/admin/documents' },
-    { name: 'manage_groups', description: 'Gestionar grupos profesor-alumno', module: 'usuarios', icon: 'Users', route: '/admin/groups' },
-    { name: 'manage_sessions', description: 'Ver sesiones de simulación', module: 'evaluaciones', icon: 'Monitor', route: '/admin/sessions' },
+    { name: 'manage_courses', code: 'courses.manage', description: 'Gestionar cursos', module: 'cursos', icon: 'BookOpen', route: '/admin/courses' },
+    { name: 'manage_users', code: 'users.manage', description: 'Gestionar usuarios', module: 'usuarios', icon: 'Users', route: '/admin/users' },
+    { name: 'view_evaluations', code: 'assessments.read', description: 'Ver evaluaciones', module: 'evaluaciones', icon: 'ClipboardCheck', route: '/evaluations' },
+    { name: 'view_legajos', code: 'legajos.read', description: 'Ver legajos de alumnos', module: 'legajos', icon: 'FolderOpen', route: '/legajos' },
+    { name: 'manage_roles', code: 'rbac.manage_extra', description: 'Gestionar roles y permisos', module: 'admin', icon: 'Shield', route: '/admin/roles' },
+    { name: 'manage_scenarios', code: 'scenarios.manage', description: 'Gestionar escenarios', module: 'cursos', icon: 'Play', route: '/admin/scenarios' },
+    { name: 'manage_assignments', code: 'assignments.manage', description: 'Asignar cursos a alumnos', module: 'cursos', icon: 'UserPlus', route: '/admin/assignments' },
+    { name: 'manage_companies', code: 'companies.manage', description: 'Gestionar empresas simuladas', module: 'admin', icon: 'Building2', route: '/admin/companies' },
+    { name: 'view_stats', code: 'reports.read_stats', description: 'Ver estadísticas globales', module: 'admin', icon: 'BarChart3', route: '/admin/stats' },
+    { name: 'manage_foundation', code: 'foundation.manage', description: 'Configurar fundación', module: 'admin', icon: 'Home', route: '/admin/foundation' },
+    { name: 'manage_endorsers', code: 'endorsers.manage', description: 'Gestionar avaladores', module: 'admin', icon: 'Award', route: '/admin/endorsers' },
+    { name: 'manage_templates', code: 'templates.manage', description: 'Gestionar plantillas de flujo', module: 'admin', icon: 'LayoutTemplate', route: '/admin/templates' },
+    { name: 'manage_prompts', code: 'templates.prompts', description: 'Gestionar prompts IA', module: 'admin', icon: 'MessageSquare', route: '/admin/prompts' },
+    { name: 'manage_techsheets', code: 'techsheets.manage', description: 'Gestionar fichas técnicas', module: 'admin', icon: 'FileText', route: '/admin/techsheets' },
+    { name: 'manage_categories', code: 'categories.manage', description: 'Gestionar categorías', module: 'admin', icon: 'Tags', route: '/admin/categories' },
+    { name: 'manage_documents', code: 'documents.manage', description: 'Gestionar documentos', module: 'cursos', icon: 'FileText', route: '/admin/documents' },
+    { name: 'manage_groups', code: 'teacher_groups.manage', description: 'Gestionar grupos profesor-alumno', module: 'usuarios', icon: 'Users', route: '/admin/groups' },
+    { name: 'manage_sessions', code: 'sessions.manage', description: 'Ver sesiones de simulación', module: 'evaluaciones', icon: 'Monitor', route: '/admin/sessions' },
+    { name: 'hard_delete_users', code: 'users.hard-delete', description: 'Eliminar usuarios permanentemente', module: 'usuarios', icon: 'Trash2', route: '/admin/users' },
+    { name: 'manage_sponsors', code: 'sponsors.manage', description: 'Gestionar sponsors', module: 'admin', icon: 'Handshake', route: '/admin/sponsors' },
   ];
   for (const f of funcs) {
     const exists = await prisma.systemFunctionality.findFirst({ where: { name: f.name } });

@@ -55,7 +55,7 @@ const Auth = () => {
           ? '/ministerio'
           : user.role === 'admin'
             ? '/admin/mis-cursos'
-            : user.role === 'teacher'
+            : user.role === 'teacher' || user.role === 'supervisor'
               ? '/profesor/cursos'
               : '/estudiante/cursos',
       );
@@ -261,7 +261,7 @@ const Auth = () => {
                         type="button"
                         tabIndex={-1}
                         onClick={() => setShowLoginPwd((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-muted-foreground hover:text-foreground transition"
                         aria-label={showLoginPwd ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                       >
                         {showLoginPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -329,7 +329,7 @@ const Auth = () => {
                         type="button"
                         tabIndex={-1}
                         onClick={() => setShowSignupPwd((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-muted-foreground hover:text-foreground transition"
                         aria-label={showSignupPwd ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                       >
                         {showSignupPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

@@ -32,6 +32,9 @@ export class CreateFunctionalityDto {
   name: string;
 
   @IsString()
+  code: string;
+
+  @IsString()
   @IsOptional()
   description?: string;
 

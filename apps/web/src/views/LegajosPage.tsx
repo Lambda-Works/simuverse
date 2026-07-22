@@ -12,7 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/hooks/useAuth';
 import {
     AlertCircle, BarChart3,
-    CheckCircle2,
     ChevronRight,
     Clock,
     FileText,
@@ -23,6 +22,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import { apiClient } from '@/services/ApiClient';
+import { getScoreBarColor, getScoreText } from '@/lib/score-colors';
 
 interface StudentSummary {
   id: string;
@@ -48,7 +48,7 @@ const LegajosPage = () => {
   const [sortBy, setSortBy] = useState<'name' | 'activity' | 'score'>('activity');
 
   useEffect(() => {
-    if (!loading && user && !hasRole('admin') && !hasRole('teacher') && !hasRole('ministerio')) {
+    if (!loading && user && !hasRole('admin') && !hasRole('teacher') && !hasRole('ministerio') && !hasRole('supervisor')) {
       router.push('/auth');
     }
   }, [user, loading, hasRole, router]);
@@ -86,7 +86,7 @@ const LegajosPage = () => {
     });
 
   const scoreColor = (v: number | null) =>
-    v === null ? '' : v >= 85 ? 'text-green-600' : v >= 70 ? 'text-yellow-600' : 'text-red-600';
+    v === null ? '' : getScoreText(v);
 
   if (loading || fetching) {
     return (
@@ -107,7 +107,7 @@ const LegajosPage = () => {
           <p className="text-muted-foreground mb-6">{error}</p>
           <Button onClick={() => {
             if (hasRole('admin')) router.push('/admin/mis-cursos');
-            else if (hasRole('teacher')) router.push('/profesor/cursos');
+            else if (hasRole('teacher') || hasRole('supervisor')) router.push('/profesor/cursos');
             else if (hasRole('ministerio')) router.push('/ministerio');
             else router.push('/estudiante/cursos');
           }}>Volver al inicio</Button>
@@ -170,12 +170,6 @@ const LegajosPage = () => {
               color: 'text-purple-600',
             },
             {
-              label: 'Con evaluaciones',
-              value: students.filter(s => n(s.total_evaluations) > 0).length,
-              icon: CheckCircle2,
-              color: 'text-green-600',
-            },
-            {
               label: 'Sin actividad',
               value: students.filter(s => !s.last_activity).length,
               icon: XCircle,
@@ -236,7 +230,7 @@ const LegajosPage = () => {
                       </div>
                       <div className="text-center bg-muted/40 rounded-md py-2">
                         <p className="text-lg font-bold leading-none">{evals}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">Eval.</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Sim.</p>
                       </div>
                       <div className="text-center bg-muted/40 rounded-md py-2">
                         <p className={`text-lg font-bold leading-none ${scoreColor(avg)}`}>
@@ -255,7 +249,7 @@ const LegajosPage = () => {
                         </div>
                         <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all ${best >= 85 ? 'bg-green-500' : best >= 70 ? 'bg-yellow-400' : 'bg-red-500'}`}
+                            className={`h-full rounded-full transition-all ${getScoreBarColor(best)}`}
                             style={{ width: `${best}%` }}
                           />
                         </div>

@@ -91,6 +91,23 @@ const DEFAULT_CRISIS = [
   },
 ];
 
+export function mapPipelineCrisis(raw: any) {
+  if (!raw || typeof raw !== 'object') return [];
+  return [
+    {
+      title: raw.detonante || raw.trigger || raw.title || 'Crisis',
+      description: raw.descripcion || raw.description || '',
+      severity: 'high',
+      options: (raw.opciones_resolucion || raw.options || []).map((opt: any) => ({
+        text: typeof opt === 'string' ? opt : opt?.text || '',
+        score: 100,
+        feedback: '',
+        tags: [],
+      })),
+    },
+  ];
+}
+
 @Injectable()
 export class CrisisEngine {
   private activeEvents = new Map<string, CrisisEvent>();
@@ -100,15 +117,22 @@ export class CrisisEngine {
   }
 
   private customToEvent(raw: any, simulationId: string): CrisisEvent {
-    const options: CrisisOption[] = (Array.isArray(raw.options) ? raw.options : []).map(
-      (opt: any, i: number) => ({
-        id: String.fromCharCode(97 + i),
-        text: opt.text || `Opción ${i + 1}`,
-        score: Number(opt.score) || 0,
-        feedback: opt.feedback || '',
-        tags: [],
-      }),
-    );
+    const rawOptions =
+      raw.options ||
+      (raw.opciones_resolucion || []).map((text: string) => ({
+        text,
+        score: 100,
+        feedback: '',
+      }));
+    const options: CrisisOption[] = (
+      Array.isArray(rawOptions) ? rawOptions : []
+    ).map((opt: any, i: number) => ({
+      id: String.fromCharCode(97 + i),
+      text: typeof opt === 'string' ? opt : opt.text || `Opción ${i + 1}`,
+      score: Number(opt.score) || 0,
+      feedback: opt.feedback || '',
+      tags: [],
+    }));
 
     return {
       id: `crisis-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -116,8 +140,8 @@ export class CrisisEngine {
       courseFamily: 'custom',
       status: 'active',
       startedAt: new Date(),
-      title: raw.title || '🚨 Situación crítica',
-      description: raw.description || '',
+      title: raw.title || raw.detonante || '🚨 Situación crítica',
+      description: raw.description || raw.descripcion || '',
       severity: raw.severity || 'medium',
       options,
     };

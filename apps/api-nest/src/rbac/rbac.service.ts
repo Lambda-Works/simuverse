@@ -10,6 +10,12 @@ import {
 
 @Injectable()
 export class RbacService {
+  private permissionCache = new Map<
+    string,
+    { enabled: boolean; timestamp: number }
+  >();
+  private readonly CACHE_TTL_MS = 60_000;
+
   constructor(private prisma: PrismaService) {}
 
   // ── Roles ──────────────────────────────────────────────────────────
@@ -56,6 +62,7 @@ export class RbacService {
     return this.prisma.systemFunctionality.create({
       data: {
         name: dto.name,
+        code: dto.code,
         description: dto.description,
         module: dto.module,
         icon: dto.icon,
@@ -96,7 +103,7 @@ export class RbacService {
   // ── Role Permissions ───────────────────────────────────────────────
 
   async assignPermission(dto: AssignPermissionDto) {
-    return this.prisma.rolePermission.upsert({
+    const result = await this.prisma.rolePermission.upsert({
       where: {
         role_name_functionality_id: {
           role_name: dto.role_name,
@@ -112,6 +119,8 @@ export class RbacService {
         enabled: dto.enabled ?? true,
       },
     });
+    this.invalidatePermissionCache(dto.role_name);
+    return result;
   }
 
   async listPermissions(roleName?: string) {
@@ -124,6 +133,116 @@ export class RbacService {
     const perm = await this.prisma.rolePermission.findUnique({ where: { id } });
     if (!perm) throw new NotFoundException('Permission not found');
     await this.prisma.rolePermission.delete({ where: { id } });
+    this.invalidatePermissionCache(perm.role_name);
     return { message: 'Permission revoked successfully' };
+  }
+
+  // ── Permission Check ─────────────────────────────────────────────
+
+  async hasPermission(
+    roleName: string,
+    code: string,
+  ): Promise<boolean> {
+    const cacheKey = `${roleName}:${code}`;
+    const cached = this.permissionCache.get(cacheKey);
+
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {
+      return cached.enabled;
+    }
+
+    // Look up functionality_id by code, then check permission
+    const func = await this.prisma.systemFunctionality.findFirst({
+      where: { code },
+      select: { id: true },
+    });
+
+    if (!func) {
+      this.permissionCache.set(cacheKey, { enabled: false, timestamp: Date.now() });
+      return false;
+    }
+
+    const result = await this.prisma.rolePermission.findFirst({
+      where: {
+        role_name: roleName,
+        functionality_id: func.id,
+        enabled: true,
+      },
+      select: { enabled: true },
+    });
+
+    const enabled = result?.enabled ?? false;
+    this.permissionCache.set(cacheKey, { enabled, timestamp: Date.now() });
+    return enabled;
+  }
+
+  async hasPermissions(
+    roleName: string,
+    codes: string[],
+  ): Promise<boolean> {
+    for (const code of codes) {
+      if (await this.hasPermission(roleName, code)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  invalidatePermissionCache(roleName?: string): void {
+    if (roleName) {
+      for (const key of this.permissionCache.keys()) {
+        if (key.startsWith(`${roleName}:`)) {
+          this.permissionCache.delete(key);
+        }
+      }
+    } else {
+      this.permissionCache.clear();
+    }
+  }
+
+  // ── Catalog-compatible role permission queries ──────────────────
+
+  async getRolePermissionsWithFunctionalities(roleName: string) {
+    return (this.prisma.rolePermission as any).findMany({
+      where: { role_name: roleName },
+      include: { functionality: true },
+    });
+  }
+
+  async getRolePermissionsFlat(roleName: string) {
+    return this.prisma.$queryRaw`
+      SELECT sf.id AS functionality_id, sf.name, sf.code, sf.description, sf.module, sf.icon,
+             COALESCE(rp.enabled, false) AS enabled
+      FROM system_functionalities sf
+      LEFT JOIN role_permissions rp ON rp.functionality_id = sf.id AND rp.role_name = ${roleName}
+      WHERE sf.is_active = true
+      ORDER BY sf.module ASC, sf.name ASC
+    `;
+  }
+
+  async bulkUpsertRolePermissions(
+    roleName: string,
+    permissions: Array<{ functionality_id: number; enabled: boolean | number }>,
+  ) {
+    const results: any[] = [];
+    for (const perm of permissions) {
+      const isEnabled = Boolean(perm.enabled);
+      const result = await this.prisma.rolePermission.upsert({
+        where: {
+          role_name_functionality_id: {
+            role_name: roleName,
+            functionality_id: perm.functionality_id,
+          },
+        },
+        update: { enabled: isEnabled },
+        create: {
+          role_name: roleName,
+          functionality_id: perm.functionality_id,
+          enabled: isEnabled,
+        },
+      });
+      results.push(result);
+    }
+    this.invalidatePermissionCache(roleName);
+    return { updated: results.length };
   }
 }
