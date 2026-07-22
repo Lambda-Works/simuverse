@@ -16,4 +16,7 @@ export class UpdateSponsorDto {
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
+
+  @IsOptional()
+  logo_file?: any;
 }

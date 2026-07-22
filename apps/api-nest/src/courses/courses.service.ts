@@ -530,4 +530,21 @@ export class CoursesService {
       return tx.course.delete({ where: { id } });
     });
   }
+
+  async findCourseSponsors(courseId: string) {
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+      include: {
+        course_sponsors: {
+          include: {
+            sponsor: true,
+          },
+        },
+      },
+    });
+    if (!course) throw new NotFoundException('Course not found');
+    return course.course_sponsors
+      .map((cs) => cs.sponsor)
+      .filter((s) => s && s.is_active);
+  }
 }

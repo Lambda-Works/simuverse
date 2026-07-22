@@ -19,6 +19,7 @@ import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Permissions } from '../common/decorators/permissions.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Public } from '../common/decorators/public.decorator';
 
 class CreateCourseDto {
   @IsString()
@@ -207,6 +208,14 @@ export class CoursesController {
   @Get(':courseId')
   async findOne(@Param('courseId') courseId: string) {
     return this.coursesService.findById(courseId);
+  }
+
+  @Get(':id/sponsors')
+  @Public()
+  @Roles()
+  @Permissions()
+  async getCourseSponsors(@Param('id') id: string) {
+    return this.coursesService.findCourseSponsors(id);
   }
 
   @Post()
