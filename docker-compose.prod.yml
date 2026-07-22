@@ -54,9 +54,18 @@ services:
         set -e
         echo 'Running migrations...'
         npx prisma migrate deploy || {
-          echo '=== prisma migrate deploy FAILED — status ==='
-          npx prisma migrate status || true
-          exit 1
+          echo '=== migrate deploy failed — trying P3009 repair ==='
+          # 20260717120000 aborted on production (it backfilled codes by hardcoded
+          # id, so rows past id 18 stayed NULL and SET NOT NULL failed). Postgres
+          # migrations run in a transaction, so nothing of it landed: mark it
+          # applied so 20260722130000_fix_system_functionality_codes can do the
+          # backfill correctly. No-op on databases that are not stuck.
+          npx prisma migrate resolve --applied 20260717120000_add_code_to_system_functionalities || true
+          npx prisma migrate deploy || {
+            echo '=== prisma migrate deploy FAILED — status ==='
+            npx prisma migrate status || true
+            exit 1
+          }
         }
         echo '=== Seed 1/5: usuarios ==='
         npx ts-node src/prisma/seed.ts
