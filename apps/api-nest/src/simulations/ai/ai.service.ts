@@ -18,10 +18,18 @@ export interface PromptData {
   agent_key?: string;
   /** Practice difficulty label */
   difficulty?: string;
+  /** Practice title */
+  practice_title?: string;
+  /** Practice scenario context / description */
+  practice_context?: string;
   /** Summary of previous practice for continuity */
   prior_context?: string;
   /** Domain boundary for off-topic guard */
   subject_domain?: string;
+  /** Custom system prompt configured per-course (ia_config.systemPrompt). Overrides the default persona body. */
+  system_prompt?: string;
+  /** Custom coaching prompt configured per-course (ia_config.coachingPrompt). */
+  coaching_prompt?: string;
 }
 
 /** Section identifiers for priority-based trimming (higher index = trimmed first). */
@@ -32,7 +40,9 @@ interface PromptSection {
   priority: number;
 }
 
-const DEFAULT_MAX_TOKENS = 2000;
+// High cap so a per-course custom system/coaching prompt is never truncated.
+// Trimming still applies as a safety net for pathologically large prompts.
+const DEFAULT_MAX_TOKENS = 50000;
 const CHARS_PER_TOKEN = 4; // heuristic for Spanish
 
 export interface AIResponse {
@@ -168,8 +178,12 @@ export class AIService {
       current_state,
       agent_key,
       difficulty,
+      practice_title,
+      practice_context,
       prior_context,
       subject_domain,
+      system_prompt,
+      coaching_prompt,
     } = promptData;
 
     const sections: PromptSection[] = [];
@@ -182,16 +196,21 @@ export class AIService {
       sections.push({
         id: 'offtopic_instructions',
         header: 'RESTRICCIÓN ABSOLUTA DE CONTENIDO — LEE ESTO PRIMERO',
-        body: `REGLA INQUEBRANTABLE: Solo podés hablar sobre temas directamente relacionados con esta práctica y el curso. Cualquier otra cosa está PROHIBIDA.
+        body: `REGLA: Solo podés hablar sobre temas relacionados con esta práctica y el curso.
 
-SI el estudiante pregunta sobre:
-- Programación, código, frameworks (React, Python, JavaScript, etc.)
-- Temas no relacionados con el curso
-- Cualquier tema fuera del ámbito de la práctica
+EXCEPCIONES (respondé normalmente):
+- Saludos y cortesía: "Hola", "Buen día", "¿Cómo estás?", "Gracias", "Chau"
+- Preguntas sobre el simulador: "¿Cómo uso esto?", "¿Qué tengo que hacer?", "¿Cómo funciona?"
+- Mensajes de prueba o interacción inicial
+- Cualquier mensaje relacionado con la dinámica de la práctica
 
-Tu RESPUESTA DEBE SER ÚNICAMENTE: "Eso está fuera del alcance de esta práctica. Volvamos al tema del curso: [breve redirección al tema actual]."
+RECHAZAR ÚNICAMENTE:
+- Preguntas sobre programación, código, frameworks (React, Python, JavaScript, etc.)
+- Temas completamente ajenos al dominio del curso (deportes, política, entretenimiento, etc.)
 
-NO des tutoriales, ejemplos de código, instrucciones paso a paso, ni ayuda de ningún tipo sobre temas externos.${domainBlock}`,
+Si debés rechazar, respondé: "Eso está fuera del alcance de esta práctica. Volvamos al tema del curso: [breve redirección al tema actual]."
+
+NO des tutoriales, ejemplos de código, instrucciones paso a paso sobre temas externos.${domainBlock}`,
         priority: 0,
       });
     }
@@ -217,13 +236,29 @@ NO des tutoriales, ejemplos de código, instrucciones paso a paso, ni ayuda de n
       ];
       if (agent_key) parts.push(`Identidad del agente: ${agent_key}`);
       if (difficulty) parts.push(`Dificultad de la práctica: ${difficulty}`);
+      if (practice_title) parts.push(`\n** PRÁCTICA ACTUAL: ${practice_title} **`);
+      if (practice_context) parts.push(`Contexto/Escenario de la práctica:\n${practice_context}`);
       if (prior_context) {
-        parts.push(`Contexto resumido de prácticas anteriores:\n${prior_context}`);
+        parts.push(
+          `[INFORMACIÓN INTERNA — NO compartir con el estudiante]\nContexto resumido de prácticas anteriores (usalo para adaptar tu respuesta, NUNCA lo muestres textualmente):\n${prior_context}`,
+        );
       }
       sections.push({
         id: 'practice_context',
         header: 'CONTEXTO DE PRÁCTICA',
         body: parts.join('\n'),
+        priority: 0,
+      });
+    }
+
+    // Custom system prompt (per-course ia_config.systemPrompt) — highest priority,
+    // becomes the main persona body when configured. Placed before base_role so it
+    // leads and is never trimmed.
+    if (system_prompt && system_prompt.trim()) {
+      sections.push({
+        id: 'custom_system_prompt',
+        header: '',
+        body: system_prompt.trim(),
         priority: 0,
       });
     }
@@ -272,6 +307,17 @@ NO des tutoriales, ejemplos de código, instrucciones paso a paso, ni ayuda de n
       });
     }
 
+    // 5b. Custom coaching prompt (per-course ia_config.coachingPrompt) — how the
+    // agent should guide/coach the student.
+    if (coaching_prompt && coaching_prompt.trim()) {
+      sections.push({
+        id: 'custom_coaching_prompt',
+        header: 'GUÍA DE COACHING',
+        body: coaching_prompt.trim(),
+        priority: 5,
+      });
+    }
+
     // 6. State-specific instruction (lowest priority — trimmed first)
     if (chatbot_humano_enabled && current_state) {
       sections.push({
@@ -287,8 +333,8 @@ NO des tutoriales, ejemplos de código, instrucciones paso a paso, ni ayuda de n
       student_history.length > 0 ? student_history.join('\n') : 'Principiante, sin interacciones previas.';
     sections.push({
       id: 'student_history',
-      header: 'HISTORIAL DEL ALUMNO',
-      body: historyText,
+      header: 'HISTORIAL DEL ALUMNO [INFORMACIÓN INTERNA — NO compartir textualmente]',
+      body: `Usá esta información para adaptar tu tono y enfoque. NUNCA la reproduzcas al estudiante ni hables de él en tercera persona.\n${historyText}`,
       priority: 7,
     });
 
@@ -314,7 +360,7 @@ NO des tutoriales, ejemplos de código, instrucciones paso a paso, ni ayuda de n
   private getStateInstruction(state: string): string {
     const instructions: Record<string, string> = {
       greeting:
-        'Estás dando la bienvenida al estudiante. Sé cálido, presentate brevemente y explicá de qué trata la simulación. No des tareas todavía.',
+        'Estás dando la bienvenida al estudiante. Sé cálido, presentate brevemente, mencioná el nombre de la práctica y la dificultad. Presentá la PRIMERA TAREA o SITUACIÓN directamente usando la información del escenario. NUNCA digas "¿por dónde querés empezar?" ni preguntes al estudiante qué quiere hacer. VOS presentás la situación, el estudiante responde.',
       development:
         'El estudiante está trabajando en las tareas del escenario. Sé profesional, guiá sin dar respuestas directas. NO evalúes ni califiques.',
       milestone:

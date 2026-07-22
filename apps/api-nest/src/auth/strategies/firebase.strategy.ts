@@ -40,10 +40,14 @@ export class FirebaseStrategy extends PassportStrategy(Strategy, 'jwt') {
         };
         const user = await this.usersService.findById(payload.sub);
         if (!user || (user as any).is_active === false) {
-          throw new UnauthorizedException('Cuenta desactivada. Contacte al administrador.');
+          throw new UnauthorizedException({
+            message: 'Cuenta desactivada. Contacte al administrador.',
+            code: 'ACCOUNT_DEACTIVATED',
+          });
         }
         return { sub: user.id, id: user.id, email: user.email, role: user.role };
-      } catch {
+      } catch (err) {
+        if (err instanceof UnauthorizedException) throw err;
         throw new UnauthorizedException('Invalid token');
       }
     }
@@ -56,7 +60,10 @@ export class FirebaseStrategy extends PassportStrategy(Strategy, 'jwt') {
         name: (decoded.name as string) || decoded.email?.split('@')[0] || 'Usuario',
       });
       if (!user.is_active) {
-        throw new UnauthorizedException('Cuenta desactivada. Contacte al administrador.');
+        throw new UnauthorizedException({
+          message: 'Cuenta desactivada. Contacte al administrador.',
+          code: 'ACCOUNT_DEACTIVATED',
+        });
       }
       return { sub: user.id, id: user.id, email: user.email, role: user.role };
     } catch (err) {

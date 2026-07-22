@@ -12,4 +12,7 @@ export class CreateSponsorDto {
   @IsOptional()
   @IsString()
   website?: string;
+
+  @IsOptional()
+  logo_file?: any;
 }

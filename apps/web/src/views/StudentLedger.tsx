@@ -331,7 +331,7 @@ const StudentLedger = () => {
               </div>
               <div className="text-right text-xs text-muted-foreground italic">
                 <Info className="w-3 h-3 inline mr-1" />
-                Legajo generado por <strong>admin</strong>
+                Legajo generado por <strong>{user?.name || user?.email || 'el sistema'}</strong>
               </div>
             </div>
           </CardContent>

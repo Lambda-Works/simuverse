@@ -90,13 +90,6 @@ export class CourseConfigService {
     });
   }
 
-  async getSystemPrompt(courseId: string): Promise<string> {
-    const config = await this.prisma.courseConfig.findUnique({
-      where: { course_id: courseId },
-    });
-    return (config?.ia_config as any)?.systemPrompt || '';
-  }
-
   private async createDefaultConfig(courseId: string, category: string) {
     const familyTypeMap: Record<string, string> = {
       administracion: 'administration',

@@ -110,7 +110,10 @@ export class CoursesService {
     return this.stripPassword(course);
   }
 
-  async catalog(q?: string) {
+  async catalog(opts: { q?: string; tag?: string; page?: number; limit?: number } = {}) {
+    const page = Math.max(1, opts.page ?? 1);
+    const limit = Math.min(100, Math.max(1, opts.limit ?? 20));
+
     const courses = await this.prisma.course.findMany({
       where: { is_active: true },
       include: {
@@ -123,32 +126,48 @@ export class CoursesService {
       orderBy: { title: 'asc' },
     });
 
-    const needle = (q || '').trim().toLowerCase();
-    const filtered = !needle
-      ? courses
-      : courses.filter((c) => {
-          const titleMatch = c.title.toLowerCase().includes(needle);
-          const teacherMatch = c.teachers.some(
-            (t) =>
-              t.teacher.name.toLowerCase().includes(needle) ||
-              t.teacher.email.toLowerCase().includes(needle),
-          );
-          return titleMatch || teacherMatch;
-        });
+    const courseTags = (c: (typeof courses)[number]): string[] => {
+      const cats = Array.isArray(c.categories) ? (c.categories as string[]) : [];
+      return [c.category, ...cats].filter(Boolean).map((t) => String(t));
+    };
 
-    return filtered.map((c) => ({
-      id: c.id,
-      course_id: c.course_id,
-      title: c.title,
-      description: c.description,
-      category: c.category,
-      requires_password: !!c.password_hash,
-      teachers: c.teachers.map((t) => ({
-        id: t.teacher.id,
-        name: t.teacher.name,
-        email: t.teacher.email,
+    const needle = (opts.q || '').trim().toLowerCase();
+    const tag = (opts.tag || '').trim().toLowerCase();
+    const filtered = courses.filter((c) => {
+      const matchesNeedle =
+        !needle ||
+        c.title.toLowerCase().includes(needle) ||
+        c.teachers.some(
+          (t) =>
+            t.teacher.name.toLowerCase().includes(needle) ||
+            t.teacher.email.toLowerCase().includes(needle),
+        );
+      const matchesTag = !tag || courseTags(c).some((t) => t.toLowerCase() === tag);
+      return matchesNeedle && matchesTag;
+    });
+
+    const total = filtered.length;
+    const paged = filtered.slice((page - 1) * limit, page * limit);
+
+    return {
+      data: paged.map((c) => ({
+        id: c.id,
+        course_id: c.course_id,
+        title: c.title,
+        description: c.description,
+        category: c.category,
+        tags: courseTags(c),
+        requires_password: !!c.password_hash,
+        teachers: c.teachers.map((t) => ({
+          id: t.teacher.id,
+          name: t.teacher.name,
+          email: t.teacher.email,
+        })),
       })),
-    }));
+      total,
+      page,
+      limit,
+    };
   }
 
   /** Syncs one course's *_ids arrays into their junction tables. Undefined = leave untouched; [] = clear all. */
@@ -471,5 +490,61 @@ export class CoursesService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Permanently delete a course and everything under it. FK-backed children are
+   * removed by ON DELETE CASCADE; the tables below store course/instance/simulation
+   * ids WITHOUT a foreign key, so we clean them explicitly to avoid orphan rows.
+   */
+  async permanentDelete(id: string) {
+    const course = await this.prisma.course.findUnique({ where: { id } });
+    if (!course) throw new NotFoundException('Course not found');
+
+    return this.prisma.$transaction(async (tx) => {
+      const instances = await tx.simulationInstance.findMany({
+        where: { course_id: id },
+        select: { id: true },
+      });
+      const simulations = await tx.simulation.findMany({
+        where: { course_id: id },
+        select: { id: true },
+      });
+      const instanceIds = instances.map((i) => i.id);
+      const simulationIds = simulations.map((s) => s.id);
+
+      if (instanceIds.length) {
+        await tx.simulationChatLog.deleteMany({
+          where: { simulation_instance_id: { in: instanceIds } },
+        });
+      }
+      if (simulationIds.length) {
+        await tx.simulationEvaluation.deleteMany({
+          where: { simulation_id: { in: simulationIds } },
+        });
+      }
+      await tx.simulationAssignment.deleteMany({ where: { course_id: id } });
+      await tx.courseDocument.deleteMany({ where: { course_id: id } });
+      await tx.flowTemplate.deleteMany({ where: { course_id: id } });
+
+      return tx.course.delete({ where: { id } });
+    });
+  }
+
+  async findCourseSponsors(courseId: string) {
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+      include: {
+        course_sponsors: {
+          include: {
+            sponsor: true,
+          },
+        },
+      },
+    });
+    if (!course) throw new NotFoundException('Course not found');
+    return course.course_sponsors
+      .map((cs) => cs.sponsor)
+      .filter((s) => s && s.is_active);
   }
 }

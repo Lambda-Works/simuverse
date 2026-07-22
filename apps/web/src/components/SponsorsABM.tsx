@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { LogoField, useFilePreview } from '@/components/ui/logo-field';
 import { Globe, Handshake, Plus, RotateCw, Settings, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -51,8 +52,10 @@ export function SponsorsABM() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyForm());
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const filePreviewUrl = useFilePreview(logoFile);
 
   const fetchAll = async () => {
     try {
@@ -64,18 +67,31 @@ export function SponsorsABM() {
 
   useEffect(() => { fetchAll(); }, []);
 
+  const buildPayload = (): FormData | typeof form => {
+    if (!logoFile) return form;
+    const fd = new FormData();
+    Object.entries(form).forEach(([key, value]) => {
+      if (key === 'logo_url') return; // uploaded file wins over the pasted URL
+      fd.append(key, value ?? '');
+    });
+    fd.append('logo_file', logoFile);
+    return fd;
+  };
+
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('El nombre es obligatorio'); return; }
     setSaving(true);
     try {
+      const payload = buildPayload();
       if (editingId) {
-        await apiClient.put(`/sponsors/${editingId}`, form);
+        await apiClient.put(`/sponsors/${editingId}`, payload);
       } else {
-        await apiClient.post('/sponsors', form);
+        await apiClient.post('/sponsors', payload);
       }
       toast.success(editingId ? 'Sponsor actualizado' : 'Sponsor creado');
       setDialogOpen(false);
       setForm(emptyForm());
+      setLogoFile(null);
       setEditingId(null);
       fetchAll();
     } catch (e: any) { toast.error(e.message); }
@@ -84,6 +100,7 @@ export function SponsorsABM() {
 
   const handleEdit = (s: Sponsor) => {
     setForm({ name: s.name, logo_url: s.logo_url || '', website: s.website || '' });
+    setLogoFile(null);
     setEditingId(s.id);
     setDialogOpen(true);
   };
@@ -121,7 +138,7 @@ export function SponsorsABM() {
           <h2 className="text-2xl font-bold flex items-center gap-2"><Handshake className="w-6 h-6" /> Sponsors</h2>
           <p className="text-gray-600 mt-1">Marcas o empresas que patrocinan cursos. Se vinculan desde el formulario del curso.</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={o => { setDialogOpen(o); if (!o) { setForm(emptyForm()); setEditingId(null); } }}>
+        <Dialog open={dialogOpen} onOpenChange={o => { setDialogOpen(o); if (!o) { setForm(emptyForm()); setLogoFile(null); setEditingId(null); } }}>
           {!readOnly && <DialogTrigger asChild>
             <Button><Plus className="w-4 h-4 mr-2" /> Nuevo Sponsor</Button>
           </DialogTrigger>}
@@ -131,8 +148,8 @@ export function SponsorsABM() {
             </DialogHeader>
             <div className="space-y-4 mt-2">
               <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
-                {form.logo_url
-                  ? <img src={form.logo_url} alt="logo" className="w-14 h-14 rounded-full object-cover border" onError={() => {}} />
+                {(filePreviewUrl || form.logo_url)
+                  ? <img src={filePreviewUrl || form.logo_url} alt="logo" className="w-14 h-14 rounded-full object-cover border" onError={() => {}} />
                   : <div className={`w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0 ${form.name ? getColor(form.name) : 'bg-gray-400'}`}>
                       {form.name ? getInitials(form.name) : '?'}
                     </div>
@@ -150,8 +167,12 @@ export function SponsorsABM() {
                   <Input value={form.website} onChange={e => setForm(p => ({ ...p, website: e.target.value }))} placeholder="https://acme.com" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>URL del Logo <span className="text-xs text-gray-400">(opcional)</span></Label>
-                  <Input value={form.logo_url} onChange={e => setForm(p => ({ ...p, logo_url: e.target.value }))} placeholder="https://acme.com/logo.png" />
+                  <LogoField
+                    urlValue={form.logo_url}
+                    onUrlChange={v => setForm(p => ({ ...p, logo_url: v }))}
+                    file={logoFile}
+                    onFileChange={setLogoFile}
+                  />
                 </div>
               </div>
 

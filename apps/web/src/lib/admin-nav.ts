@@ -41,7 +41,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     icon: Bot,
     items: [
       { id: 'prompt-templates', label: 'Prompts por curso', icon: BotMessageSquare, permissionCode: 'templates.prompts' },
-      { id: 'sessions', label: 'Sesiones', icon: Play, permissionCode: 'sessions.manage' },
+      { id: 'sessions', label: 'Sesiones del curso', icon: Play, permissionCode: 'sessions.manage' },
     ],
   },
   {

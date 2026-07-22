@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Source_Sans_3 } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
+import { Footer } from '@/components/Footer'
 
 const sourceSans = Source_Sans_3({
   subsets: ['latin'],
@@ -38,8 +39,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" className={sourceSans.variable}>
-      <body className="font-sans antialiased">
-        <Providers>{children}</Providers>
+      <body className="font-sans antialiased min-h-screen flex flex-col">
+        <div className="flex-1">
+          <Providers>{children}</Providers>
+        </div>
+        <Footer />
       </body>
     </html>
   )

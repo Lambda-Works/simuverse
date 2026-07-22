@@ -53,6 +53,8 @@ export function StudentReviewModal({ instanceId, studentId, courseTitle, open, o
   const score = data?.evaluation ? Number(data.evaluation.overall_score) : null;
   const passed = score !== null && score >= 70;
   const distinction = score !== null && score >= 85;
+  const isCompleted = data?.instance?.status === 'completed' || !!data?.instance?.completed_at;
+  const tutorName = data?.instance?.course?.teachers?.[0]?.teacher?.name as string | undefined;
   const incorrectLogs = (data?.logs || []).filter(l => l.is_correct === 0);
   const correctLogs = (data?.logs || []).filter(l => l.is_correct === 1);
 
@@ -67,10 +69,16 @@ export function StudentReviewModal({ instanceId, studentId, courseTitle, open, o
     <Dialog open={open} onOpenChange={open => !open && onClose()}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
             <MessageSquare className="w-5 h-5 text-blue-600" />
             Revisión: {courseTitle}
+            {isCompleted && (
+              <Badge className="bg-green-100 text-green-700 border-green-300 border text-xs">Completado</Badge>
+            )}
           </DialogTitle>
+          {tutorName && (
+            <p className="text-sm text-muted-foreground">Tutor del curso: <span className="font-medium">{tutorName}</span></p>
+          )}
         </DialogHeader>
 
         {loading ? (

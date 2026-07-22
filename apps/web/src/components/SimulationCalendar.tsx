@@ -55,6 +55,19 @@ export function SimulationCalendar({ studentId }: { studentId?: string }) {
   const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
   const [filterStudent, setFilterStudent] = useState<string>(studentId || 'all');
   const [students, setStudents] = useState<any[]>([]);
+  // ms offset between the server clock and the client clock, so "today" and
+  // date comparisons don't drift when the user's machine has the wrong timezone/clock.
+  const [serverOffset, setServerOffset] = useState(0);
+  const serverNow = () => new Date(Date.now() + serverOffset);
+
+  useEffect(() => {
+    apiClient.get('/health')
+      .then(r => {
+        const ts = r.data?.timestamp;
+        if (ts) setServerOffset(new Date(ts).getTime() - Date.now());
+      })
+      .catch(() => { /* fall back to client clock */ });
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -86,9 +99,9 @@ export function SimulationCalendar({ studentId }: { studentId?: string }) {
       ...a,
       course_title: a.course_title || `Asignación #${a.id}`,
       attempts_remaining: (a.max_attempts || 1) - (a.attempts_used || 0),
-      calendar_status: a.end_date && new Date(a.end_date) < new Date() && a.status !== 'completed'
+      calendar_status: a.end_date && new Date(a.end_date) < serverNow() && a.status !== 'completed'
         ? 'expired'
-        : a.start_date && new Date(a.start_date) > new Date()
+        : a.start_date && new Date(a.start_date) > serverNow()
         ? 'upcoming'
         : a.status === 'completed' ? 'completed' : 'active',
     }));
@@ -140,7 +153,7 @@ export function SimulationCalendar({ studentId }: { studentId?: string }) {
   };
 
   const calendarDays = buildCalendar();
-  const today = new Date();
+  const today = serverNow();
   const isToday = (d: Date) => d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
 
   const displayAssignments = getDisplayAssignments();

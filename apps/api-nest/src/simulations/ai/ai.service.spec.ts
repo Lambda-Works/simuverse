@@ -92,8 +92,8 @@ describe('AIService', () => {
         ...basePromptData,
         chatbot_humano_enabled: true,
       });
-      expect(prompt).toContain('REGLA INQUEBRANTABLE');
-      expect(prompt).toContain('RESPUESTA DEBE SER');
+      expect(prompt).toContain('RECHAZAR ÚNICAMENTE');
+      expect(prompt).toContain('EXCEPCIONES');
     });
 
     it('should include off-topic guard when chatbot_humano_enabled is false (universal guard)', () => {
@@ -101,7 +101,7 @@ describe('AIService', () => {
         ...basePromptData,
         chatbot_humano_enabled: false,
       });
-      expect(prompt).toContain('REGLA INQUEBRANTABLE');
+      expect(prompt).toContain('REGLA: Solo podés hablar sobre temas relacionados');
     });
 
     it('should include off-topic guard for BOTH chatbot_humano_enabled true AND false (universal guard)', () => {
@@ -131,8 +131,8 @@ describe('AIService', () => {
         ...basePromptData,
         chatbot_humano_enabled: true,
       });
-      expect(prompt).toContain('REGLA INQUEBRANTABLE');
-      expect(prompt).toContain('RESPUESTA DEBE SER');
+      expect(prompt).toContain('REGLA: Solo podés hablar sobre temas relacionados');
+      expect(prompt).toContain('Si debés rechazar, respondé:');
     });
 
     it('should include state instruction when current_state is provided', () => {
@@ -157,6 +157,42 @@ describe('AIService', () => {
     it('should NOT contain hardcoded INSTRUCCIONES CRÍTICAS', () => {
       const prompt = service.buildSystemPrompt(basePromptData);
       expect(prompt).not.toContain('INSTRUCCIONES CRÍTICAS');
+    });
+
+    it('includes a custom system_prompt when provided', () => {
+      const prompt = service.buildSystemPrompt({
+        ...basePromptData,
+        system_prompt: 'Actuá como un cliente enojado que reclama por un producto defectuoso.',
+      });
+      expect(prompt).toContain('Actuá como un cliente enojado que reclama por un producto defectuoso.');
+    });
+
+    it('leads with the custom system_prompt before base_role', () => {
+      const prompt = service.buildSystemPrompt({
+        ...basePromptData,
+        system_prompt: 'PROMPT_PERSONALIZADO_MARCADOR',
+      });
+      expect(prompt.indexOf('PROMPT_PERSONALIZADO_MARCADOR')).toBeLessThan(
+        prompt.indexOf('Sos un profesor de contabilidad.'),
+      );
+    });
+
+    it('includes a custom coaching_prompt under a coaching section', () => {
+      const prompt = service.buildSystemPrompt({
+        ...basePromptData,
+        coaching_prompt: 'Guiá al alumno con preguntas socráticas, sin dar la respuesta.',
+      });
+      expect(prompt).toContain('GUÍA DE COACHING');
+      expect(prompt).toContain('Guiá al alumno con preguntas socráticas, sin dar la respuesta.');
+    });
+
+    it('omits custom prompt sections when they are empty or whitespace', () => {
+      const prompt = service.buildSystemPrompt({
+        ...basePromptData,
+        system_prompt: '   ',
+        coaching_prompt: '',
+      });
+      expect(prompt).not.toContain('GUÍA DE COACHING');
     });
 
     it('should prepend employment axis content when available', () => {

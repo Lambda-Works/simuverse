@@ -703,6 +703,8 @@ export class TechSheetsService {
     const coachingPrompt =
       dto.coaching_prompt !== undefined ? dto.coaching_prompt : undefined;
 
+    // Single transaction: techSheetPrompt + extracted_data + CourseConfig sync.
+    // If any step fails, nothing is persisted — no more partial saves.
     await (this.prisma as any).$transaction(async (tx: any) => {
       if (systemPrompt !== undefined) {
         await tx.techSheetPrompt.upsert({
@@ -726,83 +728,83 @@ export class TechSheetsService {
           },
         });
       }
+
+      // Keep JSONB analyzed_config.prompts in sync when present
+      const extractedData = (sheet.extracted_data as Record<string, any>) || {};
+      if (extractedData.analyzed_config || systemPrompt !== undefined || coachingPrompt !== undefined) {
+        const prevPrompts = extractedData.analyzed_config?.prompts || {};
+        const updatedExtractedData = {
+          ...extractedData,
+          analyzed_config: {
+            ...(extractedData.analyzed_config || {}),
+            prompts: {
+              ...prevPrompts,
+              ...(systemPrompt !== undefined && { system_prompt: systemPrompt }),
+              ...(coachingPrompt !== undefined && { coaching_prompt: coachingPrompt }),
+            },
+          },
+        };
+        await tx.techSheet.update({
+          where: { id },
+          data: { extracted_data: updatedExtractedData },
+        });
+      }
+
+      // Sync CourseConfig used by simulation chat (if course linked)
+      if (sheet.course_id) {
+        const existingPrompts = await tx.techSheetPrompt.findMany({
+          where: { tech_sheet_id: id },
+        });
+        const sys =
+          systemPrompt ??
+          existingPrompts.find((p: any) => p.type === 'system')?.content ??
+          '';
+        const coach =
+          coachingPrompt ??
+          existingPrompts.find((p: any) => p.type === 'coaching')?.content ??
+          '';
+
+        const existingConfig = await tx.courseConfig.findUnique({
+          where: { course_id: sheet.course_id },
+        });
+        const prevIa =
+          existingConfig?.ia_config && typeof existingConfig.ia_config === 'object'
+            ? existingConfig.ia_config
+            : {};
+
+        const configData = {
+          ia_config: {
+            ...prevIa,
+            systemPrompt: sys,
+            coachingPrompt: coach,
+            temperature: prevIa.temperature ?? 0.7,
+            maxTokens: prevIa.maxTokens ?? 4000,
+          },
+          tech_sheet_id: id,
+          prompt_generation_mode: 'guided' as const,
+          prompt_generated_at: new Date(),
+          ...(dto.base_role !== undefined && { base_role: dto.base_role }),
+          ...(dto.course_context !== undefined && { course_context: dto.course_context }),
+          ...(dto.knowledge_base_prompt !== undefined && {
+            knowledge_base_prompt: dto.knowledge_base_prompt,
+          }),
+        };
+
+        await tx.courseConfig.upsert({
+          where: { course_id: sheet.course_id },
+          update: configData,
+          create: {
+            course_id: sheet.course_id,
+            config_data: {
+              source: 'prompt_editor',
+              sheet_id: id,
+              generated_at: new Date().toISOString(),
+            },
+            ...configData,
+          },
+        });
+      }
     });
-
-    // Keep JSONB analyzed_config.prompts in sync when present
-    const extractedData = (sheet.extracted_data as Record<string, any>) || {};
-    if (extractedData.analyzed_config || systemPrompt !== undefined || coachingPrompt !== undefined) {
-      const prevPrompts = extractedData.analyzed_config?.prompts || {};
-      const updatedExtractedData = {
-        ...extractedData,
-        analyzed_config: {
-          ...(extractedData.analyzed_config || {}),
-          prompts: {
-            ...prevPrompts,
-            ...(systemPrompt !== undefined && { system_prompt: systemPrompt }),
-            ...(coachingPrompt !== undefined && { coaching_prompt: coachingPrompt }),
-          },
-        },
-      };
-      await (this.prisma as any).techSheet.update({
-        where: { id },
-        data: { extracted_data: updatedExtractedData },
-      });
-    }
-
-    // Sync CourseConfig used by simulation chat (if course linked)
-    if (sheet.course_id) {
-      const existingPrompts = await (this.prisma as any).techSheetPrompt.findMany({
-        where: { tech_sheet_id: id },
-      });
-      const sys =
-        systemPrompt ??
-        existingPrompts.find((p: any) => p.type === 'system')?.content ??
-        '';
-      const coach =
-        coachingPrompt ??
-        existingPrompts.find((p: any) => p.type === 'coaching')?.content ??
-        '';
-
-      const existingConfig = await (this.prisma as any).courseConfig.findUnique({
-        where: { course_id: sheet.course_id },
-      });
-      const prevIa =
-        existingConfig?.ia_config && typeof existingConfig.ia_config === 'object'
-          ? existingConfig.ia_config
-          : {};
-
-      const configData = {
-        ia_config: {
-          ...prevIa,
-          systemPrompt: sys,
-          coachingPrompt: coach,
-          temperature: prevIa.temperature ?? 0.7,
-          maxTokens: prevIa.maxTokens ?? 4000,
-        },
-        tech_sheet_id: id,
-        prompt_generation_mode: 'guided' as const,
-        prompt_generated_at: new Date(),
-        ...(dto.base_role !== undefined && { base_role: dto.base_role }),
-        ...(dto.course_context !== undefined && { course_context: dto.course_context }),
-        ...(dto.knowledge_base_prompt !== undefined && {
-          knowledge_base_prompt: dto.knowledge_base_prompt,
-        }),
-      };
-
-      await (this.prisma as any).courseConfig.upsert({
-        where: { course_id: sheet.course_id },
-        update: configData,
-        create: {
-          course_id: sheet.course_id,
-          config_data: {
-            source: 'prompt_editor',
-            sheet_id: id,
-            generated_at: new Date().toISOString(),
-          },
-          ...configData,
-        },
-      });
-    }
 
     return this.getConfig(id);
   }
