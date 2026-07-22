@@ -21,6 +21,12 @@ UPDATE "system_functionalities" SET "code" = 'documents.manage' WHERE "id" = 16;
 UPDATE "system_functionalities" SET "code" = 'teacher_groups.manage' WHERE "id" = 17;
 UPDATE "system_functionalities" SET "code" = 'sessions.manage' WHERE "id" = 18;
 
+-- Catch-all: assign a safe unique code to any row not covered by the explicit backfill above.
+-- Needed for DBs that had rows beyond ID 18 inserted by older seeds.
+UPDATE "system_functionalities"
+SET "code" = 'legacy.' || "id"::text
+WHERE "code" IS NULL;
+
 -- AlterTable: Make code NOT NULL after backfill
 ALTER TABLE "system_functionalities" ALTER COLUMN "code" SET NOT NULL;
 
