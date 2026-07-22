@@ -224,6 +224,7 @@ export class CoursesController {
     @Body() dto: UpdateCourseDto,
     @CurrentUser() user: { id: string; role: string },
   ) {
+    console.log('Update payload received in API:', JSON.stringify(dto, null, 2));
     return this.coursesService.update(id, dto, user);
   }
 

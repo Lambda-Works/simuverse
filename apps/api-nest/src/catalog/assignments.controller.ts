@@ -29,6 +29,8 @@ export class AssignmentsController {
   constructor(private assignmentsService: AssignmentsService) {}
 
   @Get('assignments')
+  @Roles('admin', 'teacher', 'student')
+  @Permissions('assignments.read')
   async findAll(
     @Query('student_id') studentId?: string,
     @Query('course_id') courseId?: string,
@@ -42,16 +44,22 @@ export class AssignmentsController {
   }
 
   @Get('assignments/student/:studentId')
+  @Roles('admin', 'teacher', 'student')
+  @Permissions('assignments.read')
   async findByStudent(@Param('studentId') studentId: string) {
     return this.assignmentsService.findByStudent(studentId);
   }
 
   @Get('assignments/course/:courseId')
+  @Roles('admin', 'teacher', 'student')
+  @Permissions('assignments.read')
   async findByCourse(@Param('courseId') courseId: string) {
     return this.assignmentsService.findByCourse(courseId);
   }
 
   @Get('assignments/:id')
+  @Roles('admin', 'teacher', 'student')
+  @Permissions('assignments.read')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.assignmentsService.findOne(id);
   }

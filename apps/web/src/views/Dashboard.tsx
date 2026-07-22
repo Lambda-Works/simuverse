@@ -64,10 +64,11 @@ const Dashboard = () => {
   const [catalogPage, setCatalogPage] = useState(1);
   const [catalogTotal, setCatalogTotal] = useState(0);
   const CATALOG_LIMIT = 20;
-  const [enrollPassword, setEnrollPassword] = useState('');
+  const [enrollPasswords, setEnrollPasswords] = useState<Record<string, string>>({});
   const [enrollingId, setEnrollingId] = useState<string | null>(null);
   const [enrollError, setEnrollError] = useState('');
   const [enrollErrorCourseId, setEnrollErrorCourseId] = useState<string | null>(null);
+  const [showCatalog, setShowCatalog] = useState(false);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) router.push('/auth');
@@ -99,9 +100,9 @@ const Dashboard = () => {
     setEnrollingId(courseId);
     try {
       await apiClient.post(`/courses/${courseId}/enroll`, {
-        password: requiresPassword ? enrollPassword : undefined,
+        password: requiresPassword ? enrollPasswords[courseId] : undefined,
       });
-      setEnrollPassword('');
+      setEnrollPasswords((prev) => ({ ...prev, [courseId]: '' }));
       // refresh assignments
       if (user) {
         const assignRes = await apiClient.get(`/assignments?student_id=${user.id}`);
@@ -111,6 +112,9 @@ const Dashboard = () => {
         const allCourses: Course[] = coursesRes.data || [];
         const assignedCourseIds = new Set(assignList.map((a: Assignment) => a.course_id));
         setCourses(allCourses.filter((c) => assignedCourseIds.has(c.id)));
+        
+        setShowCatalog(false);
+        toast.success('¡Inscripción exitosa!');
       }
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || 'No se pudo inscribir al curso';
@@ -209,6 +213,7 @@ const Dashboard = () => {
 
   const isStudentOnly = hasRole('student') && !hasRole('teacher') && !hasRole('admin') && !hasRole('supervisor');
   const hasNoAssignments = isStudentOnly && assignments.length === 0;
+  const displayCatalog = hasNoAssignments || showCatalog;
 
   return (
     <div className="min-h-screen bg-background">
@@ -216,14 +221,23 @@ const Dashboard = () => {
       <main className="container mx-auto px-4 py-8">
 
         {/* ── CASO: alumno sin cursos → buscar e inscribirse ── */}
-        {hasNoAssignments ? (
+        {displayCatalog ? (
           <div className="max-w-2xl mx-auto">
+            {showCatalog && !hasNoAssignments && (
+              <Button 
+                variant="ghost" 
+                className="mb-4 text-muted-foreground"
+                onClick={() => setShowCatalog(false)}
+              >
+                ← Volver a mis cursos
+              </Button>
+            )}
             <div className="text-center mb-8">
               <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <GraduationCap className="w-10 h-10 text-primary" />
               </div>
               <h1 className="text-3xl font-bold text-foreground">
-                ¡Bienvenido/a, {user?.name}!
+                {showCatalog && !hasNoAssignments ? 'Inscribirse a un nuevo curso' : `¡Bienvenido/a, ${user?.name}!`}
               </h1>
               <p className="text-muted-foreground mt-2 text-lg">
                 Buscá un curso por nombre o docente e inscribite para comenzar.
@@ -280,9 +294,9 @@ const Dashboard = () => {
                           </p>
                           {c.tags && c.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1.5 mt-2">
-                              {c.tags.map((tag) => (
+                              {Array.from(new Set(c.tags)).map((tag, index) => (
                                 <button
-                                  key={tag}
+                                  key={`${tag}-${index}`}
                                   type="button"
                                   onClick={() => { const next = catalogTag === tag ? '' : tag; setCatalogTag(next); loadCatalog(catalogQ, next, 1); }}
                                 >
@@ -301,9 +315,9 @@ const Dashboard = () => {
                           <Input
                             type="password"
                             placeholder="Contraseña del curso"
-                            value={enrollingId === c.id || !enrollingId ? enrollPassword : ''}
+                            value={enrollPasswords[c.id] || ''}
                             onChange={(e) => {
-                              setEnrollPassword(e.target.value);
+                              setEnrollPasswords((prev) => ({ ...prev, [c.id]: e.target.value }));
                               if (enrollErrorCourseId === c.id) { setEnrollError(''); setEnrollErrorCourseId(null); }
                             }}
                             className={enrollErrorCourseId === c.id ? 'border-red-500 focus-visible:ring-red-500' : ''}
@@ -351,19 +365,24 @@ const Dashboard = () => {
         ) : (
           /* ── CASO NORMAL: mostrar cursos ──────────────────────────────────── */
           <>
-            <div className="mb-6 sm:mb-8">
-              <h1 className="text-2xl sm:text-3xl font-bold">
-                {isStudentOnly
-                  ? `Bienvenido, ${user?.name || 'Estudiante'}`
-                  : 'Panel de Control'}
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                {isStudentOnly
-                  ? courses.length > 0
-                    ? `Tenés ${courses.length} simulación${courses.length !== 1 ? 'es' : ''} asignada${courses.length !== 1 ? 's' : ''}. Hacé click en "Iniciar" para comenzar.`
-                    : 'Aquí verás tus simulaciones asignadas.'
-                  : 'Gestione cursos y simulaciones'}
-              </p>
+            <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold">
+                  {isStudentOnly
+                    ? `Bienvenido, ${user?.name || 'Estudiante'}`
+                    : 'Panel de Control'}
+                </h1>
+                <p className="text-muted-foreground mt-1">
+                  {isStudentOnly
+                    ? courses.length > 0
+                      ? `Tenés ${courses.length} simulación${courses.length !== 1 ? 'es' : ''} asignada${courses.length !== 1 ? 's' : ''}. Hacé click en "Iniciar" para comenzar.`
+                      : 'Aquí verás tus simulaciones asignadas.'
+                    : 'Gestione cursos y simulaciones'}
+                </p>
+              </div>
+              <Button onClick={() => setShowCatalog(true)}>
+                <GraduationCap className="w-4 h-4 mr-2" /> Inscribirse a un nuevo curso
+              </Button>
             </div>
 
             {/* ── Guía paso a paso para alumnos ───────────────────────────────── */}

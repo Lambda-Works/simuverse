@@ -398,7 +398,13 @@ export class PracticesService {
     });
 
     this.sessionMemory.invalidate(instanceId);
-    return { instance: updated, summary };
+
+    // Check if all practices are now completed
+    const practices = await this.listByCourse(instance.course_id);
+    const completedIds = await this.getCompletedScenarioIds(studentId, instance.course_id);
+    const allCompleted = practices.every((p) => completedIds.has(p.id));
+
+    return { instance: updated, summary, all_completed: allCompleted };
   }
 
   difficultyLabel(difficulty?: string | null): string {
@@ -409,6 +415,8 @@ export class PracticesService {
   async getPracticePromptExtras(instanceId: string): Promise<{
     agent_key?: string;
     difficulty?: string;
+    practice_title?: string;
+    practice_context?: string;
     prior_context?: string;
   }> {
     const instance = await this.prisma.simulationInstance.findUnique({
@@ -449,6 +457,8 @@ export class PracticesService {
     return {
       agent_key: instance.scenario.agent_key || `practica-${instance.scenario.sequence_index}`,
       difficulty: this.difficultyLabel(instance.scenario.difficulty),
+      practice_title: instance.scenario.title,
+      practice_context: instance.scenario.description || (instance.scenario.content as any)?.system_prompt_excerpt || (instance.scenario.content as any)?.context || '',
       prior_context: prior || undefined,
     };
   }

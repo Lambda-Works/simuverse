@@ -286,6 +286,11 @@ describe('PracticesService', () => {
 
   describe('completePractice', () => {
     it('summarizes transcript and stores practice_summary', async () => {
+      prismaMock.scenario.findMany.mockResolvedValue(practices);
+      prismaMock.simulationInstance.findMany.mockResolvedValue([
+        { scenario_id: 'p1' },
+        { scenario_id: 'p2' },
+      ]);
       prismaMock.simulationInstance.findUnique.mockResolvedValue({
         id: 'inst-1',
         student_id: studentId,
@@ -316,10 +321,15 @@ describe('PracticesService', () => {
         }),
       );
       expect(result.summary).toBe('Resumen de la sesión sin calificación.');
+      expect(result.all_completed).toBe(true);
       expect(sessionMemoryMock.invalidate).toHaveBeenCalledWith('inst-1');
     });
 
     it('should write encore_summary to session_state on complete', async () => {
+      prismaMock.scenario.findMany.mockResolvedValue(practices);
+      prismaMock.simulationInstance.findMany.mockResolvedValue([
+        { scenario_id: 'p1' },
+      ]);
       prismaMock.simulationInstance.findUnique.mockResolvedValue({
         id: 'inst-1',
         student_id: studentId,
@@ -336,8 +346,9 @@ describe('PracticesService', () => {
       });
       prismaMock.simulationInstance.update.mockResolvedValue({});
 
-      await service.completePractice(studentId, 'inst-1');
+      const result = await service.completePractice(studentId, 'inst-1');
 
+      expect(result.all_completed).toBe(false);
       expect(prismaMock.simulationInstance.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({

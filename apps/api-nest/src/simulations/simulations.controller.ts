@@ -245,15 +245,27 @@ export class SimulationsController {
         course_context: config?.course_context || '',
       };
 
+      const actualUserMessage = dto.message === '[INICIO_SIMULACION]' 
+        ? 'Inicia la simulación dando el mensaje de bienvenida. Sé cálido, presentate brevemente, mencioná el nombre de la práctica y la dificultad. Presentá la PRIMERA TAREA o SITUACIÓN directamente usando la información del contexto de la práctica. NUNCA digas "¿por dónde querés empezar?" ni preguntes al estudiante qué quiere hacer. VOS presentás la situación, el estudiante responde.' 
+        : dto.message;
+
       const aiResponse = await this.aiService.sendMessage(
-        dto.message,
+        actualUserMessage,
         systemPrompt,
         [],
         fallbackCtx,
       );
 
-      this.sessionMemory.append(id, { speaker: 'student', message: dto.message });
+      if (dto.message !== '[INICIO_SIMULACION]') {
+        this.sessionMemory.append(id, { speaker: 'student', message: dto.message });
+      }
       this.sessionMemory.append(id, { speaker: 'ai', message: aiResponse.response });
+
+      // Persist first interaction immediately so welcome message survives page navigation
+      const turnCount = this.sessionMemory.getTurnCount(id);
+      if (turnCount <= 2) {
+        await this.checkpoint.checkpoint(id);
+      }
 
       return { id, message: dto.message, response: aiResponse.response };
     }
@@ -314,16 +326,26 @@ export class SimulationsController {
       }
     }
 
+    const actualUserMessage = dto.message === '[INICIO_SIMULACION]' ? 'Inicia la simulación dando el mensaje de bienvenida.' : dto.message;
+
     const aiResponse = await this.aiService.sendMessage(
-      dto.message,
+      actualUserMessage,
       systemPrompt,
       resolvedHistory,
       fallbackCtx,
     );
 
     // Buffer in memory only — DB flush via 2-min checkpoint / close
-    this.sessionMemory.append(id, { speaker: 'student', message: dto.message });
+    if (dto.message !== '[INICIO_SIMULACION]') {
+      this.sessionMemory.append(id, { speaker: 'student', message: dto.message });
+    }
     this.sessionMemory.append(id, { speaker: 'ai', message: aiResponse.response });
+
+    // Persist first interaction immediately so welcome message survives page navigation
+    const turnCount = this.sessionMemory.getTurnCount(id);
+    if (turnCount <= 2) {
+      await this.checkpoint.checkpoint(id);
+    }
 
     const combinedResponse =
       proactiveMessages.length > 0

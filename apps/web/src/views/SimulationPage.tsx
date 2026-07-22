@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/services/ApiClient';
-import { ArrowLeft, BarChart3, Bot, CheckCircle2, ChevronDown, ChevronUp, ExternalLink, FileText, Loader, Lock, Mail, MessageSquare, Paperclip, Send, User } from 'lucide-react';
+import { ArrowLeft, BarChart3, Bot, CheckCircle2, ChevronDown, ChevronUp, ExternalLink, FileText, Loader, Lock, Mail, MessageSquare, Paperclip, Pencil, Send, User } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -81,6 +81,9 @@ const SimulationPage: React.FC = () => {
   const [replyOpen, setReplyOpen] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
+  const [sentReplies, setSentReplies] = useState<Record<string, string>>({});
+  const [editingEmailId, setEditingEmailId] = useState<string | null>(null);
+  const [editedReplyText, setEditedReplyText] = useState('');
   const [documents, setDocuments] = useState<Document[]>([]);
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [spreadsheet, setSpreadsheet] = useState<any>(null);
@@ -95,6 +98,7 @@ const SimulationPage: React.FC = () => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const initStartedRef = useRef(false);
 
   const handleDownloadExcel = () => {
     if (!spreadsheet?.data) {
@@ -206,34 +210,7 @@ const SimulationPage: React.FC = () => {
             : null);
         setCurrentPractice(activePractice);
 
-        const scenarioTitle =
-          activePractice?.title ||
-          practiceMeta?.title ||
-          courseRes.data?.scenario?.title ||
-          courseRes.data?.title ||
-          'Simulación';
-        const scenarioContext =
-          activePractice?.description ||
-          courseRes.data?.scenario?.content?.context ||
-          courseRes.data?.description ||
-          '';
-        const agentLabel = activePractice?.agent_key || practiceMeta?.agent_key;
-
-        const introLines: string[] = [];
-        if (agentLabel) introLines.push(`📋 ${agentLabel}`);
-        if (scenarioTitle) introLines.push(`📚 ${scenarioTitle}`);
-        if (activePractice?.difficulty_label) {
-          introLines.push(`\nDificultad: ${activePractice.difficulty_label}`);
-        }
-        if (scenarioContext) introLines.push(`\n${scenarioContext}`);
-        if (practiceMeta?.prior_context) {
-          introLines.push(`\n📎 Contexto de prácticas anteriores:\n${practiceMeta.prior_context}`);
-        }
-        introLines.push('\n¿Por dónde querés empezar? Podés hacer preguntas, proponer soluciones o analizar la situación.');
-
-        setChatMessages([{ role: 'ai', message: introLines.join('\n'), timestamp: new Date() }]);
-
-        // Hydrate chat from last checkpoint (resume)
+        // Check for existing messages
         try {
           const msgRes = await apiClient.get(`/simulations/${sessionId}/messages`);
           const turns = msgRes.data?.messages || [];
@@ -245,9 +222,24 @@ const SimulationPage: React.FC = () => {
                 timestamp: t.created_at ? new Date(t.created_at) : new Date(),
               })),
             );
+          } else {
+            // Trigger AI initial greeting if session is empty
+            if (!initStartedRef.current) {
+              initStartedRef.current = true;
+              setChatMessages([{ role: 'ai', message: 'Iniciando simulación...', timestamp: new Date() }]);
+              try {
+                const initRes = await apiClient.post(`/simulations/${sessionId}/message`, {
+                  message: '[INICIO_SIMULACION]',
+                  conversationHistory: [],
+                });
+                setChatMessages([{ role: 'ai', message: initRes.data.response, timestamp: new Date() }]);
+              } catch (err) {
+                setChatMessages([{ role: 'ai', message: 'Error al iniciar simulación. Recargá la página.', timestamp: new Date() }]);
+              }
+            }
           }
         } catch {
-          /* keep intro message */
+          // If we fail to fetch, just leave empty for now
         }
 
         try {
@@ -382,9 +374,19 @@ const SimulationPage: React.FC = () => {
     if (!simId) return;
     setCompletingPractice(true);
     try {
-      await apiClient.put(`/simulations/${simId}/complete`);
-      toast.success('Práctica completada. Cargando la siguiente...');
-      window.location.reload();
+      const res = await apiClient.put(`/simulations/${simId}/complete`);
+      if (res.data?.all_completed) {
+        toast.success('¡Felicitaciones! Completaste todas las prácticas del curso.');
+        // Redirect to courses view after a brief delay
+        setTimeout(() => {
+          if (user?.role === 'admin') router.push('/admin/mis-cursos');
+          else if (user?.role === 'teacher') router.push('/profesor/cursos');
+          else router.push('/estudiante/cursos');
+        }, 2000);
+      } else {
+        toast.success('Práctica completada. Cargando la siguiente...');
+        window.location.reload();
+      }
     } catch {
       toast.error('No se pudo completar la práctica');
       setCompletingPractice(false);
@@ -443,6 +445,7 @@ const SimulationPage: React.FC = () => {
       const aiMsg = { role: 'ai' as const, message: res.data.response, timestamp: new Date() };
       setChatMessages(prev => [...prev, aiMsg]);
       setEmails(prev => prev.map(e => (e.id === selectedEmail.id ? { ...e, unread: false } : e)));
+      setSentReplies(prev => ({ ...prev, [selectedEmail.id]: replyText.trim() }));
       setReplyText('');
       setReplyOpen(false);
       setActiveTab('chat');
@@ -450,6 +453,32 @@ const SimulationPage: React.FC = () => {
     } catch (error) {
       console.error('Error sending email reply:', error);
       toast.error('No se pudo enviar la respuesta. Intentá de nuevo.');
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
+  const sendEditedEmailReply = async () => {
+    if (!selectedEmail || !editedReplyText.trim()) return;
+    const composed = `[Corrección de respuesta al correo de ${selectedEmail.from} — "${selectedEmail.subject}"]\n\n${editedReplyText.trim()}`;
+    setSendingReply(true);
+    const userMsg = { role: 'user' as const, message: composed, timestamp: new Date() };
+    setChatMessages(prev => [...prev, userMsg]);
+    try {
+      const res = await apiClient.post(`/simulations/${simId}/message`, {
+        message: composed,
+        conversationHistory: chatMessages.map(m => ({ role: m.role === 'ai' ? 'model' : 'user', content: m.message })),
+      });
+      const aiMsg = { role: 'ai' as const, message: res.data.response, timestamp: new Date() };
+      setChatMessages(prev => [...prev, aiMsg]);
+      setSentReplies(prev => ({ ...prev, [selectedEmail.id]: editedReplyText.trim() }));
+      setEditingEmailId(null);
+      setEditedReplyText('');
+      setActiveTab('chat');
+      toast.success('Corrección enviada');
+    } catch (error) {
+      console.error('Error sending edited email reply:', error);
+      toast.error('No se pudo enviar la corrección. Intentá de nuevo.');
     } finally {
       setSendingReply(false);
     }
@@ -791,7 +820,7 @@ const SimulationPage: React.FC = () => {
                         {emails.map(email => (
                           <button
                             key={email.id}
-                            onClick={() => { setSelectedEmail(email); setReplyOpen(false); setReplyText(''); }}
+                            onClick={() => { setSelectedEmail(email); setReplyOpen(false); setReplyText(''); setEditingEmailId(null); setEditedReplyText(''); }}
                             className={`w-full text-left p-3 rounded-lg border transition ${
                               selectedEmail?.id === email.id
                                 ? 'bg-primary text-primary-foreground border-primary'
@@ -825,7 +854,58 @@ const SimulationPage: React.FC = () => {
                             <p className="text-sm text-muted-foreground">Mensaje:</p>
                             <p className="mt-2">{selectedEmail.body}</p>
                           </div>
-                          {!replyOpen ? (
+                          {editingEmailId === selectedEmail.id ? (
+                            <div className="space-y-2 border-t pt-4">
+                              <p className="text-sm text-muted-foreground">
+                                Editando respuesta a <span className="font-semibold">{selectedEmail.from}</span>
+                              </p>
+                              <Textarea
+                                value={editedReplyText}
+                                onChange={e => setEditedReplyText(e.target.value)}
+                                placeholder="Escribí tu corrección..."
+                                rows={5}
+                                autoFocus
+                              />
+                              <div className="flex gap-2">
+                                <Button
+                                  className="gap-2"
+                                  onClick={sendEditedEmailReply}
+                                  disabled={!editedReplyText.trim() || sendingReply}
+                                >
+                                  <Send className="w-4 h-4" />
+                                  {sendingReply ? 'Guardando...' : 'Guardar corrección'}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => { setEditingEmailId(null); setEditedReplyText(''); }}
+                                  disabled={sendingReply}
+                                >
+                                  Cancelar
+                                </Button>
+                              </div>
+                            </div>
+                          ) : sentReplies[selectedEmail.id] ? (
+                            <div className="space-y-2 border-t pt-4">
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-semibold text-muted-foreground">Tu respuesta:</p>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="gap-1.5"
+                                  onClick={() => {
+                                    setEditingEmailId(selectedEmail.id);
+                                    setEditedReplyText(sentReplies[selectedEmail.id]);
+                                  }}
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                  Editar
+                                </Button>
+                              </div>
+                              <p className="text-sm bg-muted/50 p-3 rounded-md whitespace-pre-wrap">
+                                {sentReplies[selectedEmail.id]}
+                              </p>
+                            </div>
+                          ) : !replyOpen ? (
                             <Button
                               className="w-full gap-2"
                               onClick={() => { setReplyOpen(true); setReplyText(''); }}

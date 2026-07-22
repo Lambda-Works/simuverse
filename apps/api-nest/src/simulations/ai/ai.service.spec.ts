@@ -92,8 +92,8 @@ describe('AIService', () => {
         ...basePromptData,
         chatbot_humano_enabled: true,
       });
-      expect(prompt).toContain('REGLA INQUEBRANTABLE');
-      expect(prompt).toContain('RESPUESTA DEBE SER');
+      expect(prompt).toContain('RECHAZAR ÚNICAMENTE');
+      expect(prompt).toContain('EXCEPCIONES');
     });
 
     it('should include off-topic guard when chatbot_humano_enabled is false (universal guard)', () => {
@@ -101,7 +101,7 @@ describe('AIService', () => {
         ...basePromptData,
         chatbot_humano_enabled: false,
       });
-      expect(prompt).toContain('REGLA INQUEBRANTABLE');
+      expect(prompt).toContain('REGLA: Solo podés hablar sobre temas relacionados');
     });
 
     it('should include off-topic guard for BOTH chatbot_humano_enabled true AND false (universal guard)', () => {
@@ -131,8 +131,8 @@ describe('AIService', () => {
         ...basePromptData,
         chatbot_humano_enabled: true,
       });
-      expect(prompt).toContain('REGLA INQUEBRANTABLE');
-      expect(prompt).toContain('RESPUESTA DEBE SER');
+      expect(prompt).toContain('REGLA: Solo podés hablar sobre temas relacionados');
+      expect(prompt).toContain('Si debés rechazar, respondé:');
     });
 
     it('should include state instruction when current_state is provided', () => {
