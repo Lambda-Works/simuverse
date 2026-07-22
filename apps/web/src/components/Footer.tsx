@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { SponsorCarousel, SponsorItem } from '@/components/SponsorCarousel';
 import { apiClient } from '@/services/ApiClient';
 import { Code2 } from 'lucide-react';
@@ -10,7 +11,11 @@ interface FooterProps {
   className?: string;
 }
 
-export function Footer({ sponsors: initialSponsors, courseId, className = '' }: FooterProps) {
+export function Footer({ sponsors: initialSponsors, courseId: propCourseId, className = '' }: FooterProps) {
+  const pathname = usePathname();
+  const match = pathname?.match(/^\/(?:simulation|courses)\/([a-zA-Z0-9-]+)/);
+  const courseId = propCourseId || (match ? match[1] : undefined);
+
   const [sponsors, setSponsors] = useState<SponsorItem[]>(initialSponsors || []);
   const [imgError, setImgError] = useState(false);
 
