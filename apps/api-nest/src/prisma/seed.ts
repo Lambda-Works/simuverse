@@ -24,13 +24,15 @@ async function main() {
   console.log('✅ Roles creados');
 
   // System Functionalities (25 codes)
+  // Always upsert by `code` (the @unique field) — never by hardcoded id.
+  // This is safe on both fresh DBs (CI) and existing deployments:
+  //   - fresh DB: INSERT, SERIAL assigns ids automatically, no conflict.
+  //   - existing DB: ON CONFLICT (code) DO UPDATE, existing row updated in place.
   const functionalitiesData = [
-    // ── Existing 4 rows (backfill with codes) ──
-    { id: 1, name: 'Gestión de Usuarios', code: 'users.manage', description: 'Permite administrar usuarios', module: 'Usuarios', route: '/admin/users' },
-    { id: 2, name: 'Configuración de Roles', code: 'rbac.manage', description: 'Permite configurar roles y permisos', module: 'Seguridad', route: '/admin/roles' },
-    { id: 3, name: 'Gestión de Cursos', code: 'courses.manage', description: 'Creación y edición de cursos', module: 'Académico', route: '/admin/courses' },
-    { id: 4, name: 'Reportes', code: 'reports.read', description: 'Ver reportes del sistema', module: 'Reportes', route: '/admin/reports' },
-    // ── 21 new functionality codes ──
+    { name: 'Gestión de Usuarios', code: 'users.manage', description: 'Permite administrar usuarios', module: 'Usuarios', route: '/admin/users' },
+    { name: 'Configuración de Roles', code: 'rbac.manage', description: 'Permite configurar roles y permisos', module: 'Seguridad', route: '/admin/roles' },
+    { name: 'Gestión de Cursos', code: 'courses.manage', description: 'Creación y edición de cursos', module: 'Académico', route: '/admin/courses' },
+    { name: 'Reportes', code: 'reports.read', description: 'Ver reportes del sistema', module: 'Reportes', route: '/admin/reports' },
     { name: 'Lectura de Usuarios', code: 'users.read', description: 'Ver listado de usuarios', module: 'Usuarios', route: '/admin/users' },
     { name: 'Lectura de Cursos', code: 'courses.read', description: 'Ver cursos disponibles', module: 'Académico', route: '/admin/courses' },
     { name: 'Lectura de Escenarios', code: 'scenarios.read', description: 'Ver escenarios de práctica', module: 'Académico', route: '/admin/scenarios' },
@@ -55,20 +57,12 @@ async function main() {
   ];
 
   for (const f of functionalitiesData) {
-    const { id, ...data } = f as any;
-    if (id) {
-      await prisma.systemFunctionality.upsert({
-        where: { id },
-        update: data,
-        create: { id, ...data },
-      });
-    } else {
-      await prisma.systemFunctionality.upsert({
-        where: { code: data.code },
-        update: data,
-        create: data,
-      });
-    }
+    const { name, code, description, module: mod, route } = f;
+    await prisma.systemFunctionality.upsert({
+      where: { code },
+      update: { name, description, module: mod, route },
+      create: { name, code, description, module: mod, route },
+    });
   }
   console.log(`✅ ${functionalitiesData.length} funcionalidades creadas`);
 
